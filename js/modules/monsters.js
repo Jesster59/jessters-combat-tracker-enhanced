@@ -51,7 +51,7 @@ class MonsterManager {
         <div class="flex items-center space-x-1" title="Health Points">
           <span>❤️</span>
           <input type="number" class="hp-input bg-gray-600 rounded px-1 py-0.5 w-full text-center" 
-                 value="${monsterData.hp}" data-max-hp="${monsterData.hp}">
+                 value="${monsterData.hp}" data-max-hp="${monsterData.hp}" data-last-value="${monsterData.hp}">
           <span>/${monsterData.hp}</span>
         </div>
         <div class="flex items-center space-x-1" title="Armor Class">
@@ -100,6 +100,26 @@ class MonsterManager {
     const nameElement = monsterCard.querySelector('.combatant-name');
     if (nameElement && nameElement.parentNode) {
       nameElement.parentNode.appendChild(conditionBtn);
+    }
+    
+    // Add damage tracking for concentration checks
+    const hpInput = monsterCard.querySelector('.hp-input');
+    if (hpInput) {
+      hpInput.addEventListener('change', (e) => {
+        const newValue = parseInt(e.target.value) || 0;
+        const oldValue = parseInt(e.target.dataset.lastValue || e.target.dataset.maxHp || 0);
+        e.target.dataset.lastValue = newValue;
+        
+        // If HP decreased, it might be damage
+        if (newValue < oldValue) {
+          const damage = oldValue - newValue;
+          
+          // Check for concentration
+          if (this.app.spells) {
+            this.app.spells.checkConcentration(monsterCard.id, damage);
+          }
+        }
+      });
     }
     
     // Add to monsters list
