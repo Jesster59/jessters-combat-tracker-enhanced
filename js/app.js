@@ -74,7 +74,7 @@ class JesstersCombatTracker {
       this.audio.init();
       
       // Load data
-      this.data.loadInitialData();
+      await this.data.loadInitialData();
       
       this.logEvent("Jesster's Combat Tracker v" + this.version + " initialized successfully.");
       console.log("Jesster's Combat Tracker v" + this.version + " initialized successfully.");
@@ -109,25 +109,26 @@ class JesstersCombatTracker {
       
       // Try to sign in anonymously
       console.log("Signing in anonymously...");
+      var self = this;
       this.auth.signInAnonymously().then(function(userCredential) {
-        this.userId = userCredential.user.uid;
-        console.log("Firebase authenticated. User ID:", this.userId);
-      }.bind(this)).catch(function(error) {
+        self.userId = userCredential.user.uid;
+        console.log("Firebase authenticated. User ID:", self.userId);
+      }).catch(function(error) {
         console.error("Anonymous sign-in failed:", error);
-        this.offlineMode = true;
-      }.bind(this));
+        self.offlineMode = true;
+      });
       
       // Listen for auth state changes
       this.auth.onAuthStateChanged(function(user) {
         if (user) {
-          this.userId = user.uid;
-          console.log("Firebase authenticated. User ID:", this.userId);
+          self.userId = user.uid;
+          console.log("Firebase authenticated. User ID:", self.userId);
         } else {
-          this.userId = null;
+          self.userId = null;
           console.log("Firebase user signed out.");
-          this.offlineMode = true;
+          self.offlineMode = true;
         }
-      }.bind(this));
+      });
       
       console.log("Firebase initialized successfully.");
       return true;
