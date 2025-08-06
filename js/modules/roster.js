@@ -1,3 +1,7 @@
+/**
+ * Roster Manager for Jesster's Combat Tracker
+ * Handles hero roster management
+ */
 class RosterManager {
   constructor(app) {
     this.app = app;
