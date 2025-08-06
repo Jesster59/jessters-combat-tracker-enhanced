@@ -1,3 +1,5 @@
+// js/app.js - CORRECTED VERSION
+
 // Import Firebase modules
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
 import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
@@ -18,15 +20,10 @@ import { EncounterBuilder } from "./modules/encounter.js";
 
 /**
  * Main application class for Jesster's Combat Tracker Enhanced
- * 
- * This application uses content from the 5e SRD (System Reference Document),
- * which is licensed under the Open Gaming License (OGL) Version 1.0a.
- * 
- * The SRD content is copyright of Wizards of the Coast LLC.
  */
 class JesstersCombatTracker {
   constructor() {
-    this.version = "3.0.1"; // Updated version number
+    this.version = "3.0.2"; // Updated version number
     this.elements = {};
     this.state = {
       combatLog: [],
