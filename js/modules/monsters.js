@@ -67,6 +67,19 @@ class MonsterManager {
       </div>
     `;
     
+    // Add hidden data
+    const hiddenData = document.createElement('div');
+    hiddenData.className = 'hidden-data hidden';
+    hiddenData.dataset.str = monsterData.str || 10;
+    hiddenData.dataset.dex = monsterData.dex || 10;
+    hiddenData.dataset.con = monsterData.con || 10;
+    hiddenData.dataset.int = monsterData.int || 10;
+    hiddenData.dataset.wis = monsterData.wis || 10;
+    hiddenData.dataset.cha = monsterData.cha || 10;
+    hiddenData.dataset.conditionsData = '[]';
+    
+    monsterCard.appendChild(hiddenData);
+    
     // Add event listeners
     const removeBtn = monsterCard.querySelector('.remove-btn');
     removeBtn.addEventListener('click', () => {
