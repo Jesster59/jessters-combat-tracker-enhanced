@@ -1,3 +1,7 @@
+/**
+ * Audio Manager for Jesster's Combat Tracker
+ * Handles sound effects
+ */
 class AudioManager {
   constructor(app) {
     this.app = app;
