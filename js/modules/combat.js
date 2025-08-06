@@ -90,6 +90,11 @@ class CombatManager {
     document.getElementById('roll-all-btn').disabled = true;
     document.getElementById('end-turn-btn').disabled = false;
     
+    // Reset action economy for all combatants
+    if (this.app.actions) {
+      this.app.actions.resetAllActionEconomy();
+    }
+    
     this.updateTurnIndicator();
     this.app.logEvent("Combat Started!");
   }
@@ -230,6 +235,11 @@ class CombatManager {
     // Set new current turn
     this.app.state.currentTurn = sortedCombatants[nextIndex].id;
     
+    // Reset action economy for the next combatant
+    if (this.app.actions) {
+      this.app.actions.resetActionEconomy(sortedCombatants[nextIndex].id);
+    }
+    
     // Log new turn
     const nextName = sortedCombatants[nextIndex].querySelector('.combatant-name').textContent;
     this.app.logEvent(`${nextName}'s turn begins.`);
@@ -264,6 +274,15 @@ class CombatManager {
     // Set new current turn
     this.app.state.currentTurn = nextTurn;
     
+    // Reset action economy for the next team
+    if (this.app.actions) {
+      const nextTeamSelector = nextTurn === 'heroes' ? '#heroes-list .combatant-card' : '#monsters-list .combatant-card';
+      const nextTeamCards = Array.from(document.querySelectorAll(nextTeamSelector));
+      nextTeamCards.forEach(card => {
+        this.app.actions.resetActionEconomy(card.id);
+      });
+    }
+    
     // Log new turn
     this.app.logEvent(`${nextTurn === 'heroes' ? 'Heroes' : 'Monsters'} turn begins.`);
   }
@@ -297,13 +316,21 @@ class CombatManager {
     // Set new current turn
     this.app.state.currentTurn = nextTurn;
     
+    // Reset action economy for the next team
+    if (this.app.actions) {
+      const nextTeamSelector = nextTurn === 'heroes' ? '#heroes-list .combatant-card' : '#monsters-list .combatant-card';
+      const nextTeamCards = Array.from(document.querySelectorAll(nextTeamSelector));
+      nextTeamCards.forEach(card => {
+        this.app.actions.resetActionEconomy(card.id);
+      });
+    }
+    
     // Log new turn
     this.app.logEvent(`${nextTurn === 'heroes' ? 'Heroes' : 'Monsters'} turn begins.`);
   }
   
   processEndOfTurnEffects(card) {
     // Process any effects that happen at the end of a turn
-    // This is a placeholder for now
     console.log(`Processing end of turn effects for ${card.querySelector('.combatant-name')?.textContent || 'Unknown'}`);
     
     // Check for any conditions that end at the end of a turn
@@ -319,19 +346,11 @@ class CombatManager {
   
   resetActionEconomy() {
     // Reset action economy for all combatants
-    // This is a placeholder for now
     console.log("Resetting action economy for all combatants");
     
-    // In a real implementation, this would reset actions, bonus actions, reactions, etc.
-    const allCombatants = [
-      ...Array.from(document.querySelectorAll('#heroes-list .combatant-card')),
-      ...Array.from(document.querySelectorAll('#monsters-list .combatant-card'))
-    ];
-    
-    allCombatants.forEach(card => {
-      // Reset action economy for this combatant
-      // This would be implemented in a real application
-    });
+    if (this.app.actions) {
+      this.app.actions.resetAllActionEconomy();
+    }
   }
   
   resetCombat() {
