@@ -7,6 +7,7 @@ class AudioManager {
     this.app = app;
     this.sounds = {};
     this.enabled = true;
+    this.maxDuration = 6; // Maximum duration in seconds
   }
   
   init() {
@@ -30,6 +31,14 @@ class AudioManager {
         const path = soundFiles[name];
         this.sounds[name] = new Audio(path);
         this.sounds[name].preload = 'auto';
+        
+        // Add event listener to stop audio after maxDuration
+        this.sounds[name].addEventListener('timeupdate', () => {
+          if (this.sounds[name].currentTime >= this.maxDuration) {
+            this.sounds[name].pause();
+            this.sounds[name].currentTime = 0;
+          }
+        });
         
         // Add error handler to prevent console errors if sound files are missing
         this.sounds[name].addEventListener('error', () => {
@@ -55,6 +64,14 @@ class AudioManager {
         // Ignore errors (common in browsers that block autoplay)
         console.log(`Could not play sound: ${soundName}`, error);
       });
+      
+      // Set a timeout to stop the sound after maxDuration
+      setTimeout(() => {
+        if (!sound.paused) {
+          sound.pause();
+          sound.currentTime = 0;
+        }
+      }, this.maxDuration * 1000);
     }
   }
   
