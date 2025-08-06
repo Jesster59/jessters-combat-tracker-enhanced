@@ -3,41 +3,53 @@
  */
 class JesstersCombatTracker {
   constructor() {
-    this.version = "3.1.0"; // Updated version number
-    this.elements = {};
-    this.state = {
-      combatLog: [],
-      combatStarted: false,
-      currentTurn: null,
-      roundNumber: 1
-    };
-    
-    // Firebase related properties
-    this.firebase = null;
-    this.db = null;
-    this.auth = null;
-    this.userId = null;
-    this.offlineMode = false;
-    
-    // Initialize managers
-    this.ui = new UIManager(this);
-    this.combat = new CombatManager(this);
-    this.roster = new RosterManager(this);
-    this.monsters = new MonsterManager(this);
-    this.dice = new DiceManager(this);
-    this.data = new DataManager(this);
-    this.audio = new AudioManager(this);
-    this.theme = new ThemeManager(this);
-    this.history = new ActionHistory(this);
-    this.spells = new SpellTracker(this);
-    this.encounter = new EncounterBuilder(this);
-    this.conditions = new ConditionsManager(this);
-    this.actions = new ActionEconomyTracker(this);
+  this.version = "3.1.0"; // Updated version number
+  this.elements = {};
+  this.state = {
+    combatLog: [],
+    combatStarted: false,
+    currentTurn: null,
+    roundNumber: 1
+  };
+  
+  // Firebase related properties
+  this.firebase = null;
+  this.db = null;
+  this.auth = null;
+  this.userId = null;
+  this.offlineMode = false;
+  
+  // Initialize managers
+  this.ui = new UIManager(this);
+  this.combat = new CombatManager(this);
+  this.roster = new RosterManager(this);
+  this.monsters = new MonsterManager(this);
+  this.dice = new DiceManager(this);
+  this.data = new DataManager(this);
+  this.audio = new AudioManager(this);
+  this.theme = new ThemeManager(this);
+  this.history = new ActionHistory(this);
+  this.spells = new SpellTracker(this);
+  this.encounter = new EncounterBuilder(this);
+  this.conditions = new ConditionsManager(this);
+  this.actions = new ActionEconomyTracker(this);
+  
+  // Conditionally initialize legendary actions tracker
+  if (typeof LegendaryActionsTracker !== 'undefined') {
     this.legendary = new LegendaryActionsTracker(this);
-    this.lair = new LairActionsTracker(this);
-    
-    console.log("Jesster's Combat Tracker v" + this.version + " initializing...");
+  } else {
+    console.warn("LegendaryActionsTracker not found. Legendary actions will not be available.");
   }
+  
+  // Conditionally initialize lair actions tracker
+  if (typeof LairActionsTracker !== 'undefined') {
+    this.lair = new LairActionsTracker(this);
+  } else {
+    console.warn("LairActionsTracker not found. Lair actions will not be available.");
+  }
+  
+  console.log("Jesster's Combat Tracker v" + this.version + " initializing...");
+}
   
   async init() {
     try {
