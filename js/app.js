@@ -118,26 +118,39 @@ if (typeof __firebase_config !== 'undefined') {
   }
   
   async initFirebase() {
-    try {
-      const app = initializeApp(__firebase_config);
-      this.firebase = app;
-      this.db = getFirestore(app);
-      this.auth = getAuth(app);
-      
-      // Try to sign in anonymously
-      const userCredential = await signInAnonymously(this.auth);
-      this.userId = userCredential.user.uid;
-      
-      // Listen for auth state changes
-      onAuthStateChanged(this.auth, (user) => {
-        if (user) {
-          this.userId = user.uid;
-          console.log("Firebase authenticated. User ID:", this.userId);
-        } else {
-          this.userId = null;
-          console.log("Firebase user signed out.");
-        }
-      });
+  try {
+    console.log("Initializing Firebase...");
+    const app = initializeApp(__firebase_config);
+    this.firebase = app;
+    this.db = getFirestore(app);
+    this.auth = getAuth(app);
+    
+    // Try to sign in anonymously
+    console.log("Signing in anonymously...");
+    const userCredential = await signInAnonymously(this.auth);
+    this.userId = userCredential.user.uid;
+    
+    // Listen for auth state changes
+    onAuthStateChanged(this.auth, (user) => {
+      if (user) {
+        this.userId = user.uid;
+        console.log("Firebase authenticated. User ID:", this.userId);
+      } else {
+        this.userId = null;
+        console.log("Firebase user signed out.");
+        this.offlineMode = true;
+      }
+    });
+    
+    console.log("Firebase initialized successfully.");
+    return true;
+  } catch (error) {
+    console.error("Firebase initialization failed:", error);
+    this.offlineMode = true;
+    return false;
+  }
+}
+
       
       console.log("Firebase initialized successfully.");
       return true;
