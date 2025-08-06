@@ -95,6 +95,11 @@ class CombatManager {
       this.app.actions.resetAllActionEconomy();
     }
     
+    // Initialize lair actions if enabled
+    if (this.app.lair) {
+      this.app.lair.initializeLairActions();
+    }
+    
     this.updateTurnIndicator();
     this.app.logEvent("Combat Started!");
   }
@@ -235,6 +240,11 @@ class CombatManager {
       if (this.app.legendary) {
         this.app.legendary.resetLegendaryActionsAtRoundStart();
       }
+      
+      // Trigger lair actions at initiative count 20
+      if (this.app.lair) {
+        this.app.lair.triggerLairAction();
+      }
     }
     
     // Set new current turn
@@ -278,6 +288,11 @@ class CombatManager {
       // Reset legendary actions for all monsters
       if (this.app.legendary) {
         this.app.legendary.resetLegendaryActionsAtRoundStart();
+      }
+      
+      // Trigger lair actions at initiative count 20
+      if (this.app.lair) {
+        this.app.lair.triggerLairAction();
       }
     }
     
@@ -325,6 +340,11 @@ class CombatManager {
       // Reset legendary actions for all monsters
       if (this.app.legendary) {
         this.app.legendary.resetLegendaryActionsAtRoundStart();
+      }
+      
+      // Trigger lair actions at initiative count 20
+      if (this.app.lair) {
+        this.app.lair.triggerLairAction();
       }
     }
     
