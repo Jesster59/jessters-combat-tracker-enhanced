@@ -3,7 +3,7 @@
  */
 class JesstersCombatTracker {
   constructor() {
-    this.version = "3.0.5"; // Updated version number
+    this.version = "3.0.6"; // Updated version number
     this.elements = {};
     this.state = {
       combatLog: [],
@@ -46,6 +46,9 @@ class JesstersCombatTracker {
       
       // Render the UI directly
       this.ui.renderInitialUI(appContainer);
+      
+      // Give the browser a moment to render the UI before caching elements
+      await new Promise(resolve => setTimeout(resolve, 100));
       
       // Now that the UI is rendered, cache the elements
       console.log("Caching DOM elements...");
