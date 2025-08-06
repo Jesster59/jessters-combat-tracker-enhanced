@@ -1,27 +1,9 @@
-// Import Firebase modules
-import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-import { getFirestore } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-// Import our modules
-import { UIManager } from "./modules/ui.js";
-import { CombatManager } from "./modules/combat.js";
-import { RosterManager } from "./modules/roster.js";
-import { MonsterManager } from "./modules/monsters.js";
-import { DiceManager } from "./modules/dice.js";
-import { DataManager } from "./modules/data.js";
-import { AudioManager } from "./modules/audio.js";
-import { ThemeManager } from "./modules/theme.js";
-import { ActionHistory } from "./modules/history.js";
-import { SpellTracker } from "./modules/spells.js";
-import { EncounterBuilder } from "./modules/encounter.js";
-
 /**
  * Main application class for Jesster's Combat Tracker Enhanced
  */
 class JesstersCombatTracker {
   constructor() {
-    this.version = "3.0.3"; // Updated version number
+    this.version = "3.0.5"; // Updated version number
     this.elements = {};
     this.state = {
       combatLog: [],
@@ -50,7 +32,7 @@ class JesstersCombatTracker {
     this.spells = new SpellTracker(this);
     this.encounter = new EncounterBuilder(this);
     
-    console.log(`Jesster's Combat Tracker v${this.version} initializing...`);
+    console.log("Jesster's Combat Tracker v" + this.version + " initializing...");
   }
   
   async init() {
@@ -73,35 +55,29 @@ class JesstersCombatTracker {
       console.log("Setting up event listeners...");
       this.ui.setupEventListeners();
 
-      // Initialize Firebase if config is available
-if (typeof __firebase_config !== 'undefined') {
-  try {
-    const firebaseInitialized = await this.initFirebase();
-    if (!firebaseInitialized) {
-      this.offlineMode = true;
-      console.log("Running in offline mode due to Firebase initialization failure.");
-      this.logEvent("Running in offline mode. Your data will be saved locally.");
-    }
-  } catch (error) {
-    this.offlineMode = true;
-    console.error("Firebase initialization error:", error);
-    this.logEvent("Firebase error. Running in offline mode.");
-  }
-} else {
-  this.offlineMode = true;
-  console.log("Firebase config not found. Running in offline mode.");
-  this.logEvent("Running in offline mode. Your data will be saved locally.");
-}
+      // Initialize Firebase
+      try {
+        const firebaseInitialized = this.initFirebase();
+        if (!firebaseInitialized) {
+          this.offlineMode = true;
+          console.log("Running in offline mode due to Firebase initialization failure.");
+          this.logEvent("Running in offline mode. Your data will be saved locally.");
+        }
+      } catch (error) {
+        this.offlineMode = true;
+        console.error("Firebase initialization error:", error);
+        this.logEvent("Firebase error. Running in offline mode.");
+      }
       
       // Initialize managers that need initialization
       this.theme.init();
       this.audio.init();
       
       // Load data
-      await this.data.loadInitialData();
+      this.data.loadInitialData();
       
-      this.logEvent(`Jesster's Combat Tracker v${this.version} initialized successfully.`);
-      console.log(`Jesster's Combat Tracker v${this.version} initialized successfully.`);
+      this.logEvent("Jesster's Combat Tracker v" + this.version + " initialized successfully.");
+      console.log("Jesster's Combat Tracker v" + this.version + " initialized successfully.");
 
     } catch (error) {
       console.error("Error initializing application:", error);
@@ -109,7 +85,7 @@ if (typeof __firebase_config !== 'undefined') {
       
       // Try to log the error if the UI is available
       try {
-        this.logEvent(`Error initializing application: ${error.message}. Running in offline mode.`);
+        this.logEvent("Error initializing application: " + error.message + ". Running in offline mode.");
       } catch (e) {
         // If logging fails, just console.error
         console.error("Could not log error to UI:", e);
@@ -117,40 +93,41 @@ if (typeof __firebase_config !== 'undefined') {
     }
   }
   
-  async initFirebase() {
-  try {
-    console.log("Initializing Firebase...");
-    const app = initializeApp(__firebase_config);
-    this.firebase = app;
-    this.db = getFirestore(app);
-    this.auth = getAuth(app);
-    
-    // Try to sign in anonymously
-    console.log("Signing in anonymously...");
-    const userCredential = await signInAnonymously(this.auth);
-    this.userId = userCredential.user.uid;
-    
-    // Listen for auth state changes
-    onAuthStateChanged(this.auth, (user) => {
-      if (user) {
-        this.userId = user.uid;
-        console.log("Firebase authenticated. User ID:", this.userId);
-      } else {
-        this.userId = null;
-        console.log("Firebase user signed out.");
-        this.offlineMode = true;
+  initFirebase() {
+    try {
+      console.log("Initializing Firebase...");
+      
+      // Use the globally available Firebase objects
+      if (typeof firebase === 'undefined') {
+        console.error("Firebase is not defined. Make sure Firebase scripts are loaded.");
+        return false;
       }
-    });
-    
-    console.log("Firebase initialized successfully.");
-    return true;
-  } catch (error) {
-    console.error("Firebase initialization failed:", error);
-    this.offlineMode = true;
-    return false;
-  }
-}
-
+      
+      this.firebase = firebase;
+      this.db = firebase.firestore();
+      this.auth = firebase.auth();
+      
+      // Try to sign in anonymously
+      console.log("Signing in anonymously...");
+      this.auth.signInAnonymously().then(function(userCredential) {
+        this.userId = userCredential.user.uid;
+        console.log("Firebase authenticated. User ID:", this.userId);
+      }.bind(this)).catch(function(error) {
+        console.error("Anonymous sign-in failed:", error);
+        this.offlineMode = true;
+      }.bind(this));
+      
+      // Listen for auth state changes
+      this.auth.onAuthStateChanged(function(user) {
+        if (user) {
+          this.userId = user.uid;
+          console.log("Firebase authenticated. User ID:", this.userId);
+        } else {
+          this.userId = null;
+          console.log("Firebase user signed out.");
+          this.offlineMode = true;
+        }
+      }.bind(this));
       
       console.log("Firebase initialized successfully.");
       return true;
@@ -162,18 +139,19 @@ if (typeof __firebase_config !== 'undefined') {
   }
   
   logEvent(message) {
-    const timestamp = new Date().toLocaleTimeString('en-US', { 
+    var timestamp = new Date().toLocaleTimeString('en-US', { 
       hour: '2-digit', 
       minute: '2-digit', 
       second: '2-digit' 
     });
-    this.state.combatLog.push(`[${timestamp}] ${message}`);
+    this.state.combatLog.push("[" + timestamp + "] " + message);
     this.ui.renderCombatLog();
   }
   
-  showAlert(message, title = 'Notification') {
+  showAlert(message, title) {
+    if (!title) title = 'Notification';
     this.ui.showAlert(message, title);
-    this.logEvent(`Alert: ${title} - ${message}`);
+    this.logEvent("Alert: " + title + " - " + message);
   }
   
   showConfirm(message, onConfirm) {
@@ -182,8 +160,8 @@ if (typeof __firebase_config !== 'undefined') {
 }
 
 // Initialize the application when the DOM is loaded
-document.addEventListener('DOMContentLoaded', () => {
-  const app = new JesstersCombatTracker();
+document.addEventListener('DOMContentLoaded', function() {
+  var app = new JesstersCombatTracker();
   app.init();
   
   // Make app available globally for debugging
