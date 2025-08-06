@@ -240,7 +240,7 @@ class CombatManager {
     // Switch teams
     const nextTurn = currentTurn === 'heroes' ? 'monsters' : 'heroes';
     
-    // Check if this completes a round
+    // Check if this completes a round - only if we're going from monsters back to heroes
     if (nextTurn === 'heroes') {
       this.app.state.roundNumber++;
       document.getElementById('round-counter').textContent = this.app.state.roundNumber;
@@ -249,16 +249,6 @@ class CombatManager {
       
       // Reset action economy for all combatants
       this.resetActionEconomy();
-      
-      // Re-roll initiative for dynamic initiative
-      this.app.logEvent("Re-rolling initiative for new round...");
-      this.rollAllInitiative().then(() => {
-        // Determine which team goes first in the new round
-        this.determineDynamicInitiative();
-        this.updateTurnIndicator();
-        this.updatePlayerView();
-      });
-      return;
     }
     
     // Set new current turn
@@ -283,7 +273,7 @@ class CombatManager {
     // Switch teams
     const nextTurn = currentTurn === 'heroes' ? 'monsters' : 'heroes';
     
-    // Check if this completes a round
+    // Check if this completes a round - only if we're going from monsters back to heroes
     if (nextTurn === 'heroes') {
       this.app.state.roundNumber++;
       document.getElementById('round-counter').textContent = this.app.state.roundNumber;
