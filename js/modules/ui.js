@@ -145,7 +145,66 @@ class UIManager {
       if (element) {
         this.app.elements[this.camelCase(id)] = element;
       } else {
-        console.warn("Element with ID \"" + id + "\" not found.");
+        // Instead of just warning, let's create these elements if they don't exist
+        if (id === 'initiative-type' || id === 'player-hp-view' || id === 'open-player-view-btn') {
+          console.warn(`Element with ID "${id}" not found. Creating it now.`);
+          this.createMissingElement(id);
+        } else {
+          console.warn(`Element with ID "${id}" not found.`);
+        }
+      }
+    }
+  }
+  
+  createMissingElement(id) {
+    // Create missing elements that are critical for the application
+    if (id === 'initiative-type') {
+      const timeline = document.getElementById('combat-timeline');
+      if (timeline) {
+        const div = document.createElement('div');
+        div.className = 'flex items-center bg-gray-700 px-4 py-2 rounded-lg';
+        div.innerHTML = `
+          <span class="text-gray-400 mr-2">Initiative:</span>
+          <select id="initiative-type" class="bg-gray-600 rounded px-2 py-1 text-white">
+            <option value="dynamic">Dynamic (Team)</option>
+            <option value="team">Fixed Team</option>
+            <option value="normal">Individual</option>
+          </select>
+        `;
+        timeline.appendChild(div);
+        this.app.elements.initiativeType = document.getElementById('initiative-type');
+      }
+    } else if (id === 'player-hp-view') {
+      const timeline = document.getElementById('combat-timeline');
+      if (timeline) {
+        const div = document.createElement('div');
+        div.className = 'flex items-center bg-gray-700 px-4 py-2 rounded-lg';
+        div.innerHTML = `
+          <span class="text-gray-400 mr-2">Player View:</span>
+          <select id="player-hp-view" class="bg-gray-600 rounded px-2 py-1 text-white">
+            <option value="descriptive">Descriptive HP</option>
+            <option value="exact">Exact HP</option>
+            <option value="none">No HP</option>
+          </select>
+        `;
+        timeline.appendChild(div);
+        this.app.elements.playerHpView = document.getElementById('player-hp-view');
+      }
+    } else if (id === 'open-player-view-btn') {
+      const timeline = document.getElementById('combat-timeline');
+      if (timeline) {
+        const btn = document.createElement('button');
+        btn.id = 'open-player-view-btn';
+        btn.className = 'bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg';
+        btn.textContent = 'Open Player View';
+        timeline.appendChild(btn);
+        this.app.elements.openPlayerViewBtn = btn;
+        
+        // Add event listener
+        const self = this;
+        btn.addEventListener('click', function() {
+          self.app.combat.openOrRefreshPlayerView();
+        });
       }
     }
   }
@@ -301,6 +360,8 @@ class UIManager {
   }
   
   showAlert(message, title) {
+    if (!title) title = 'Notification';
+    
     var modal = document.createElement('div');
     modal.className = 'fixed inset-0 modal-backdrop flex items-center justify-center z-50 p-4';
     modal.innerHTML = `
