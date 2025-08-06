@@ -12,6 +12,9 @@
             font-family: 'Inter', sans-serif;
             background-color: #1a202c;
             color: #e2e8f0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
         
         /* Add some basic styles for the tracker */
@@ -31,6 +34,15 @@
             padding: 0.5rem;
             background-color: #2d3748;
             border-radius: 0.5rem;
+        }
+        
+        /* Footer styles */
+        .footer {
+            margin-top: auto;
+            font-size: 9px;
+            padding: 0.5rem;
+            text-align: center;
+            color: #718096;
         }
     </style>
     
@@ -57,13 +69,6 @@
     </script>
 </head>
 <body class="p-4">
-    <!-- Attribution Notice -->
-    <div class="bg-gray-800 p-4 rounded-lg mb-6 text-sm">
-        <p><strong>Attribution Notice:</strong> This application uses content from the 5e SRD (System Reference Document), which is licensed under the Open Gaming License (OGL) Version 1.0a.</p>
-        <p>The SRD content is copyright of Wizards of the Coast LLC. Wizards of the Coast, Dungeons & Dragons, D&D, and their logos are trademarks of Wizards of the Coast LLC in the United States and other countries.</p>
-        <p>This application is not affiliated with, endorsed, sponsored, or specifically approved by Wizards of the Coast LLC.</p>
-    </div>
-
     <header class="text-center mb-6">
         <h1 class="text-3xl font-bold text-gray-100">Jesster's Combat Tracker Enhanced</h1>
         <p id="turn-indicator" class="text-2xl font-bold text-yellow-400 mt-2">Waiting to Start</p>
@@ -77,6 +82,15 @@
     <div id="app-container" class="container mx-auto">
         <p class="text-center text-xl">Loading application...</p>
     </div>
+    
+    <!-- Attribution Notice moved to footer -->
+    <footer class="footer mt-8">
+        <div class="bg-gray-800 p-2 rounded-lg mx-auto max-w-4xl">
+            <p><strong>Attribution Notice:</strong> This application uses content from the 5e SRD (System Reference Document), which is licensed under the Open Gaming License (OGL) Version 1.0a.</p>
+            <p>The SRD content is copyright of Wizards of the Coast LLC. Wizards of the Coast, Dungeons & Dragons, D&D, and their logos are trademarks of Wizards of the Coast LLC in the United States and other countries.</p>
+            <p>This application is not affiliated with, endorsed, sponsored, or specifically approved by Wizards of the Coast LLC.</p>
+        </div>
+    </footer>
 
     <!-- Application Scripts - Using traditional script tags instead of modules -->
     <!-- Load all module files first -->
