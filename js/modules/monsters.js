@@ -122,6 +122,13 @@ class MonsterManager {
       });
     }
     
+    // Initialize action economy
+    if (this.app.actions) {
+      setTimeout(() => {
+        this.app.actions.initializeActionEconomy(monsterCard.id);
+      }, 0);
+    }
+    
     // Add to monsters list
     const monstersList = document.getElementById('monsters-list');
     monstersList.appendChild(monsterCard);
