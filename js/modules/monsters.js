@@ -129,6 +129,13 @@ class MonsterManager {
       }, 0);
     }
     
+    // Add legendary actions button
+    if (this.app.legendary) {
+      setTimeout(() => {
+        this.app.legendary.addLegendaryActionsButton(monsterCard.id);
+      }, 0);
+    }
+    
     // Add to monsters list
     const monstersList = document.getElementById('monsters-list');
     monstersList.appendChild(monsterCard);
