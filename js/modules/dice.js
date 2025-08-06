@@ -26,7 +26,9 @@ class DiceManager {
       }
       
       // Play sound
-      this.app.audio.play('diceRoll');
+      if (this.app.audio) {
+        this.app.audio.play('diceRoll');
+      }
       
       return result;
     } catch (error) {
@@ -37,7 +39,7 @@ class DiceManager {
   
   parseDiceExpression(expression) {
     // Trim whitespace
-    expression = expression.trim();
+    expression = expression.trim().toLowerCase();
     
     // Basic validation
     if (!expression) {
@@ -49,46 +51,84 @@ class DiceManager {
       return parseInt(expression);
     }
     
-    // Advanced dice notation regex
-    // Supports: XdY, XdYkh/klZ, XdY+Z, XdY-Z
-    const diceRegex = /^(\d+)d(\d+)(kh|kl)?(\d+)?([+-]\d+)?$/i;
-    const match = expression.match(diceRegex);
+    // Check for standard dice notation first (e.g., 2d6, 1d20)
+    const standardDiceRegex = /^(\d+)d(\d+)$/;
+    const standardMatch = expression.match(standardDiceRegex);
     
-    if (!match) {
-      throw new Error("Invalid dice expression: " + expression);
+    if (standardMatch) {
+      const numDice = parseInt(standardMatch[1]);
+      const dieSize = parseInt(standardMatch[2]);
+      
+      if (numDice <= 0 || dieSize <= 0) {
+        throw new Error("Invalid dice parameters");
+      }
+      
+      // Roll the dice
+      let sum = 0;
+      for (let i = 0; i < numDice; i++) {
+        sum += Math.floor(Math.random() * dieSize) + 1;
+      }
+      
+      return sum;
     }
     
-    const numDice = parseInt(match[1]);
-    const dieSize = parseInt(match[2]);
-    const keepType = match[3] ? match[3].toLowerCase() : null;
-    const keepCount = match[4] ? parseInt(match[4]) : null;
-    const modifier = match[5] ? parseInt(match[5]) : 0;
+    // Check for advantage/disadvantage notation (e.g., 2d20kh1, 2d20kl1)
+    const advantageRegex = /^(\d+)d(\d+)(kh|kl)(\d+)$/;
+    const advantageMatch = expression.match(advantageRegex);
     
-    // Validate dice parameters
-    if (numDice <= 0 || dieSize <= 0) {
-      throw new Error("Invalid dice parameters");
-    }
-    
-    if (keepType && keepCount <= 0) {
-      throw new Error("Invalid keep count");
-    }
-    
-    // Roll the dice
-    let rolls = [];
-    for (let i = 0; i < numDice; i++) {
-      rolls.push(Math.floor(Math.random() * dieSize) + 1);
-    }
-    
-    // Handle keep highest/lowest
-    if (keepType && keepCount) {
+    if (advantageMatch) {
+      const numDice = parseInt(advantageMatch[1]);
+      const dieSize = parseInt(advantageMatch[2]);
+      const keepType = advantageMatch[3]; // 'kh' or 'kl'
+      const keepCount = parseInt(advantageMatch[4]);
+      
+      if (numDice <= 0 || dieSize <= 0 || keepCount <= 0 || keepCount > numDice) {
+        throw new Error("Invalid dice parameters");
+      }
+      
+      // Roll the dice
+      let rolls = [];
+      for (let i = 0; i < numDice; i++) {
+        rolls.push(Math.floor(Math.random() * dieSize) + 1);
+      }
+      
+      // Sort based on keep type
       rolls.sort((a, b) => keepType === 'kh' ? b - a : a - b);
+      
+      // Keep only the specified number of dice
       rolls = rolls.slice(0, keepCount);
+      
+      // Sum the kept dice
+      return rolls.reduce((sum, roll) => sum + roll, 0);
     }
     
-    // Sum the rolls
-    const sum = rolls.reduce((a, b) => a + b, 0) + modifier;
+    // Check for dice with modifiers (e.g., 2d6+3, 1d8-2)
+    const modifierRegex = /^(\d+)d(\d+)([+-]\d+)$/;
+    const modifierMatch = expression.match(modifierRegex);
     
-    return sum;
+    if (modifierMatch) {
+      const numDice = parseInt(modifierMatch[1]);
+      const dieSize = parseInt(modifierMatch[2]);
+      const modifier = parseInt(modifierMatch[3]); // Includes the sign
+      
+      if (numDice <= 0 || dieSize <= 0) {
+        throw new Error("Invalid dice parameters");
+      }
+      
+      // Roll the dice
+      let sum = 0;
+      for (let i = 0; i < numDice; i++) {
+        sum += Math.floor(Math.random() * dieSize) + 1;
+      }
+      
+      // Apply modifier
+      sum += modifier;
+      
+      return sum;
+    }
+    
+    // If we get here, the expression didn't match any of our patterns
+    throw new Error("Invalid dice expression: " + expression);
   }
   
   getHistory() {
