@@ -1,3 +1,7 @@
+/**
+ * Monster Manager for Jesster's Combat Tracker
+ * Handles monster manual and monster management
+ */
 class MonsterManager {
   constructor(app) {
     this.app = app;
