@@ -188,14 +188,6 @@ export class CombatManager {
     
     if (initiativeType === 'normal') {
       this.endNormalInitiativeTurn();
-    } else if (initiative
-  endTurn() {
-    if (!this.app.state.combatStarted) return;
-    
-    const initiativeType = document.getElementById('initiative-type')?.value || 'dynamic';
-    
-    if (initiativeType === 'normal') {
-      this.endNormalInitiativeTurn();
     } else if (initiativeType === 'team') {
       this.endTeamInitiativeTurn();
     } else {
