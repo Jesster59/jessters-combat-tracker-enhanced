@@ -1,3 +1,7 @@
+/**
+ * Dice Manager for Jesster's Combat Tracker
+ * Handles dice rolling functionality
+ */
 class DiceManager {
   constructor(app) {
     this.app = app;
