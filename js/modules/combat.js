@@ -230,6 +230,11 @@ class CombatManager {
       
       // Reset action economy for all combatants
       this.resetActionEconomy();
+      
+      // Reset legendary actions for all monsters
+      if (this.app.legendary) {
+        this.app.legendary.resetLegendaryActionsAtRoundStart();
+      }
     }
     
     // Set new current turn
@@ -269,6 +274,11 @@ class CombatManager {
       
       // Reset action economy for all combatants
       this.resetActionEconomy();
+      
+      // Reset legendary actions for all monsters
+      if (this.app.legendary) {
+        this.app.legendary.resetLegendaryActionsAtRoundStart();
+      }
     }
     
     // Set new current turn
@@ -311,6 +321,11 @@ class CombatManager {
       
       // Reset action economy for all combatants
       this.resetActionEconomy();
+      
+      // Reset legendary actions for all monsters
+      if (this.app.legendary) {
+        this.app.legendary.resetLegendaryActionsAtRoundStart();
+      }
     }
     
     // Set new current turn
@@ -533,7 +548,7 @@ class CombatManager {
     }
   }
   
-  generatePlayerViewCombatants(type) {
+    generatePlayerViewCombatants(type) {
     // Generate HTML for combatants in player view
     // This would be more detailed in a real implementation
     const selector = type === 'heroes' ? '#heroes-list .combatant-card' : '#monsters-list .combatant-card';
