@@ -1,91 +1,166 @@
-// Simplified app.js for testing
-console.log("App.js loading...");
+// Import Firebase modules
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+import { getFirestore } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-document.addEventListener('DOMContentLoaded', () => {
-    console.log("DOM loaded, starting initialization");
+// Import our modules
+import { UIManager } from "./modules/ui.js";
+import { CombatManager } from "./modules/combat.js";
+import { RosterManager } from "./modules/roster.js";
+import { MonsterManager } from "./modules/monsters.js";
+import { DiceManager } from "./modules/dice.js";
+import { DataManager } from "./modules/data.js";
+import { AudioManager } from "./modules/audio.js";
+import { ThemeManager } from "./modules/theme.js";
+import { ActionHistory } from "./modules/history.js";
+import { SpellTracker } from "./modules/spells.js";
+import { EncounterBuilder } from "./modules/encounter.js";
+
+/**
+ * Main application class for Jesster's Combat Tracker Enhanced
+ */
+class JesstersCombatTracker {
+  constructor() {
+    this.version = "3.0.3"; // Updated version number
+    this.elements = {};
+    this.state = {
+      combatLog: [],
+      combatStarted: false,
+      currentTurn: null,
+      roundNumber: 1
+    };
     
-    // Find the app container
-    const appContainer = document.getElementById('app-container');
-    console.log("App container found:", appContainer);
+    // Firebase related properties
+    this.firebase = null;
+    this.db = null;
+    this.auth = null;
+    this.userId = null;
+    this.offlineMode = false;
     
-    if (!appContainer) {
-        console.error("FATAL ERROR: Could not find #app-container");
-        return;
+    // Initialize managers
+    this.ui = new UIManager(this);
+    this.combat = new CombatManager(this);
+    this.roster = new RosterManager(this);
+    this.monsters = new MonsterManager(this);
+    this.dice = new DiceManager(this);
+    this.data = new DataManager(this);
+    this.audio = new AudioManager(this);
+    this.theme = new ThemeManager(this);
+    this.history = new ActionHistory(this);
+    this.spells = new SpellTracker(this);
+    this.encounter = new EncounterBuilder(this);
+    
+    console.log(`Jesster's Combat Tracker v${this.version} initializing...`);
+  }
+  
+  async init() {
+    try {
+      // First, directly render the UI without relying on cached elements
+      console.log("Rendering initial UI...");
+      const appContainer = document.getElementById('app-container');
+      if (!appContainer) {
+        throw new Error("Fatal error: #app-container not found in the document");
+      }
+      
+      // Render the UI directly
+      this.ui.renderInitialUI(appContainer);
+      
+      // Now that the UI is rendered, cache the elements
+      console.log("Caching DOM elements...");
+      this.ui.cacheDOMElements();
+      
+      // Set up event listeners
+      console.log("Setting up event listeners...");
+      this.ui.setupEventListeners();
+
+      // Initialize Firebase if config is available
+      if (typeof __firebase_config !== 'undefined') {
+        await this.initFirebase();
+      } else {
+        this.offlineMode = true;
+        console.log("Firebase config not found. Running in offline mode.");
+      }
+      
+      // Initialize managers that need initialization
+      this.theme.init();
+      this.audio.init();
+      
+      // Load data
+      await this.data.loadInitialData();
+      
+      this.logEvent(`Jesster's Combat Tracker v${this.version} initialized successfully.`);
+      console.log(`Jesster's Combat Tracker v${this.version} initialized successfully.`);
+
+    } catch (error) {
+      console.error("Error initializing application:", error);
+      this.offlineMode = true;
+      
+      // Try to log the error if the UI is available
+      try {
+        this.logEvent(`Error initializing application: ${error.message}. Running in offline mode.`);
+      } catch (e) {
+        // If logging fails, just console.error
+        console.error("Could not log error to UI:", e);
+      }
     }
-    
-    // Render the UI
-    console.log("Rendering UI...");
-    appContainer.innerHTML = `
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <!-- Combat Timeline -->
-            <div class="md:col-span-2 bg-gray-800 p-4 rounded-lg">
-                <h2 class="text-xl font-semibold mb-2">Combat Timeline</h2>
-                <div id="combat-timeline" class="combat-timeline">
-                    <span>Timeline will appear here</span>
-                </div>
-            </div>
-            
-            <!-- Heroes Column -->
-            <div id="heroes-column" class="bg-gray-800 p-4 rounded-lg shadow-lg border-2 border-transparent">
-                <h2 class="text-2xl font-semibold mb-4 text-center text-blue-400">Heroes</h2>
-                <div id="heroes-list" class="overflow-y-auto tracker-column space-y-3 pr-2">
-                    <p class="text-center text-gray-400">No heroes added yet</p>
-                </div>
-                <div class="mt-4">
-                    <button id="add-hero-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md transition-colors duration-300">Add Hero</button>
-                </div>
-            </div>
-            
-            <!-- Monsters Column -->
-            <div id="monsters-column" class="bg-gray-800 p-4 rounded-lg shadow-lg border-2 border-transparent">
-                <h2 class="text-2xl font-semibold mb-4 text-center text-red-400">Monsters</h2>
-                <div id="monsters-list" class="overflow-y-auto tracker-column space-y-3 pr-2">
-                    <p class="text-center text-gray-400">No monsters added yet</p>
-                </div>
-                <div class="mt-4">
-                    <button id="add-monster-btn" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-md transition-colors duration-300">Add Monster</button>
-                </div>
-            </div>
-            
-            <!-- Combat Controls -->
-            <div class="md:col-span-2 flex flex-wrap justify-center gap-4">
-                <button id="roll-all-btn" class="bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded-md transition-colors duration-300">Roll All Initiative</button>
-                <button id="start-combat-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md transition-colors duration-300" disabled>Start Combat</button>
-                <button id="end-turn-btn" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-md transition-colors duration-300" disabled>End Turn</button>
-                <button id="reset-combat-btn" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-md transition-colors duration-300">Reset Combat</button>
-                <button id="end-combat-btn" class="bg-red-700 hover:bg-red-800 text-white font-bold py-2 px-4 rounded-md transition-colors duration-300">End Combat</button>
-            </div>
-            
-            <!-- Combat Log -->
-            <div class="md:col-span-2">
-                <h2 class="text-xl font-bold text-gray-100 mb-2">Combat Log</h2>
-                <div id="combat-log-container" class="border border-gray-700 p-2 rounded-lg h-48 overflow-y-auto">
-                    <p class="text-sm text-gray-400">Combat log will appear here</p>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    // Check if elements were created
-    console.log("Checking if elements were created:");
-    const elementsToCheck = [
-        'combat-log-container', 'roll-all-btn', 'start-combat-btn', 
-        'end-turn-btn', 'reset-combat-btn', 'end-combat-btn',
-        'heroes-list', 'monsters-list', 'add-hero-btn', 'add-monster-btn'
-    ];
-    
-    elementsToCheck.forEach(id => {
-        const element = document.getElementById(id);
-        console.log(`Element #${id} found:`, !!element);
+  }
+  
+  async initFirebase() {
+    try {
+      const app = initializeApp(__firebase_config);
+      this.firebase = app;
+      this.db = getFirestore(app);
+      this.auth = getAuth(app);
+      
+      // Try to sign in anonymously
+      const userCredential = await signInAnonymously(this.auth);
+      this.userId = userCredential.user.uid;
+      
+      // Listen for auth state changes
+      onAuthStateChanged(this.auth, (user) => {
+        if (user) {
+          this.userId = user.uid;
+          console.log("Firebase authenticated. User ID:", this.userId);
+        } else {
+          this.userId = null;
+          console.log("Firebase user signed out.");
+        }
+      });
+      
+      console.log("Firebase initialized successfully.");
+      return true;
+    } catch (error) {
+      console.error("Firebase initialization failed:", error);
+      this.offlineMode = true;
+      return false;
+    }
+  }
+  
+  logEvent(message) {
+    const timestamp = new Date().toLocaleTimeString('en-US', { 
+      hour: '2-digit', 
+      minute: '2-digit', 
+      second: '2-digit' 
     });
-    
-    // Add event listener to test button
-    const addHeroBtn = document.getElementById('add-hero-btn');
-    if (addHeroBtn) {
-        addHeroBtn.addEventListener('click', () => {
-            alert('Add Hero button clicked!');
-        });
-    }
-    
-    console.log("Initialization complete");
+    this.state.combatLog.push(`[${timestamp}] ${message}`);
+    this.ui.renderCombatLog();
+  }
+  
+  showAlert(message, title = 'Notification') {
+    this.ui.showAlert(message, title);
+    this.logEvent(`Alert: ${title} - ${message}`);
+  }
+  
+  showConfirm(message, onConfirm) {
+    this.ui.showConfirm(message, onConfirm);
+  }
+}
+
+// Initialize the application when the DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+  const app = new JesstersCombatTracker();
+  app.init();
+  
+  // Make app available globally for debugging
+  window.jessterApp = app;
 });
