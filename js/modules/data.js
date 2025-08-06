@@ -58,19 +58,79 @@ export class DataManager {
   }
   
   async loadFromFirebase() {
-    // This would be implemented in a real application
-    // For now, just fall back to localStorage
-    this.loadFromLocalStorage();
+  if (!this.app.db || !this.app.userId) {
+    throw new Error("Firebase not initialized or user not authenticated");
   }
   
-  saveToLocalStorage() {
-    try {
-      localStorage.setItem('jesster_heroes', JSON.stringify(this.heroes));
-      localStorage.setItem('jesster_monsters', JSON.stringify(this.monsters));
-      localStorage.setItem('jesster_encounters', JSON.stringify(this.encounters));
-    } catch (error) {
-      console.error("Error saving to localStorage:", error);
-      this.app.showAlert("Could not save data to localStorage. Your browser may have storage restrictions enabled.");
+  const db = this.app.db;
+  const userId = this.app.userId;
+  
+  try {
+    // Import Firestore functions
+    const { doc, getDoc } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
+    
+    // Load heroes
+    const heroesDocRef = doc(db, `users/${userId}/data/heroes`);
+    const heroesDoc = await getDoc(heroesDocRef);
+    if (heroesDoc.exists()) {
+      this.heroes = heroesDoc.data().heroes || [];
     }
+    
+    // Load monsters
+    const monstersDocRef = doc(db, `users/${userId}/data/monsters`);
+    const monstersDoc = await getDoc(monstersDocRef);
+    if (monstersDoc.exists()) {
+      this.monsters = monstersDoc.data().monsters || [];
+    }
+    
+    // Load encounters
+    const encountersDocRef = doc(db, `users/${userId}/data/encounters`);
+    const encountersDoc = await getDoc(encountersDocRef);
+    if (encountersDoc.exists()) {
+      this.encounters = encountersDoc.data().encounters || [];
+    }
+    
+    console.log("Data loaded from Firebase");
+  } catch (error) {
+    console.error("Error loading from Firebase:", error);
+    throw error;
+  }
+}
+
+async saveToFirebase() {
+  if (!this.app.db || !this.app.userId) {
+    throw new Error("Firebase not initialized or user not authenticated");
+  }
+  
+  const db = this.app.db;
+  const userId = this.app.userId;
+  
+  try {
+    // Import Firestore functions
+    const { doc, setDoc } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
+    
+    // Save heroes
+    await setDoc(doc(db, `users/${userId}/data/heroes`), {
+      heroes: this.heroes,
+      updatedAt: new Date()
+    });
+    
+    // Save monsters
+    await setDoc(doc(db, `users/${userId}/data/monsters`), {
+      monsters: this.monsters,
+      updatedAt: new Date()
+    });
+    
+    // Save encounters
+    await setDoc(doc(db, `users/${userId}/data/encounters`), {
+      encounters: this.encounters,
+      updatedAt: new Date()
+    });
+    
+    console.log("Data saved to Firebase");
+    return true;
+  } catch (error) {
+    console.error("Error saving to Firebase:", error);
+    throw error;
   }
 }
