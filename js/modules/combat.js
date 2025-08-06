@@ -150,30 +150,23 @@ class CombatManager {
   }
   
   endTurn() {
-  if (!this.app.state.combatStarted) return;
-  
-  const initiativeType = document.getElementById('initiative-type')?.value || 'dynamic';
-  
-  if (initiativeType === 'normal') {
-    this.endNormalInitiativeTurn();
-  } else if (initiativeType === 'team') {
-    this.endTeamInitiativeTurn();
-  } else {
-    // Default to dynamic initiative
-    this.endDynamicInitiativeTurn();
-  }
-  
-  // Check for expired conditions
-  this.app.conditions.checkExpiredConditions();
-  
-  // Update UI
-  this.updateTurnIndicator();
-  this.app.audio.play('turnEnd');
-  
-  // Update player view
-  this.updatePlayerView();
-}
-
+    if (!this.app.state.combatStarted) return;
+    
+    const initiativeType = document.getElementById('initiative-type')?.value || 'dynamic';
+    
+    if (initiativeType === 'normal') {
+      this.endNormalInitiativeTurn();
+    } else if (initiativeType === 'team') {
+      this.endTeamInitiativeTurn();
+    } else {
+      // Default to dynamic initiative
+      this.endDynamicInitiativeTurn();
+    }
+    
+    // Check for expired conditions
+    if (this.app.conditions) {
+      this.app.conditions.checkExpiredConditions();
+    }
     
     // Update UI
     this.updateTurnIndicator();
@@ -564,7 +557,7 @@ class CombatManager {
         try {
           const conditions = JSON.parse(hiddenData.dataset.conditionsData || '[]');
           conditionsHTML = conditions.map(cond => 
-            `<span class="bg-yellow-600 text-black text-xs font-semibold px-2 py-0.5 rounded-full">${cond.name}</span>`
+            `<span class="bg-yellow-600 text-black text-xs font-semibold px-2 py-0.5 rounded-full">${cond.icon} ${cond.name}</span>`
           ).join(' ');
         } catch (e) { /* ignore */ }
       }
