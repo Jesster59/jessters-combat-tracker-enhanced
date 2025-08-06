@@ -669,11 +669,58 @@ export class CombatManager {
       const initiative = card.querySelector('.initiative-input').value;
       const isActive = card.classList.contains('active-turn');
       
+      // Get HP status for descriptive view
+      const hpInput = card.querySelector('.hp-input');
+      const currentHp = parseInt(hpInput.value);
+      const maxHp = parseInt(hpInput.dataset.maxHp);
+      let hpDisplay = '';
+      const hpView = document.getElementById('player-hp-view')?.value || 'descriptive';
+
+      if (hpView === 'descriptive') {
+        if (maxHp <= 0) {
+            hpDisplay = '<span class="px-2 py-1 text-xs font-bold rounded-full bg-gray-500 text-white">Unknown</span>';
+        } else if (currentHp <= 0) {
+            hpDisplay = '<span class="px-2 py-1 text-xs font-bold rounded-full bg-black text-white">Down</span>';
+        } else {
+            const percentage = (currentHp / maxHp) * 100;
+            if (percentage <= 50) {
+                hpDisplay = '<span class="px-2 py-1 text-xs font-bold rounded-full bg-red-600 text-white">Bloodied</span>';
+            } else if (percentage < 100) {
+                hpDisplay = '<span class="px-2 py-1 text-xs font-bold rounded-full bg-orange-500 text-white">Wounded</span>';
+            } else {
+                hpDisplay = '<span class="px-2 py-1 text-xs font-bold rounded-full bg-green-500 text-white">Unharmed</span>';
+            }
+        }
+      } else if (hpView === 'exact' && type === 'heroes') {
+        hpDisplay = `${currentHp} / ${maxHp} HP`;
+      }
+
+      // Get conditions
+      const hiddenData = card.querySelector('.hidden-data');
+      let conditionsHTML = '';
+      if (hiddenData) {
+        try {
+          const conditions = JSON.parse(hiddenData.dataset.conditionsData || '[]');
+          conditionsHTML = conditions.map(cond => 
+            `<span class="bg-yellow-600 text-black text-xs font-semibold px-2 py-0.5 rounded-full">${cond.name}</span>`
+          ).join(' ');
+        } catch (e) { /* ignore */ }
+      }
+      
       return `
         <div class="bg-gray-800 p-3 rounded-lg ${isActive ? 'border-2 border-yellow-400' : ''}">
           <div class="flex justify-between items-center">
-            <span class="font-bold">${name}</span>
-            <span class="text-xl font-bold">${initiative}</span>
+            <div class="flex items-center">
+              <img src="${card.querySelector('.combatant-img').src}" class="w-12 h-12 rounded-full mr-3 border-2 ${type === 'heroes' ? 'border-blue-300' : 'border-red-300'}">
+              <div>
+                <p class="font-bold">${name}</p>
+                <div class="flex flex-wrap gap-1 mt-1">${conditionsHTML}</div>
+              </div>
+            </div>
+            <div class="text-right">
+              <span class="text-xl font-bold">${initiative}</span>
+              <div class="text-sm text-gray-400 mt-1 h-6">${hpDisplay}</div>
+            </div>
           </div>
         </div>
       `;
@@ -694,12 +741,18 @@ export class CombatManager {
   getCombatantsData(selector) {
     // Get data for all combatants matching the selector
     return Array.from(document.querySelectorAll(selector)).map(card => {
-      // Extract all relevant data from the card
-      // This would be more detailed in a real implementation
+      const hpInput = card.querySelector('.hp-input');
+      const hiddenData = card.querySelector('.hidden-data');
       return {
         id: card.id,
         name: card.querySelector('.combatant-name').textContent,
+        img: card.querySelector('.combatant-img').src,
         initiative: card.querySelector('.initiative-input').value,
+        currentHp: hpInput.value,
+        maxHp: hpInput.dataset.maxHp,
+        ac: card.querySelector('.ac-input').value,
+        pp: card.querySelector('.pp-input').value,
+        conditions: JSON.parse(hiddenData?.dataset.conditionsData || '[]'),
         // Add more properties as needed
       };
     });
