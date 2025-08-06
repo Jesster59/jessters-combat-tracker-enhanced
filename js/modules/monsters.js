@@ -87,6 +87,21 @@ class MonsterManager {
       this.app.logEvent(`Removed ${monsterData.name} from combat.`);
     });
     
+    // Add condition button
+    const conditionBtn = document.createElement('button');
+    conditionBtn.className = 'condition-btn text-yellow-500 hover:text-yellow-400 font-bold text-sm ml-2';
+    conditionBtn.textContent = '+ Condition';
+    conditionBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.app.conditions.showAddConditionModal(monsterCard.id);
+    });
+
+    // Add it to the card
+    const nameElement = monsterCard.querySelector('.combatant-name');
+    if (nameElement && nameElement.parentNode) {
+      nameElement.parentNode.appendChild(conditionBtn);
+    }
+    
     // Add to monsters list
     const monstersList = document.getElementById('monsters-list');
     monstersList.appendChild(monsterCard);
