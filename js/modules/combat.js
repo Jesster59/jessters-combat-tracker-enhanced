@@ -1,9 +1,14 @@
+/**
+ * Combat Manager for Jesster's Combat Tracker
+ * Handles combat flow, initiative, turns, etc.
+ */
 class CombatManager {
   constructor(app) {
     this.app = app;
+    this.playerViewWindow = null;
   }
   
-  rollAllInitiative() {
+  async rollAllInitiative() {
     this.app.showAlert("Roll All Initiative functionality will be implemented soon!");
   }
   
