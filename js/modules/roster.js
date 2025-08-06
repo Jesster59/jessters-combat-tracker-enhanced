@@ -67,6 +67,19 @@ class RosterManager {
       </div>
     `;
     
+    // Add hidden data
+    const hiddenData = document.createElement('div');
+    hiddenData.className = 'hidden-data hidden';
+    hiddenData.dataset.str = heroData.str || 10;
+    hiddenData.dataset.dex = heroData.dex || 10;
+    hiddenData.dataset.con = heroData.con || 10;
+    hiddenData.dataset.int = heroData.int || 10;
+    hiddenData.dataset.wis = heroData.wis || 10;
+    hiddenData.dataset.cha = heroData.cha || 10;
+    hiddenData.dataset.conditionsData = '[]';
+    
+    heroCard.appendChild(hiddenData);
+    
     // Add event listeners
     const removeBtn = heroCard.querySelector('.remove-btn');
     removeBtn.addEventListener('click', () => {
