@@ -20,7 +20,38 @@ class UIManager {
         <!-- Combat Timeline -->
         <div class="md:col-span-2 bg-gray-800 p-4 rounded-lg">
           <h2 class="text-xl font-semibold mb-2">Combat Timeline</h2>
-          <div id="combat-timeline" class="combat-timeline"></div>
+          <div id="combat-timeline" class="combat-timeline flex items-center justify-between">
+            <!-- Round counter -->
+            <div class="flex items-center justify-center bg-gray-700 px-4 py-2 rounded-lg">
+              <span class="text-gray-400 mr-2">Round:</span>
+              <span id="round-counter" class="text-xl font-bold">1</span>
+            </div>
+            
+            <!-- Initiative type selector -->
+            <div class="flex items-center bg-gray-700 px-4 py-2 rounded-lg">
+              <span class="text-gray-400 mr-2">Initiative:</span>
+              <select id="initiative-type" class="bg-gray-600 rounded px-2 py-1 text-white">
+                <option value="dynamic">Dynamic (Team)</option>
+                <option value="team">Fixed Team</option>
+                <option value="normal">Individual</option>
+              </select>
+            </div>
+            
+            <!-- Player view options -->
+            <div class="flex items-center bg-gray-700 px-4 py-2 rounded-lg">
+              <span class="text-gray-400 mr-2">Player View:</span>
+              <select id="player-hp-view" class="bg-gray-600 rounded px-2 py-1 text-white">
+                <option value="descriptive">Descriptive HP</option>
+                <option value="exact">Exact HP</option>
+                <option value="none">No HP</option>
+              </select>
+            </div>
+            
+            <!-- Player view button -->
+            <button id="open-player-view-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">
+              Open Player View
+            </button>
+          </div>
         </div>
         
         <!-- Heroes Column -->
@@ -72,7 +103,8 @@ class UIManager {
     // Verify that key elements were created
     var criticalElements = [
       'heroes-list', 'monsters-list', 'add-hero-btn', 'add-monster-btn',
-      'combat-log-container', 'roll-all-btn', 'start-combat-btn', 'end-turn-btn'
+      'combat-log-container', 'roll-all-btn', 'start-combat-btn', 'end-turn-btn',
+      'initiative-type', 'player-hp-view', 'open-player-view-btn'
     ];
     
     var allFound = true;
@@ -91,7 +123,6 @@ class UIManager {
     
     // After rendering the UI, also render these components
     setTimeout(() => {
-      this.renderCombatTimeline();
       this.renderDicePresets();
     }, 0);
   }
@@ -178,6 +209,13 @@ class UIManager {
       });
     }
     
+    // Player view button
+    if (this.app.elements.openPlayerViewBtn) {
+      this.app.elements.openPlayerViewBtn.addEventListener('click', function() {
+        self.app.combat.openOrRefreshPlayerView();
+      });
+    }
+    
     // Dice roller
     if (this.app.elements.diceRollBtn && this.app.elements.diceRollInput) {
       this.app.elements.diceRollBtn.addEventListener('click', function() {
@@ -202,9 +240,6 @@ class UIManager {
     // Add dice presets
     this.renderDicePresets();
     
-    // Render the combat timeline
-    this.renderCombatTimeline();
-    
     console.log("Event listeners set up.");
   }
   
@@ -224,62 +259,6 @@ class UIManager {
     }
     
     logDiv.scrollTop = logDiv.scrollHeight;
-  }
-  
-  renderCombatTimeline() {
-    const timeline = document.getElementById('combat-timeline');
-    if (!timeline) return;
-    
-    // Clear the timeline
-    timeline.innerHTML = '';
-    
-    // Add round counter
-    const roundDiv = document.createElement('div');
-    roundDiv.className = 'flex items-center justify-center bg-gray-700 px-4 py-2 rounded-lg';
-    roundDiv.innerHTML = `
-      <span class="text-gray-400 mr-2">Round:</span>
-      <span id="round-counter" class="text-xl font-bold">${this.app.state.roundNumber}</span>
-    `;
-    timeline.appendChild(roundDiv);
-    
-    // Add initiative type selector
-    const initiativeDiv = document.createElement('div');
-    initiativeDiv.className = 'flex items-center bg-gray-700 px-4 py-2 rounded-lg';
-    initiativeDiv.innerHTML = `
-      <span class="text-gray-400 mr-2">Initiative:</span>
-      <select id="initiative-type" class="bg-gray-600 rounded px-2 py-1 text-white">
-        <option value="dynamic">Dynamic (Team)</option>
-        <option value="team">Fixed Team</option>
-        <option value="normal">Individual</option>
-      </select>
-    `;
-    timeline.appendChild(initiativeDiv);
-    
-    // Add player view options
-    const playerViewDiv = document.createElement('div');
-    playerViewDiv.className = 'flex items-center bg-gray-700 px-4 py-2 rounded-lg';
-    playerViewDiv.innerHTML = `
-      <span class="text-gray-400 mr-2">Player View:</span>
-      <select id="player-hp-view" class="bg-gray-600 rounded px-2 py-1 text-white">
-        <option value="descriptive">Descriptive HP</option>
-        <option value="exact">Exact HP</option>
-        <option value="none">No HP</option>
-      </select>
-    `;
-    timeline.appendChild(playerViewDiv);
-    
-    // Add player view button
-    const playerViewBtn = document.createElement('button');
-    playerViewBtn.id = 'open-player-view-btn';
-    playerViewBtn.className = 'bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg';
-    playerViewBtn.textContent = 'Open Player View';
-    timeline.appendChild(playerViewBtn);
-    
-    // Add event listener for player view button
-    const self = this;
-    playerViewBtn.addEventListener('click', function() {
-      self.app.combat.openOrRefreshPlayerView();
-    });
   }
   
   renderDicePresets() {
