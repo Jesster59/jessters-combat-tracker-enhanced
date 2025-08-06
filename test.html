@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jesster's Combat Tracker - Test</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1a202c;
+            color: #e2e8f0;
+        }
+    </style>
+</head>
+<body class="p-4">
+    <div id="app-container">Loading application...</div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const appContainer = document.getElementById('app-container');
+            console.log("App container found:", appContainer);
+            
+            if (appContainer) {
+                appContainer.innerHTML = `
+                    <div class="bg-gray-800 p-4 rounded-lg">
+                        <h1 class="text-2xl font-bold text-center">Test Successful!</h1>
+                        <p class="text-center mt-4">If you can see this, the basic HTML rendering is working.</p>
+                        <div class="mt-4 flex justify-center">
+                            <button id="test-button" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Test Button</button>
+                        </div>
+                    </div>
+                `;
+                
+                const testButton = document.getElementById('test-button');
+                console.log("Test button found:", testButton);
+                
+                if (testButton) {
+                    testButton.addEventListener('click', () => {
+                        alert('Button click works!');
+                    });
+                }
+            }
+        });
+    </script>
+</body>
+</html>
