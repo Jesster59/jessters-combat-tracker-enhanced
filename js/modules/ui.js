@@ -2,7 +2,7 @@
  * UI Manager for Jesster's Combat Tracker
  * Handles all UI-related functionality
  */
-export class UIManager {
+class UIManager {
   constructor(app) {
     this.app = app;
   }
@@ -70,19 +70,20 @@ export class UIManager {
     `;
     
     // Verify that key elements were created
-    const criticalElements = [
+    var criticalElements = [
       'heroes-list', 'monsters-list', 'add-hero-btn', 'add-monster-btn',
       'combat-log-container', 'roll-all-btn', 'start-combat-btn', 'end-turn-btn'
     ];
     
-    let allFound = true;
-    criticalElements.forEach(id => {
-      const element = document.getElementById(id);
+    var allFound = true;
+    for (var i = 0; i < criticalElements.length; i++) {
+      var id = criticalElements[i];
+      var element = document.getElementById(id);
       if (!element) {
-        console.error(`Critical element #${id} was not created!`);
+        console.error("Critical element #" + id + " was not created!");
         allFound = false;
       }
-    });
+    }
     
     if (!allFound) {
       console.error("Some critical elements were not created. UI may not function correctly.");
@@ -90,7 +91,7 @@ export class UIManager {
   }
 
   cacheDOMElements() {
-    const elementIds = [
+    var elementIds = [
       'app-container', 'combat-log-container', 'turn-indicator', 'roll-all-btn', 
       'start-combat-btn', 'end-turn-btn', 'reset-combat-btn', 'end-combat-btn',
       'heroes-list', 'monsters-list', 'add-hero-btn', 'add-monster-btn',
@@ -100,89 +101,93 @@ export class UIManager {
     
     this.app.elements = {};
     
-    elementIds.forEach(id => {
-      const element = document.getElementById(id);
+    for (var i = 0; i < elementIds.length; i++) {
+      var id = elementIds[i];
+      var element = document.getElementById(id);
       if (element) {
         this.app.elements[this.camelCase(id)] = element;
       } else {
-        console.warn(`Element with ID "${id}" not found.`);
+        console.warn("Element with ID \"" + id + "\" not found.");
       }
-    });
+    }
   }
   
   camelCase(str) {
-    return str.replace(/-./g, match => match.charAt(1).toUpperCase());
+    return str.replace(/-./g, function(match) {
+      return match.charAt(1).toUpperCase();
+    });
   }
   
   setupEventListeners() {
     // Set up event listeners for the main UI elements
+    var self = this;
     
     // Add hero button
     if (this.app.elements.addHeroBtn) {
-      this.app.elements.addHeroBtn.addEventListener('click', () => {
-        this.app.roster.openRosterModal();
+      this.app.elements.addHeroBtn.addEventListener('click', function() {
+        self.app.roster.openRosterModal();
       });
     }
     
     // Add monster button
     if (this.app.elements.addMonsterBtn) {
-      this.app.elements.addMonsterBtn.addEventListener('click', () => {
-        this.app.monsters.openMonsterManualModal();
+      this.app.elements.addMonsterBtn.addEventListener('click', function() {
+        self.app.monsters.openMonsterManualModal();
       });
     }
     
     // Roll all initiative button
     if (this.app.elements.rollAllBtn) {
-      this.app.elements.rollAllBtn.addEventListener('click', () => {
-        this.app.combat.rollAllInitiative();
+      this.app.elements.rollAllBtn.addEventListener('click', function() {
+        self.app.combat.rollAllInitiative();
       });
     }
     
     // Start combat button
     if (this.app.elements.startCombatBtn) {
-      this.app.elements.startCombatBtn.addEventListener('click', () => {
-        this.app.combat.startCombat();
+      this.app.elements.startCombatBtn.addEventListener('click', function() {
+        self.app.combat.startCombat();
       });
     }
     
     // End turn button
     if (this.app.elements.endTurnBtn) {
-      this.app.elements.endTurnBtn.addEventListener('click', () => {
-        this.app.combat.endTurn();
+      this.app.elements.endTurnBtn.addEventListener('click', function() {
+        self.app.combat.endTurn();
       });
     }
     
     // Reset combat button
     if (this.app.elements.resetCombatBtn) {
-      this.app.elements.resetCombatBtn.addEventListener('click', () => {
-        this.app.combat.resetCombat();
+      this.app.elements.resetCombatBtn.addEventListener('click', function() {
+        self.app.combat.resetCombat();
       });
     }
     
     // End combat button
     if (this.app.elements.endCombatBtn) {
-      this.app.elements.endCombatBtn.addEventListener('click', () => {
-        this.app.combat.endCombat();
+      this.app.elements.endCombatBtn.addEventListener('click', function() {
+        self.app.combat.endCombat();
       });
     }
     
     // Dice roller
     if (this.app.elements.diceRollBtn && this.app.elements.diceRollInput) {
-      this.app.elements.diceRollBtn.addEventListener('click', () => {
-        const diceExpression = this.app.elements.diceRollInput.value;
+      this.app.elements.diceRollBtn.addEventListener('click', function() {
+        var diceExpression = self.app.elements.diceRollInput.value;
         if (diceExpression) {
-          this.app.dice.roll(diceExpression).then(result => {
-            if (this.app.elements.diceRollOutput) {
-              this.app.elements.diceRollOutput.textContent = result;
+          self.app.dice.roll(diceExpression).then(function(result) {
+            if (self.app.elements.diceRollOutput) {
+              self.app.elements.diceRollOutput.textContent = result;
             }
-            this.app.logEvent(`Rolled ${diceExpression}: ${result}`);
+            self.app.logEvent("Rolled " + diceExpression + ": " + result);
           });
         }
       });
       
-      this.app.elements.diceRollInput.addEventListener('keypress', (e) => {
+      this.app.elements.diceRollInput.addEventListener('keypress', function(e) {
         if (e.key === 'Enter') {
-          this.app.elements.diceRollBtn.click();
+          self.app.elements.diceRollBtn.click();
         }
       });
     }
@@ -191,23 +196,25 @@ export class UIManager {
   }
   
   renderCombatLog() {
-    const logDiv = document.getElementById('combat-log-container');
+    var logDiv = document.getElementById('combat-log-container');
     if (!logDiv) return;
     
     logDiv.innerHTML = '';
     
-    this.app.state.combatLog.slice(-50).forEach(entry => {
-      const p = document.createElement('p');
+    var logs = this.app.state.combatLog.slice(-50);
+    for (var i = 0; i < logs.length; i++) {
+      var entry = logs[i];
+      var p = document.createElement('p');
       p.className = 'log-entry text-sm';
       p.textContent = entry;
       logDiv.appendChild(p);
-    });
+    }
     
     logDiv.scrollTop = logDiv.scrollHeight;
   }
   
-  showAlert(message, title = 'Notification') {
-    const modal = document.createElement('div');
+  showAlert(message, title) {
+    var modal = document.createElement('div');
     modal.className = 'fixed inset-0 modal-backdrop flex items-center justify-center z-50 p-4';
     modal.innerHTML = `
       <div class="bg-gray-800 rounded-lg shadow-2xl p-6 max-w-lg w-full mx-auto text-center">
@@ -219,13 +226,14 @@ export class UIManager {
     
     document.body.appendChild(modal);
     
-    modal.querySelector('.close-alert-btn').addEventListener('click', () => {
+    var self = this;
+    modal.querySelector('.close-alert-btn').addEventListener('click', function() {
       modal.remove();
     });
   }
   
   showConfirm(message, onConfirm) {
-    const modal = document.createElement('div');
+    var modal = document.createElement('div');
     modal.className = 'fixed inset-0 modal-backdrop flex items-center justify-center z-50 p-4';
     modal.innerHTML = `
       <div class="bg-gray-800 rounded-lg shadow-2xl p-6 max-w-lg w-full mx-auto text-center">
@@ -240,11 +248,11 @@ export class UIManager {
     
     document.body.appendChild(modal);
     
-    modal.querySelector('.cancel-btn').addEventListener('click', () => {
+    modal.querySelector('.cancel-btn').addEventListener('click', function() {
       modal.remove();
     });
     
-    modal.querySelector('.confirm-btn').addEventListener('click', () => {
+    modal.querySelector('.confirm-btn').addEventListener('click', function() {
       onConfirm();
       modal.remove();
     });
