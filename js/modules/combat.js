@@ -168,6 +168,11 @@ class CombatManager {
       this.app.conditions.checkExpiredConditions();
     }
     
+    // Check for expired spells
+    if (this.app.spells) {
+      this.app.spells.checkSpellsAtEndOfTurn();
+    }
+    
     // Update UI
     this.updateTurnIndicator();
     this.app.audio.play('turnEnd');
