@@ -96,9 +96,9 @@ class CombatManager {
     }
     
     // Initialize lair actions if enabled
-    if (this.app.lair) {
-      this.app.lair.initializeLairActions();
-    }
+if (this.app.lair) {
+  this.app.lair.initializeLairActions();
+}
     
     this.updateTurnIndicator();
     this.app.logEvent("Combat Started!");
