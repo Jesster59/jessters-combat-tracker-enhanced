@@ -200,6 +200,9 @@ class CombatManager {
     const currentName = sortedCombatants[currentIndex].querySelector('.combatant-name').textContent;
     this.app.logEvent(`${currentName}'s turn ends.`);
     
+    // Process end of turn effects
+    this.processEndOfTurnEffects(sortedCombatants[currentIndex]);
+    
     // Move to next combatant
     const nextIndex = (currentIndex + 1) % sortedCombatants.length;
     
@@ -209,6 +212,9 @@ class CombatManager {
       document.getElementById('round-counter').textContent = this.app.state.roundNumber;
       this.app.logEvent(`Round ${this.app.state.roundNumber} begins.`);
       this.app.audio.play('roundStart');
+      
+      // Reset action economy for all combatants
+      this.resetActionEconomy();
     }
     
     // Set new current turn
@@ -226,6 +232,11 @@ class CombatManager {
     // Log end of turn
     this.app.logEvent(`${currentTurn === 'heroes' ? 'Heroes' : 'Monsters'} turn ends.`);
     
+    // Process end of turn effects for the current team
+    const selector = currentTurn === 'heroes' ? '#heroes-list .combatant-card' : '#monsters-list .combatant-card';
+    const teamCards = Array.from(document.querySelectorAll(selector));
+    teamCards.forEach(card => this.processEndOfTurnEffects(card));
+    
     // Switch teams
     const nextTurn = currentTurn === 'heroes' ? 'monsters' : 'heroes';
     
@@ -235,6 +246,9 @@ class CombatManager {
       document.getElementById('round-counter').textContent = this.app.state.roundNumber;
       this.app.logEvent(`Round ${this.app.state.roundNumber} begins.`);
       this.app.audio.play('roundStart');
+      
+      // Reset action economy for all combatants
+      this.resetActionEconomy();
       
       // Re-roll initiative for dynamic initiative
       this.app.logEvent("Re-rolling initiative for new round...");
@@ -261,6 +275,11 @@ class CombatManager {
     // Log end of turn
     this.app.logEvent(`${currentTurn === 'heroes' ? 'Heroes' : 'Monsters'} turn ends.`);
     
+    // Process end of turn effects for the current team
+    const selector = currentTurn === 'heroes' ? '#heroes-list .combatant-card' : '#monsters-list .combatant-card';
+    const teamCards = Array.from(document.querySelectorAll(selector));
+    teamCards.forEach(card => this.processEndOfTurnEffects(card));
+    
     // Switch teams
     const nextTurn = currentTurn === 'heroes' ? 'monsters' : 'heroes';
     
@@ -270,6 +289,9 @@ class CombatManager {
       document.getElementById('round-counter').textContent = this.app.state.roundNumber;
       this.app.logEvent(`Round ${this.app.state.roundNumber} begins.`);
       this.app.audio.play('roundStart');
+      
+      // Reset action economy for all combatants
+      this.resetActionEconomy();
     }
     
     // Set new current turn
@@ -277,6 +299,39 @@ class CombatManager {
     
     // Log new turn
     this.app.logEvent(`${nextTurn === 'heroes' ? 'Heroes' : 'Monsters'} turn begins.`);
+  }
+  
+  processEndOfTurnEffects(card) {
+    // Process any effects that happen at the end of a turn
+    // This is a placeholder for now
+    console.log(`Processing end of turn effects for ${card.querySelector('.combatant-name')?.textContent || 'Unknown'}`);
+    
+    // Check for any conditions that end at the end of a turn
+    const hiddenData = card.querySelector('.hidden-data');
+    if (hiddenData && hiddenData.dataset.conditionsData) {
+      try {
+        const conditions = JSON.parse(hiddenData.dataset.conditionsData || '[]');
+        // Process conditions that end at the end of a turn
+        // This would be implemented in a real application
+      } catch (e) { /* ignore */ }
+    }
+  }
+  
+  resetActionEconomy() {
+    // Reset action economy for all combatants
+    // This is a placeholder for now
+    console.log("Resetting action economy for all combatants");
+    
+    // In a real implementation, this would reset actions, bonus actions, reactions, etc.
+    const allCombatants = [
+      ...Array.from(document.querySelectorAll('#heroes-list .combatant-card')),
+      ...Array.from(document.querySelectorAll('#monsters-list .combatant-card'))
+    ];
+    
+    allCombatants.forEach(card => {
+      // Reset action economy for this combatant
+      // This would be implemented in a real application
+    });
   }
   
   resetCombat() {
@@ -505,7 +560,7 @@ class CombatManager {
       let conditionsHTML = '';
       if (hiddenData && hiddenData.dataset.conditionsData) {
         try {
-          const conditions = JSON.parse(hiddenData.dataset.conditionsData);
+          const conditions = JSON.parse(hiddenData.dataset.conditionsData || '[]');
           conditionsHTML = conditions.map(cond => 
             `<span class="bg-yellow-600 text-black text-xs font-semibold px-2 py-0.5 rounded-full">${cond.name}</span>`
           ).join(' ');
