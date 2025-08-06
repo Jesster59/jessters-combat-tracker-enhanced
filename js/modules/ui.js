@@ -5,6 +5,17 @@
 class UIManager {
   constructor(app) {
     this.app = app;
+    this.dicePresets = [
+      { label: 'd20', value: '1d20' },
+      { label: 'Adv', value: '2d20kh1' },
+      { label: 'Dis', value: '2d20kl1' },
+      { label: 'd4', value: '1d4' },
+      { label: 'd6', value: '1d6' },
+      { label: 'd8', value: '1d8' },
+      { label: 'd10', value: '1d10' },
+      { label: 'd12', value: '1d12' },
+      { label: 'd100', value: '1d100' }
+    ];
   }
   
   renderInitialUI(appContainer) {
@@ -161,7 +172,49 @@ class UIManager {
     }
   }
   
-  // ... [rest of the UIManager class remains unchanged]
+  camelCase(str) {
+    return str.replace(/-([a-z])/g, function (g) { return g[1].toUpperCase(); });
+  }
+  
+  createMissingElement(id) {
+    // Create missing elements that are critical for functionality
+    switch (id) {
+      case 'initiative-type':
+        var select = document.createElement('select');
+        select.id = id;
+        select.className = 'hidden';
+        select.innerHTML = `
+          <option value="dynamic">Dynamic (Team)</option>
+          <option value="team">Fixed Team</option>
+          <option value="normal">Individual</option>
+        `;
+        document.body.appendChild(select);
+        this.app.elements[this.camelCase(id)] = select;
+        break;
+        
+      case 'player-hp-view':
+        var select = document.createElement('select');
+        select.id = id;
+        select.className = 'hidden';
+        select.innerHTML = `
+          <option value="descriptive">Descriptive HP</option>
+          <option value="exact">Exact HP</option>
+          <option value="none">No HP</option>
+        `;
+        document.body.appendChild(select);
+        this.app.elements[this.camelCase(id)] = select;
+        break;
+        
+      case 'open-player-view-btn':
+        var button = document.createElement('button');
+        button.id = id;
+        button.className = 'hidden';
+        button.textContent = 'Open Player View';
+        document.body.appendChild(button);
+        this.app.elements[this.camelCase(id)] = button;
+        break;
+    }
+  }
   
   setupEventListeners() {
     // Set up event listeners for the main UI elements
@@ -257,5 +310,169 @@ class UIManager {
     console.log("Event listeners set up.");
   }
   
-  // ... [rest of the UIManager class remains unchanged]
+  renderDicePresets() {
+    const container = document.getElementById('dice-presets-container');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    this.dicePresets.forEach(preset => {
+      const button = document.createElement('button');
+      button.className = 'bg-gray-700 hover:bg-gray-600 text-white text-sm py-1 px-2 rounded m-1';
+      button.textContent = preset.label;
+      button.addEventListener('click', () => {
+        const diceInput = document.getElementById('dice-roll-input');
+        if (diceInput) {
+          diceInput.value = preset.value;
+          const rollBtn = document.getElementById('dice-roll-btn');
+          if (rollBtn) rollBtn.click();
+        }
+      });
+      container.appendChild(button);
+    });
+  }
+  
+  renderCombatLog() {
+    const container = document.getElementById('combat-log-container');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    // Get the last 50 log entries (or fewer if there aren't that many)
+    const logEntries = this.app.state.combatLog.slice(-50);
+    
+    logEntries.forEach(entry => {
+      const logItem = document.createElement('div');
+      logItem.className = 'text-sm mb-1';
+      logItem.textContent = entry;
+      container.appendChild(logItem);
+    });
+    
+    // Scroll to bottom
+    container.scrollTop = container.scrollHeight;
+  }
+  
+  showAlert(message, title = 'Notification') {
+    // Create modal
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 flex items-center justify-center z-50 p-4';
+    modal.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+    
+    modal.innerHTML = `
+      <div class="bg-gray-800 rounded-lg shadow-2xl p-6 max-w-md w-full mx-auto">
+        <h3 class="text-xl font-bold text-gray-100 mb-4">${title}</h3>
+        <p class="text-gray-300 mb-6">${message}</p>
+        <div class="flex justify-end">
+          <button class="ok-btn bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+            OK
+          </button>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Add event listener to OK button
+    const okBtn = modal.querySelector('.ok-btn');
+    okBtn.addEventListener('click', () => {
+      modal.remove();
+    });
+    
+    // Auto-close after 5 seconds
+    setTimeout(() => {
+      if (document.body.contains(modal)) {
+        modal.remove();
+      }
+    }, 5000);
+  }
+  
+  showConfirm(message, onConfirm) {
+    // Create modal
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 flex items-center justify-center z-50 p-4';
+    modal.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+    
+    modal.innerHTML = `
+      <div class="bg-gray-800 rounded-lg shadow-2xl p-6 max-w-md w-full mx-auto">
+        <h3 class="text-xl font-bold text-gray-100 mb-4">Confirmation</h3>
+        <p class="text-gray-300 mb-6">${message}</p>
+        <div class="flex justify-end space-x-2">
+          <button class="cancel-btn bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
+            Cancel
+          </button>
+          <button class="confirm-btn bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">
+            Confirm
+          </button>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Add event listeners
+    const cancelBtn = modal.querySelector('.cancel-btn');
+    const confirmBtn = modal.querySelector('.confirm-btn');
+    
+    cancelBtn.addEventListener('click', () => {
+      modal.remove();
+    });
+    
+    confirmBtn.addEventListener('click', () => {
+      modal.remove();
+      if (typeof onConfirm === 'function') {
+        onConfirm();
+      }
+    });
+  }
+  
+  addEncounterBuilderButton() {
+    // Find the monsters column header
+    const monstersColumn = document.getElementById('monsters-column');
+    if (!monstersColumn) return;
+    
+    // Check if there's already a header with a title
+    let headerContainer = monstersColumn.querySelector('h2')?.parentNode;
+    
+    // If the header is directly in the monsters column (no flex container)
+    if (!headerContainer || headerContainer === monstersColumn) {
+      // Create a new flex container
+      headerContainer = document.createElement('div');
+      headerContainer.className = 'flex justify-between items-center mb-4';
+      
+      // Move the existing h2 into this container
+      const h2 = monstersColumn.querySelector('h2');
+      if (h2) {
+        monstersColumn.removeChild(h2);
+        headerContainer.appendChild(h2);
+      } else {
+        // Create a new h2 if none exists
+        const newH2 = document.createElement('h2');
+        newH2.className = 'text-2xl font-semibold text-center text-red-400';
+        newH2.textContent = 'Monsters';
+        headerContainer.appendChild(newH2);
+      }
+      
+      // Insert the header container at the beginning of the monsters column
+      monstersColumn.insertBefore(headerContainer, monstersColumn.firstChild);
+    }
+    
+    // Create the encounter builder button
+    const encounterBtn = document.createElement('button');
+    encounterBtn.id = 'open-encounter-builder-btn';
+    encounterBtn.className = 'bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-3 rounded text-sm';
+    encounterBtn.textContent = 'Encounter Builder';
+    
+    // Add event listener
+    encounterBtn.addEventListener('click', () => {
+      this.app.encounter.openEncounterBuilder();
+    });
+    
+    // Add the button to the header container
+    headerContainer.appendChild(encounterBtn);
+    
+    // Cache the button element
+    this.app.elements.openEncounterBuilderBtn = encounterBtn;
+    
+    console.log("Encounter Builder button added to UI");
+  }
 }
