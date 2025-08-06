@@ -1,3 +1,7 @@
+/**
+ * Data Manager for Jesster's Combat Tracker
+ * Handles data storage and retrieval
+ */
 class DataManager {
   constructor(app) {
     this.app = app;
@@ -9,6 +13,7 @@ class DataManager {
   loadInitialData() {
     console.log("Loading initial data...");
     this.loadFromLocalStorage();
+    return Promise.resolve(); // Return a resolved promise for async compatibility
   }
   
   loadFromLocalStorage() {
