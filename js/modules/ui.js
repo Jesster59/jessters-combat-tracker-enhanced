@@ -1,3 +1,5 @@
+// js/modules/ui.js - CORRECTED VERSION
+
 /**
  * UI Manager for Jesster's Combat Tracker
  * Handles all UI-related functionality
@@ -7,49 +9,14 @@ export class UIManager {
     this.app = app;
   }
   
-  cacheDOMElements() {
-    const elementIds = [
-      // Main containers
-      'app-container', 'combat-log-container', 'turn-indicator',
-      
-      // Combat controls
-      'roll-all-btn', 'start-combat-btn', 'end-turn-btn', 'reset-combat-btn', 'end-combat-btn',
-      
-      // Lists
-      'heroes-list', 'monsters-list',
-      
-      // Add buttons
-      'add-hero-btn', 'add-monster-btn',
-      
-      // Other elements to be added as needed
-    ];
-    
-    this.app.elements = {};
-    
-    elementIds.forEach(id => {
-      const element = document.getElementById(id);
-      if (element) {
-        this.app.elements[this.camelCase(id)] = element;
-      } else {
-        console.warn(`Element with ID "${id}" not found.`);
-      }
-    });
-  }
-  
-  camelCase(str) {
-    return str.replace(/-./g, match => match.charAt(1).toUpperCase());
-  }
-  
-  setupEventListeners() {
-    // Set up event listeners for all interactive elements
-    // This will be implemented with specific event handlers
-    console.log("Setting up event listeners...");
-  }
-  
   renderInitialUI() {
-    // Render the main UI structure
-    const appContainer = this.app.elements.appContainer;
-    if (!appContainer) return;
+    // This function now finds the container directly, without using the cache.
+    // This is the main fix for the loading issue.
+    const appContainer = document.getElementById('app-container');
+    if (!appContainer) {
+        console.error("Fatal Error: #app-container not found in HTML. Cannot render UI.");
+        return;
+    }
     
     appContainer.innerHTML = `
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -100,38 +67,72 @@ export class UIManager {
         <!-- Combat Log -->
         <div class="md:col-span-2">
           <h2 class="text-xl font-bold text-gray-100 mb-2">Combat Log</h2>
-          <div id="combat-log-container" class="border border-gray-700"></div>
+          <div id="combat-log-container" class="border border-gray-700 p-2 rounded-lg h-48 overflow-y-auto"></div>
         </div>
       </div>
     `;
+  }
+
+  cacheDOMElements() {
+    const elementIds = [
+      'app-container', 'combat-log-container', 'turn-indicator', 'roll-all-btn', 
+      'start-combat-btn', 'end-turn-btn', 'reset-combat-btn', 'end-combat-btn',
+      'heroes-list', 'monsters-list', 'add-hero-btn', 'add-monster-btn',
+      'combat-timeline', 'dice-roll-input', 'dice-roll-btn', 'dice-roll-output',
+      'dice-presets-container', 'heroes-column', 'monsters-column', 'round-counter',
+      'initiative-type', 'player-hp-view'
+      // Add other element IDs here as they are created
+    ];
     
-    // Re-cache elements that were just created
-    this.cacheDOMElements();
+    this.app.elements = {};
     
-    // Render combat log
-    this.renderCombatLog();
+    elementIds.forEach(id => {
+      const element = document.getElementById(id);
+      if (element) {
+        this.app.elements[this.camelCase(id)] = element;
+      } else {
+        // This is expected for elements inside modals that aren't created yet.
+        // We can remove the console warning to reduce noise.
+        // console.warn(`Element with ID "${id}" not found during initial cache.`);
+      }
+    });
+  }
+  
+  camelCase(str) {
+    return str.replace(/-./g, match => match.charAt(1).toUpperCase());
+  }
+  
+  setupEventListeners() {
+    // This is a simplified version for now.
+    // We check if the element exists before adding a listener.
+    this.app.elements.addHeroBtn?.addEventListener('click', () => {
+        this.app.roster.addHeroToCombat({ name: 'New Hero', hp: 10, ac: 10 });
+    });
+
+    this.app.elements.addMonsterBtn?.addEventListener('click', () => {
+        this.app.monsters.addMonsterToCombat({ name: 'New Monster', hp: '2d8+2', ac: 12 });
+    });
+    
+    console.log("Event listeners set up.");
   }
   
   renderCombatLog() {
-    const logDiv = this.app.elements.combatLogContainer;
+    const logDiv = document.getElementById('combat-log-container');
     if (!logDiv) return;
     
     logDiv.innerHTML = '';
     
-    // Display the last 50 log entries
     this.app.state.combatLog.slice(-50).forEach(entry => {
       const p = document.createElement('p');
-      p.className = 'log-entry';
+      p.className = 'log-entry text-sm';
       p.textContent = entry;
       logDiv.appendChild(p);
     });
     
-    // Auto-scroll to the bottom
     logDiv.scrollTop = logDiv.scrollHeight;
   }
   
   showAlert(message, title = 'Notification') {
-    // Create a modal alert
     const modal = document.createElement('div');
     modal.className = 'fixed inset-0 modal-backdrop flex items-center justify-center z-50 p-4';
     modal.innerHTML = `
@@ -150,7 +151,6 @@ export class UIManager {
   }
   
   showConfirm(message, onConfirm) {
-    // Create a confirmation modal
     const modal = document.createElement('div');
     modal.className = 'fixed inset-0 modal-backdrop flex items-center justify-center z-50 p-4';
     modal.innerHTML = `
