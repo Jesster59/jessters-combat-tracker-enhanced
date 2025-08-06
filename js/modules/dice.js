@@ -5,101 +5,114 @@
 class DiceManager {
   constructor(app) {
     this.app = app;
-    this.rollHistory = [];
+    this.history = [];
   }
   
-  async roll(diceExpression) {
-    // Parse the dice expression (e.g., "2d6+3")
+  async roll(expression) {
     try {
-      const result = this.parseDiceExpression(diceExpression);
+      // Parse the dice expression
+      const result = this.parseDiceExpression(expression);
       
-      // Add to roll history
-      this.rollHistory.push({
-        expression: diceExpression,
+      // Add to history
+      this.history.unshift({
+        expression: expression,
         result: result,
         timestamp: new Date()
       });
       
-      // Play dice sound
+      // Keep history limited to last 50 rolls
+      if (this.history.length > 50) {
+        this.history.pop();
+      }
+      
+      // Play sound
       this.app.audio.play('diceRoll');
       
       return result;
     } catch (error) {
       console.error("Error rolling dice:", error);
-      this.app.showAlert(`Invalid dice expression: ${diceExpression}`);
-      return 0;
+      return "Error";
     }
   }
   
   parseDiceExpression(expression) {
-    // Remove all spaces
-    expression = expression.replace(/\s+/g, '');
+    // Trim whitespace
+    expression = expression.trim();
     
     // Basic validation
-    if (!expression.match(/^(\d*d\d+|\d+)([+\-*/](\d*d\d+|\d+))*$/i)) {
-      throw new Error(`Invalid dice expression: ${expression}`);
+    if (!expression) {
+      throw new Error("Empty dice expression");
     }
     
-    // Split by operators while keeping the operators
-    const tokens = expression.split(/([+\-*/])/);
-    
-    let total = 0;
-    let currentOperator = '+';
-    
-    for (let i = 0; i < tokens.length; i++) {
-      const token = tokens[i].trim();
-      
-      if (token === '+' || token === '-' || token === '*' || token === '/') {
-        currentOperator = token;
-        continue;
-      }
-      
-      let value;
-      
-      if (token.toLowerCase().includes('d')) {
-        // It's a dice roll
-        value = this.rollDice(token);
-      } else {
-        // It's a number
-        value = parseInt(token);
-      }
-      
-      // Apply the operator
-      switch (currentOperator) {
-        case '+':
-          total += value;
-          break;
-        case '-':
-          total -= value;
-          break;
-        case '*':
-          total *= value;
-          break;
-        case '/':
-          total = Math.floor(total / value);
-          break;
-      }
+    // Handle simple numbers
+    if (/^\d+$/.test(expression)) {
+      return parseInt(expression);
     }
     
-    return total;
-  }
-  
-  rollDice(diceNotation) {
-    // Parse dice notation (e.g., "2d6")
-    const [count, sides] = diceNotation.toLowerCase().split('d');
-    const numDice = count === '' ? 1 : parseInt(count);
-    const numSides = parseInt(sides);
+    // Advanced dice notation regex
+    // Supports: XdY, XdYkh/klZ, XdY+Z, XdY-Z
+    const diceRegex = /^(\d+)d(\d+)(kh|kl)?(\d+)?([+-]\d+)?$/i;
+    const match = expression.match(diceRegex);
     
-    if (isNaN(numDice) || isNaN(numSides) || numDice < 1 || numSides < 1) {
-      throw new Error(`Invalid dice notation: ${diceNotation}`);
+    if (!match) {
+      throw new Error("Invalid dice expression: " + expression);
+    }
+    
+    const numDice = parseInt(match[1]);
+    const dieSize = parseInt(match[2]);
+    const keepType = match[3] ? match[3].toLowerCase() : null;
+    const keepCount = match[4] ? parseInt(match[4]) : null;
+    const modifier = match[5] ? parseInt(match[5]) : 0;
+    
+    // Validate dice parameters
+    if (numDice <= 0 || dieSize <= 0) {
+      throw new Error("Invalid dice parameters");
+    }
+    
+    if (keepType && keepCount <= 0) {
+      throw new Error("Invalid keep count");
     }
     
     // Roll the dice
-    let total = 0;
+    let rolls = [];
     for (let i = 0; i < numDice; i++) {
-      total += Math.floor(Math.random() * numSides) + 1;
+      rolls.push(Math.floor(Math.random() * dieSize) + 1);
     }
     
-    return total;
+    // Handle keep highest/lowest
+    if (keepType && keepCount) {
+      rolls.sort((a, b) => keepType === 'kh' ? b - a : a - b);
+      rolls = rolls.slice(0, keepCount);
+    }
+    
+    // Sum the rolls
+    const sum = rolls.reduce((a, b) => a + b, 0) + modifier;
+    
+    return sum;
+  }
+  
+  getHistory() {
+    return this.history;
+  }
+  
+  clearHistory() {
+    this.history = [];
+  }
+  
+  rollMultiple(expressions) {
+    return Promise.all(expressions.map(expr => this.roll(expr)));
+  }
+  
+  rollStats() {
+    // Roll 4d6 drop lowest, six times
+    return this.rollMultiple(Array(6).fill('4d6kh3'));
+  }
+  
+  rollAdvantage() {
+    return this.roll('2d20kh1');
+  }
+  
+  rollDisadvantage() {
+    return this.roll('2d20kl1');
   }
 }
