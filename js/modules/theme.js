@@ -1,62 +1,38 @@
 /**
  * Theme Manager for Jesster's Combat Tracker
- * Handles dark/light mode
+ * Handles theme and appearance settings
  */
 export class ThemeManager {
   constructor(app) {
     this.app = app;
-    this.currentTheme = 'dark'; // Default theme
+    this.darkMode = true; // Default to dark mode
   }
   
   init() {
-    // Load theme from local storage
-    const savedTheme = localStorage.getItem('jessterTheme');
+    // Load theme preference from localStorage
+    const savedTheme = localStorage.getItem('jesster_theme');
     if (savedTheme) {
-      this.currentTheme = savedTheme;
+      this.darkMode = savedTheme === 'dark';
+    } else {
+      // Check system preference
+      this.darkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
     }
     
-    // Apply the theme
-    this.applyTheme(this.currentTheme);
+    // Apply theme
+    this.applyTheme();
     
-    // Create theme toggle
-    this.createThemeToggle();
+    console.log("Theme initialized:", this.darkMode ? "dark" : "light");
   }
   
-  applyTheme(theme) {
-    document.documentElement.classList.remove('dark', 'light');
-    document.documentElement.classList.add(theme);
-    this.currentTheme = theme;
-    
-    // Save to local storage
-    localStorage.setItem('jessterTheme', theme);
+  applyTheme() {
+    // For now, we always use dark mode
+    document.documentElement.classList.add('dark');
   }
   
   toggleTheme() {
-    const newTheme = this.currentTheme === 'dark' ? 'light' : 'dark';
-    this.applyTheme(newTheme);
-    return newTheme;
-  }
-  
-  createThemeToggle() {
-    const container = document.getElementById('theme-toggle');
-    if (!container) return;
-    
-    container.innerHTML = `
-      <button id="toggle-theme-btn" class="flex items-center space-x-2 bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded">
-        <span id="theme-icon" class="${this.currentTheme === 'dark' ? 'text-yellow-400' : 'text-blue-400'}">
-          ${this.currentTheme === 'dark' ? '🌙' : '☀️'}
-        </span>
-        <span>${this.currentTheme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
-      </button>
-    `;
-    
-    // Add event listener
-    document.getElementById('toggle-theme-btn').addEventListener('click', () => {
-      const newTheme = this.toggleTheme();
-      document.getElementById('theme-icon').textContent = newTheme === 'dark' ? '🌙' : '☀️';
-      document.getElementById('theme-icon').className = newTheme === 'dark' ? 'text-yellow-400' : 'text-blue-400';
-      document.getElementById('toggle-theme-btn').querySelector('span:last-child').textContent = 
-        newTheme === 'dark' ? 'Light Mode' : 'Dark Mode';
-    });
+    this.darkMode = !this.darkMode;
+    this.applyTheme();
+    localStorage.setItem('jesster_theme', this.darkMode ? 'dark' : 'light');
+    return this.darkMode;
   }
 }
