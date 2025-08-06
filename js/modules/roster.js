@@ -87,6 +87,21 @@ class RosterManager {
       this.app.logEvent(`Removed ${heroData.name} from combat.`);
     });
     
+    // Add condition button
+    const conditionBtn = document.createElement('button');
+    conditionBtn.className = 'condition-btn text-yellow-500 hover:text-yellow-400 font-bold text-sm ml-2';
+    conditionBtn.textContent = '+ Condition';
+    conditionBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.app.conditions.showAddConditionModal(heroCard.id);
+    });
+
+    // Add it to the card
+    const nameElement = heroCard.querySelector('.combatant-name');
+    if (nameElement && nameElement.parentNode) {
+      nameElement.parentNode.appendChild(conditionBtn);
+    }
+    
     // Add to heroes list
     const heroesList = document.getElementById('heroes-list');
     heroesList.appendChild(heroCard);
