@@ -150,7 +150,8 @@ class UIManager {
       'heroes-list', 'monsters-list', 'add-hero-btn', 'add-monster-btn',
       'combat-timeline', 'dice-roll-input', 'dice-roll-btn', 'dice-roll-output',
       'dice-presets-container', 'heroes-column', 'monsters-column', 'round-counter',
-      'initiative-type', 'player-hp-view', 'open-player-view-btn', 'open-encounter-builder-btn'
+      'initiative-type', 'player-hp-view', 'open-player-view-btn', 'open-encounter-builder-btn',
+      'lair-action-text', 'lair-action-enable'
     ];
     
     this.app.elements = {};
@@ -162,7 +163,8 @@ class UIManager {
         this.app.elements[this.camelCase(id)] = element;
       } else {
         // Instead of just warning, let's create these elements if they don't exist
-        if (id === 'initiative-type' || id === 'player-hp-view' || id === 'open-player-view-btn') {
+        if (id === 'initiative-type' || id === 'player-hp-view' || id === 'open-player-view-btn' || 
+            id === 'lair-action-text' || id === 'lair-action-enable') {
           console.warn(`Element with ID "${id}" not found. Creating it now.`);
           this.createMissingElement(id);
         } else {
@@ -212,6 +214,25 @@ class UIManager {
         button.textContent = 'Open Player View';
         document.body.appendChild(button);
         this.app.elements[this.camelCase(id)] = button;
+        break;
+        
+      case 'lair-action-text':
+        var input = document.createElement('input');
+        input.id = id;
+        input.type = 'text';
+        input.className = 'hidden';
+        input.placeholder = 'Describe lair action...';
+        document.body.appendChild(input);
+        this.app.elements[this.camelCase(id)] = input;
+        break;
+        
+      case 'lair-action-enable':
+        var checkbox = document.createElement('input');
+        checkbox.id = id;
+        checkbox.type = 'checkbox';
+        checkbox.className = 'hidden';
+        document.body.appendChild(checkbox);
+        this.app.elements[this.camelCase(id)] = checkbox;
         break;
     }
   }
@@ -306,6 +327,13 @@ class UIManager {
     
     // Add dice presets
     this.renderDicePresets();
+    
+    // Add the lair actions button to the UI
+    if (this.app.lair) {
+      setTimeout(() => {
+        this.app.lair.addLairActionsButton();
+      }, 100);
+    }
     
     console.log("Event listeners set up.");
   }
