@@ -3,39 +3,39 @@
  */
 class JesstersCombatTracker {
   constructor() {
-  this.version = "3.0.8"; // Updated version number
-  this.elements = {};
-  this.state = {
-    combatLog: [],
-    combatStarted: false,
-    currentTurn: null,
-    roundNumber: 1
-  };
-  
-  // Firebase related properties
-  this.firebase = null;
-  this.db = null;
-  this.auth = null;
-  this.userId = null;
-  this.offlineMode = false;
-  
-  // Initialize managers
-  this.ui = new UIManager(this);
-  this.combat = new CombatManager(this);
-  this.roster = new RosterManager(this);
-  this.monsters = new MonsterManager(this);
-  this.dice = new DiceManager(this);
-  this.data = new DataManager(this);
-  this.audio = new AudioManager(this);
-  this.theme = new ThemeManager(this);
-  this.history = new ActionHistory(this);
-  this.spells = new SpellTracker(this);
-  this.encounter = new EncounterBuilder(this);
-  this.conditions = new ConditionsManager(this);
-  this.actions = new ActionEconomyTracker(this);
-  
-  console.log("Jesster's Combat Tracker v" + this.version + " initializing...");
-}
+    this.version = "3.0.8"; // Updated version number
+    this.elements = {};
+    this.state = {
+      combatLog: [],
+      combatStarted: false,
+      currentTurn: null,
+      roundNumber: 1
+    };
+    
+    // Firebase related properties
+    this.firebase = null;
+    this.db = null;
+    this.auth = null;
+    this.userId = null;
+    this.offlineMode = false;
+    
+    // Initialize managers
+    this.ui = new UIManager(this);
+    this.combat = new CombatManager(this);
+    this.roster = new RosterManager(this);
+    this.monsters = new MonsterManager(this);
+    this.dice = new DiceManager(this);
+    this.data = new DataManager(this);
+    this.audio = new AudioManager(this);
+    this.theme = new ThemeManager(this);
+    this.history = new ActionHistory(this);
+    this.spells = new SpellTracker(this);
+    this.encounter = new EncounterBuilder(this);
+    this.conditions = new ConditionsManager(this);
+    this.actions = new ActionEconomyTracker(this);
+    
+    console.log("Jesster's Combat Tracker v" + this.version + " initializing...");
+  }
   
   async init() {
     try {
