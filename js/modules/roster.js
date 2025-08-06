@@ -122,6 +122,13 @@ class RosterManager {
       });
     }
     
+    // Initialize action economy
+    if (this.app.actions) {
+      setTimeout(() => {
+        this.app.actions.initializeActionEconomy(heroCard.id);
+      }, 0);
+    }
+    
     // Add to heroes list
     const heroesList = document.getElementById('heroes-list');
     heroesList.appendChild(heroCard);
