@@ -88,6 +88,12 @@ class UIManager {
     if (!allFound) {
       console.error("Some critical elements were not created. UI may not function correctly.");
     }
+    
+    // After rendering the UI, also render these components
+    setTimeout(() => {
+      this.renderCombatTimeline();
+      this.renderDicePresets();
+    }, 0);
   }
 
   cacheDOMElements() {
@@ -96,7 +102,8 @@ class UIManager {
       'start-combat-btn', 'end-turn-btn', 'reset-combat-btn', 'end-combat-btn',
       'heroes-list', 'monsters-list', 'add-hero-btn', 'add-monster-btn',
       'combat-timeline', 'dice-roll-input', 'dice-roll-btn', 'dice-roll-output',
-      'dice-presets-container', 'heroes-column', 'monsters-column', 'round-counter'
+      'dice-presets-container', 'heroes-column', 'monsters-column', 'round-counter',
+      'initiative-type', 'player-hp-view', 'open-player-view-btn'
     ];
     
     this.app.elements = {};
@@ -192,6 +199,12 @@ class UIManager {
       });
     }
     
+    // Add dice presets
+    this.renderDicePresets();
+    
+    // Render the combat timeline
+    this.renderCombatTimeline();
+    
     console.log("Event listeners set up.");
   }
   
@@ -211,6 +224,101 @@ class UIManager {
     }
     
     logDiv.scrollTop = logDiv.scrollHeight;
+  }
+  
+  renderCombatTimeline() {
+    const timeline = document.getElementById('combat-timeline');
+    if (!timeline) return;
+    
+    // Clear the timeline
+    timeline.innerHTML = '';
+    
+    // Add round counter
+    const roundDiv = document.createElement('div');
+    roundDiv.className = 'flex items-center justify-center bg-gray-700 px-4 py-2 rounded-lg';
+    roundDiv.innerHTML = `
+      <span class="text-gray-400 mr-2">Round:</span>
+      <span id="round-counter" class="text-xl font-bold">${this.app.state.roundNumber}</span>
+    `;
+    timeline.appendChild(roundDiv);
+    
+    // Add initiative type selector
+    const initiativeDiv = document.createElement('div');
+    initiativeDiv.className = 'flex items-center bg-gray-700 px-4 py-2 rounded-lg';
+    initiativeDiv.innerHTML = `
+      <span class="text-gray-400 mr-2">Initiative:</span>
+      <select id="initiative-type" class="bg-gray-600 rounded px-2 py-1 text-white">
+        <option value="dynamic">Dynamic (Team)</option>
+        <option value="team">Fixed Team</option>
+        <option value="normal">Individual</option>
+      </select>
+    `;
+    timeline.appendChild(initiativeDiv);
+    
+    // Add player view options
+    const playerViewDiv = document.createElement('div');
+    playerViewDiv.className = 'flex items-center bg-gray-700 px-4 py-2 rounded-lg';
+    playerViewDiv.innerHTML = `
+      <span class="text-gray-400 mr-2">Player View:</span>
+      <select id="player-hp-view" class="bg-gray-600 rounded px-2 py-1 text-white">
+        <option value="descriptive">Descriptive HP</option>
+        <option value="exact">Exact HP</option>
+        <option value="none">No HP</option>
+      </select>
+    `;
+    timeline.appendChild(playerViewDiv);
+    
+    // Add player view button
+    const playerViewBtn = document.createElement('button');
+    playerViewBtn.id = 'open-player-view-btn';
+    playerViewBtn.className = 'bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg';
+    playerViewBtn.textContent = 'Open Player View';
+    timeline.appendChild(playerViewBtn);
+    
+    // Add event listener for player view button
+    const self = this;
+    playerViewBtn.addEventListener('click', function() {
+      self.app.combat.openOrRefreshPlayerView();
+    });
+  }
+  
+  renderDicePresets() {
+    const container = document.getElementById('dice-presets-container');
+    if (!container) return;
+    
+    // Clear the container
+    container.innerHTML = '';
+    
+    const presets = [
+      { label: 'd20', value: '1d20' },
+      { label: 'Adv', value: '2d20kh1' },
+      { label: 'Dis', value: '2d20kl1' },
+      { label: 'd4', value: '1d4' },
+      { label: 'd6', value: '1d6' },
+      { label: 'd8', value: '1d8' },
+      { label: 'd10', value: '1d10' },
+      { label: 'd12', value: '1d12' },
+      { label: 'd100', value: '1d100' }
+    ];
+    
+    const self = this;
+    presets.forEach(function(preset) {
+      const btn = document.createElement('button');
+      btn.className = 'dice-preset-btn bg-gray-700 hover:bg-gray-600 text-white text-sm font-bold py-1 px-2 rounded m-1';
+      btn.textContent = preset.label;
+      btn.dataset.value = preset.value;
+      
+      btn.addEventListener('click', function() {
+        if (self.app.elements.diceRollInput) {
+          self.app.elements.diceRollInput.value = preset.value;
+        }
+        if (self.app.elements.diceRollBtn) {
+          self.app.elements.diceRollBtn.click();
+        }
+      });
+      
+      container.appendChild(btn);
+    });
   }
   
   showAlert(message, title) {
