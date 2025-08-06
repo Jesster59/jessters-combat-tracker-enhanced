@@ -5,6 +5,7 @@ class JesstersCombatTracker {
   constructor() {
     this.version = "3.0.7"; // Updated version number
     this.elements = {};
+    this.encounter = new EncounterBuilder(this);
     this.state = {
       combatLog: [],
       combatStarted: false,
