@@ -1,5 +1,3 @@
-// js/modules/ui.js - CORRECTED VERSION
-
 /**
  * UI Manager for Jesster's Combat Tracker
  * Handles all UI-related functionality
@@ -9,13 +7,12 @@ export class UIManager {
     this.app = app;
   }
   
-  renderInitialUI() {
-    // This function now finds the container directly, without using the cache.
-    // This is the main fix for the loading issue.
-    const appContainer = document.getElementById('app-container');
+  renderInitialUI(appContainer) {
+    // This function now takes the appContainer as a parameter
+    // to ensure we're working with the correct element
     if (!appContainer) {
-        console.error("Fatal Error: #app-container not found in HTML. Cannot render UI.");
-        return;
+      console.error("Fatal Error: appContainer not provided to renderInitialUI");
+      return;
     }
     
     appContainer.innerHTML = `
@@ -71,6 +68,25 @@ export class UIManager {
         </div>
       </div>
     `;
+    
+    // Verify that key elements were created
+    const criticalElements = [
+      'heroes-list', 'monsters-list', 'add-hero-btn', 'add-monster-btn',
+      'combat-log-container', 'roll-all-btn', 'start-combat-btn', 'end-turn-btn'
+    ];
+    
+    let allFound = true;
+    criticalElements.forEach(id => {
+      const element = document.getElementById(id);
+      if (!element) {
+        console.error(`Critical element #${id} was not created!`);
+        allFound = false;
+      }
+    });
+    
+    if (!allFound) {
+      console.error("Some critical elements were not created. UI may not function correctly.");
+    }
   }
 
   cacheDOMElements() {
@@ -79,9 +95,7 @@ export class UIManager {
       'start-combat-btn', 'end-turn-btn', 'reset-combat-btn', 'end-combat-btn',
       'heroes-list', 'monsters-list', 'add-hero-btn', 'add-monster-btn',
       'combat-timeline', 'dice-roll-input', 'dice-roll-btn', 'dice-roll-output',
-      'dice-presets-container', 'heroes-column', 'monsters-column', 'round-counter',
-      'initiative-type', 'player-hp-view'
-      // Add other element IDs here as they are created
+      'dice-presets-container', 'heroes-column', 'monsters-column', 'round-counter'
     ];
     
     this.app.elements = {};
@@ -91,9 +105,7 @@ export class UIManager {
       if (element) {
         this.app.elements[this.camelCase(id)] = element;
       } else {
-        // This is expected for elements inside modals that aren't created yet.
-        // We can remove the console warning to reduce noise.
-        // console.warn(`Element with ID "${id}" not found during initial cache.`);
+        console.warn(`Element with ID "${id}" not found.`);
       }
     });
   }
@@ -103,15 +115,77 @@ export class UIManager {
   }
   
   setupEventListeners() {
-    // This is a simplified version for now.
-    // We check if the element exists before adding a listener.
-    this.app.elements.addHeroBtn?.addEventListener('click', () => {
-        this.app.roster.addHeroToCombat({ name: 'New Hero', hp: 10, ac: 10 });
-    });
-
-    this.app.elements.addMonsterBtn?.addEventListener('click', () => {
-        this.app.monsters.addMonsterToCombat({ name: 'New Monster', hp: '2d8+2', ac: 12 });
-    });
+    // Set up event listeners for the main UI elements
+    
+    // Add hero button
+    if (this.app.elements.addHeroBtn) {
+      this.app.elements.addHeroBtn.addEventListener('click', () => {
+        this.app.roster.openRosterModal();
+      });
+    }
+    
+    // Add monster button
+    if (this.app.elements.addMonsterBtn) {
+      this.app.elements.addMonsterBtn.addEventListener('click', () => {
+        this.app.monsters.openMonsterManualModal();
+      });
+    }
+    
+    // Roll all initiative button
+    if (this.app.elements.rollAllBtn) {
+      this.app.elements.rollAllBtn.addEventListener('click', () => {
+        this.app.combat.rollAllInitiative();
+      });
+    }
+    
+    // Start combat button
+    if (this.app.elements.startCombatBtn) {
+      this.app.elements.startCombatBtn.addEventListener('click', () => {
+        this.app.combat.startCombat();
+      });
+    }
+    
+    // End turn button
+    if (this.app.elements.endTurnBtn) {
+      this.app.elements.endTurnBtn.addEventListener('click', () => {
+        this.app.combat.endTurn();
+      });
+    }
+    
+    // Reset combat button
+    if (this.app.elements.resetCombatBtn) {
+      this.app.elements.resetCombatBtn.addEventListener('click', () => {
+        this.app.combat.resetCombat();
+      });
+    }
+    
+    // End combat button
+    if (this.app.elements.endCombatBtn) {
+      this.app.elements.endCombatBtn.addEventListener('click', () => {
+        this.app.combat.endCombat();
+      });
+    }
+    
+    // Dice roller
+    if (this.app.elements.diceRollBtn && this.app.elements.diceRollInput) {
+      this.app.elements.diceRollBtn.addEventListener('click', () => {
+        const diceExpression = this.app.elements.diceRollInput.value;
+        if (diceExpression) {
+          this.app.dice.roll(diceExpression).then(result => {
+            if (this.app.elements.diceRollOutput) {
+              this.app.elements.diceRollOutput.textContent = result;
+            }
+            this.app.logEvent(`Rolled ${diceExpression}: ${result}`);
+          });
+        }
+      });
+      
+      this.app.elements.diceRollInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          this.app.elements.diceRollBtn.click();
+        }
+      });
+    }
     
     console.log("Event listeners set up.");
   }
