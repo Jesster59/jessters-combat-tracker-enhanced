@@ -150,18 +150,30 @@ class CombatManager {
   }
   
   endTurn() {
-    if (!this.app.state.combatStarted) return;
-    
-    const initiativeType = document.getElementById('initiative-type')?.value || 'dynamic';
-    
-    if (initiativeType === 'normal') {
-      this.endNormalInitiativeTurn();
-    } else if (initiativeType === 'team') {
-      this.endTeamInitiativeTurn();
-    } else {
-      // Default to dynamic initiative
-      this.endDynamicInitiativeTurn();
-    }
+  if (!this.app.state.combatStarted) return;
+  
+  const initiativeType = document.getElementById('initiative-type')?.value || 'dynamic';
+  
+  if (initiativeType === 'normal') {
+    this.endNormalInitiativeTurn();
+  } else if (initiativeType === 'team') {
+    this.endTeamInitiativeTurn();
+  } else {
+    // Default to dynamic initiative
+    this.endDynamicInitiativeTurn();
+  }
+  
+  // Check for expired conditions
+  this.app.conditions.checkExpiredConditions();
+  
+  // Update UI
+  this.updateTurnIndicator();
+  this.app.audio.play('turnEnd');
+  
+  // Update player view
+  this.updatePlayerView();
+}
+
     
     // Update UI
     this.updateTurnIndicator();
