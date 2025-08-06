@@ -26,7 +26,7 @@ import { EncounterBuilder } from "./modules/encounter.js";
  */
 class JesstersCombatTracker {
   constructor() {
-    this.version = "3.0.0";
+    this.version = "3.0.1"; // Updated version number
     this.elements = {};
     this.state = {
       combatLog: [],
@@ -60,6 +60,17 @@ class JesstersCombatTracker {
   
   async init() {
     try {
+      // --- CORRECTED ORDER OF OPERATIONS ---
+
+      // 1. Render the main UI structure into the placeholder div
+      this.ui.renderInitialUI();
+
+      // 2. NOW that the elements exist, cache them
+      this.ui.cacheDOMElements();
+      
+      // 3. NOW that we have references, set up the event listeners
+      this.ui.setupEventListeners();
+
       // Initialize Firebase if config is available
       if (typeof __firebase_config !== 'undefined') {
         await this.initFirebase();
@@ -68,10 +79,6 @@ class JesstersCombatTracker {
         console.log("Firebase config not found. Running in offline mode.");
       }
       
-      // Cache DOM elements and set up event listeners
-      this.ui.cacheDOMElements();
-      this.ui.setupEventListeners();
-      
       // Initialize managers that need initialization
       this.theme.init();
       this.audio.init();
@@ -79,20 +86,18 @@ class JesstersCombatTracker {
       // Load data
       await this.data.loadInitialData();
       
-      // Render initial UI
-      this.ui.renderInitialUI();
-      
       this.logEvent(`Jesster's Combat Tracker v${this.version} initialized successfully.`);
       console.log(`Jesster's Combat Tracker v${this.version} initialized successfully.`);
+
     } catch (error) {
       console.error("Error initializing application:", error);
       this.offlineMode = true;
       this.logEvent(`Error initializing application: ${error.message}. Running in offline mode.`);
       
       // Still try to initialize UI in offline mode
+      this.ui.renderInitialUI();
       this.ui.cacheDOMElements();
       this.ui.setupEventListeners();
-      this.ui.renderInitialUI();
     }
   }
   
