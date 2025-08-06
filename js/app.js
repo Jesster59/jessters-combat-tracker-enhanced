@@ -74,12 +74,24 @@ class JesstersCombatTracker {
       this.ui.setupEventListeners();
 
       // Initialize Firebase if config is available
-      if (typeof __firebase_config !== 'undefined') {
-        await this.initFirebase();
-      } else {
-        this.offlineMode = true;
-        console.log("Firebase config not found. Running in offline mode.");
-      }
+if (typeof __firebase_config !== 'undefined') {
+  try {
+    const firebaseInitialized = await this.initFirebase();
+    if (!firebaseInitialized) {
+      this.offlineMode = true;
+      console.log("Running in offline mode due to Firebase initialization failure.");
+      this.logEvent("Running in offline mode. Your data will be saved locally.");
+    }
+  } catch (error) {
+    this.offlineMode = true;
+    console.error("Firebase initialization error:", error);
+    this.logEvent("Firebase error. Running in offline mode.");
+  }
+} else {
+  this.offlineMode = true;
+  console.log("Firebase config not found. Running in offline mode.");
+  this.logEvent("Running in offline mode. Your data will be saved locally.");
+}
       
       // Initialize managers that need initialization
       this.theme.init();
