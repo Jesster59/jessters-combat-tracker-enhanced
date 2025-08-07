@@ -15,12 +15,12 @@ class JessterCombatTracker {
       combatStartTime: null
     };
     
-    // Initialize modules (only the ones that actually exist)
+    // Initialize modules (using correct class names)
     this.ui = new UIManager(this);
     this.dice = new DiceRoller(this);
     this.combat = new CombatManager(this);
     this.conditions = new ConditionsManager(this);
-    this.damage = new DamageTypeManager(this);
+    this.damage = new DamageTracker(this);  // Changed from DamageTypeManager
     this.saves = new SavingThrowManager(this);
     this.actions = new ActionEconomyTracker(this);
     this.legendary = new LegendaryActionsTracker(this);
