@@ -53,6 +53,66 @@ class APIManager {
     }
     
     /**
+     * Convert Open5e monster data to our format
+     * @param {Object} monsterData - The Open5e monster data
+     * @returns {Object} - The monster in our format
+     */
+    convertOpen5eMonster(monsterData) {
+        // Calculate ability modifiers
+        const getModifier = (score) => Math.floor((score - 10) / 2);
+        
+        // Parse hit points
+        let maxHp = 10;
+        const hpMatch = monsterData.hit_points_roll?.match(/(\d+)/);
+        if (hpMatch) {
+            maxHp = parseInt(hpMatch[1]);
+        } else if (typeof monsterData.hit_points === 'number') {
+            maxHp = monsterData.hit_points;
+        }
+        
+        // Parse initiative bonus (based on DEX modifier)
+        const initiativeBonus = getModifier(monsterData.dexterity);
+        
+        // Create monster object
+        return {
+            id: this.app.utils.generateUUID(),
+            name: monsterData.name,
+            type: 'monster',
+            maxHp: maxHp,
+            currentHp: maxHp,
+            ac: monsterData.armor_class,
+            initiativeBonus: initiativeBonus,
+            initiative: null,
+            conditions: [],
+            imageUrl: null,
+            // Additional data from Open5e
+            size: monsterData.size,
+            type: 'monster',
+            alignment: monsterData.alignment,
+            cr: monsterData.challenge_rating,
+            source: 'Open5e SRD',
+            abilities: {
+                str: monsterData.strength,
+                dex: monsterData.dexterity,
+                con: monsterData.constitution,
+                int: monsterData.intelligence,
+                wis: monsterData.wisdom,
+                cha: monsterData.charisma
+            },
+            actions: monsterData.actions || [],
+            specialAbilities: monsterData.special_abilities || [],
+            legendaryActions: monsterData.legendary_actions || [],
+            speed: monsterData.speed,
+            senses: monsterData.senses,
+            languages: monsterData.languages,
+            damageVulnerabilities: monsterData.damage_vulnerabilities,
+            damageResistances: monsterData.damage_resistances,
+            damageImmunities: monsterData.damage_immunities,
+            conditionImmunities: monsterData.condition_immunities
+        };
+    }
+    
+    /**
      * Get the D&D Beyond import script
      * @returns {string} - The import script
      */
@@ -112,6 +172,16 @@ class APIManager {
                     });
                     character.saves = character.saves.replace(/,\\s*$/, '');
                     
+                    // Character image
+                    const portraitElement = document.querySelector('.ddbc-character-avatar__portrait');
+                    if (portraitElement && portraitElement.style.backgroundImage) {
+                        const bgImage = portraitElement.style.backgroundImage;
+                        const urlMatch = bgImage.match(/url\\(['"](.+?)['"]/);
+                        if (urlMatch && urlMatch[1]) {
+                            character.imageUrl = urlMatch[1];
+                        }
+                    }
+                    
                     // Generate ID
                     character.id = 'dndb-' + Date.now();
                     
@@ -144,8 +214,12 @@ class APIManager {
                 id: data.id || `dndb-${Date.now()}`,
                 name: data.name,
                 maxHp: data.maxHp || 10,
+                currentHp: data.maxHp || 10,
                 ac: data.ac || 10,
                 initiativeBonus: data.initiativeBonus || 0,
+                initiative: null,
+                conditions: [],
+                type: 'hero',
                 str: data.str || 10,
                 dex: data.dex || 10,
                 con: data.con || 10,
@@ -155,9 +229,9 @@ class APIManager {
                 pp: data.pp || 10,
                 dc: data.dc || null,
                 saves: data.saves || '',
+                imageUrl: data.imageUrl || null,
                 notes: `Class: ${data.classes || 'Unknown'}\nRace: ${data.race || 'Unknown'}\nBackground: ${data.background || 'Unknown'}\nLevel: ${data.level || 1}`,
-                createdAt: Date.now(),
-                updatedAt: Date.now()
+                source: 'D&D Beyond'
             };
             
             return character;
