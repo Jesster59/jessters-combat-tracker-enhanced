@@ -1,228 +1,144 @@
 /**
- * Main application class for Jesster's Combat Tracker Enhanced
+ * Main Application for Jesster's Combat Tracker
+ * Initializes and coordinates all modules
  */
-class JesstersCombatTracker {
+class JessterCombatTracker {
   constructor() {
-    this.version = "3.5.0"; // Updated version number
-    this.elements = {};
+    // Initialize state
     this.state = {
-      combatLog: [],
       combatStarted: false,
-      currentTurn: null,
       roundNumber: 1,
+      currentTurn: null,
+      combatLog: [],
       normalInitiativeOrder: [],
       currentNormalInitiativeIndex: 0,
-      combatStartTime: null,
-      combatStatistics: {
-        damageDealt: 0,
-        damageReceived: 0,
-        healingDone: 0,
-        criticalHits: 0,
-        missedAttacks: 0
-      }
+      combatStartTime: null
     };
     
-    // Firebase related properties
-    this.firebase = null;
-    this.db = null;
-    this.auth = null;
-    this.userId = null;
-    this.offlineMode = false;
-    
-    // Initialize managers
+    // Initialize modules
     this.ui = new UIManager(this);
+    this.dice = new DiceRoller(this);
     this.combat = new CombatManager(this);
-    this.roster = new RosterManager(this);
-    this.monsters = new MonsterManager(this);
-    this.dice = new DiceManager(this);
-    this.data = new DataManager(this);
-    this.audio = new AudioManager(this);
-    this.theme = new ThemeManager(this);
-    this.history = new ActionHistory(this);
-    this.spells = new SpellTracker(this);
-    this.encounter = new EncounterBuilder(this);
+    this.initiative = new InitiativeTracker(this);
     this.conditions = new ConditionsManager(this);
-    this.actions = new ActionEconomyTracker(this);
-    this.notes = new CombatNotesManager(this);
     this.damage = new DamageTypeManager(this);
     this.saves = new SavingThrowManager(this);
+    this.actions = new ActionEconomyTracker(this);
+    this.legendary = new LegendaryActionsTracker(this);
+    this.lair = new LairActionsTracker(this);
+    this.notes = new CombatNotesManager(this);
     this.stats = new CombatStatisticsManager(this);
+    this.spells = new SpellTracker(this);
+    this.audio = new AudioManager(this);
     
-    // Conditionally initialize trackers
-    if (typeof LegendaryActionsTracker !== 'undefined') {
-      this.legendary = new LegendaryActionsTracker(this);
-    } else {
-      console.warn("LegendaryActionsTracker not found. Legendary actions will not be available.");
-    }
-    
-    if (typeof LairActionsTracker !== 'undefined') {
-      this.lair = new LairActionsTracker(this);
-    } else {
-      console.warn("LairActionsTracker not found. Lair actions will not be available.");
-    }
-    
-    if (typeof InitiativeTracker !== 'undefined') {
-      this.initiative = new InitiativeTracker(this);
-    } else {
-      console.warn("InitiativeTracker not found. Initiative improvements will not be available.");
-    }
-    
-    console.log("Jesster's Combat Tracker v" + this.version + " initializing...");
+    // Initialize the app
+    this.init();
   }
   
-  async init() {
-    try {
-      // First, directly render the UI without relying on cached elements
-      console.log("Rendering initial UI...");
-      const appContainer = document.getElementById('app-container');
-      if (!appContainer) {
-        throw new Error("Fatal error: #app-container not found in the document");
-      }
-      
-      // Render the UI directly
-      this.ui.renderInitialUI(appContainer);
-      
-      // Give the browser a moment to render the UI before caching elements
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      // Now that the UI is rendered, cache the elements
-      console.log("Caching DOM elements...");
-      this.ui.cacheDOMElements();
-      
-      // Set up event listeners
-      console.log("Setting up event listeners...");
-      this.ui.setupEventListeners();
-
-      // Initialize Firebase
-      try {
-        const firebaseInitialized = this.initFirebase();
-        if (!firebaseInitialized) {
-          this.offlineMode = true;
-          console.log("Running in offline mode due to Firebase initialization failure.");
-          this.logEvent("Running in offline mode. Your data will be saved locally.");
-        }
-      } catch (error) {
-        this.offlineMode = true;
-        console.error("Firebase initialization error:", error);
-        this.logEvent("Firebase error. Running in offline mode.");
-      }
-      
-      // Initialize managers that need initialization
-      this.theme.init();
-      this.audio.init();
-      if (this.initiative) this.initiative.init();
-      if (this.notes) this.notes.init();
-      if (this.damage) this.damage.init();
-      if (this.saves) this.saves.init();
-      if (this.stats) this.stats.init();
-      
-      // Load data
-      await this.data.loadInitialData();
-      
-      this.logEvent("Jesster's Combat Tracker v" + this.version + " initialized successfully.");
-      console.log("Jesster's Combat Tracker v" + this.version + " initialized successfully.");
-
-    } catch (error) {
-      console.error("Error initializing application:", error);
-      this.offlineMode = true;
-      
-      // Try to log the error if the UI is available
-      try {
-        this.logEvent("Error initializing application: " + error.message + ". Running in offline mode.");
-      } catch (e) {
-        // If logging fails, just console.error
-        console.error("Could not log error to UI:", e);
-      }
+  /**
+   * Initialize the application
+   */
+  init() {
+    // Find the app container
+    const appContainer = document.getElementById('app');
+    if (!appContainer) {
+      console.error("Fatal Error: Could not find app container element");
+      return;
     }
+    
+    // Render the initial UI
+    this.ui.renderInitialUI(appContainer);
+    
+    // Cache DOM elements for better performance
+    this.ui.cacheDOMElements();
+    
+    // Set up event listeners
+    this.ui.setupEventListeners();
+    
+    // Initialize modules that need initialization
+    this.initiative.init();
+    this.conditions.addGroupConditionsButton();
+    this.actions.addActionReferenceButton();
+    this.notes.init();
+    this.stats.init();
+    this.audio.init();
+    this.spells.addConcentrationCheckButton();
+    
+    // Add dice history button
+    this.dice.addDiceHistoryButton();
+    
+    // Log initialization
+    this.logEvent("Combat Tracker initialized.");
+    console.log("Jesster's Combat Tracker initialized successfully");
   }
   
-  initFirebase() {
-    try {
-      console.log("Initializing Firebase...");
-      
-      // Use the globally available Firebase objects
-      if (typeof firebase === 'undefined') {
-        console.error("Firebase is not defined. Make sure Firebase scripts are loaded.");
-        return false;
-      }
-      
-      this.firebase = firebase;
-      this.db = firebase.firestore();
-      this.auth = firebase.auth();
-      
-      // Try to sign in anonymously
-      console.log("Signing in anonymously...");
-      var self = this;
-      this.auth.signInAnonymously().then(function(userCredential) {
-        self.userId = userCredential.user.uid;
-        console.log("Firebase authenticated. User ID:", self.userId);
-      }).catch(function(error) {
-        console.error("Anonymous sign-in failed:", error);
-        self.offlineMode = true;
-      });
-      
-      // Listen for auth state changes
-      this.auth.onAuthStateChanged(function(user) {
-        if (user) {
-          self.userId = user.uid;
-          console.log("Firebase authenticated. User ID:", self.userId);
-        } else {
-          self.userId = null;
-          console.log("Firebase user signed out.");
-          self.offlineMode = true;
-        }
-      });
-      
-      console.log("Firebase initialized successfully.");
-      return true;
-    } catch (error) {
-      console.error("Firebase initialization failed:", error);
-      this.offlineMode = true;
-      return false;
-    }
-  }
-  
+  /**
+   * Log an event to the combat log
+   * @param {string} message - The message to log
+   */
   logEvent(message) {
-    var timestamp = new Date().toLocaleTimeString('en-US', { 
-      hour: '2-digit', 
-      minute: '2-digit', 
-      second: '2-digit' 
-    });
-    this.state.combatLog.push("[" + timestamp + "] " + message);
+    // Add timestamp
+    const now = new Date();
+    const timestamp = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+    const logEntry = `[${timestamp}] ${message}`;
+    
+    // Add to log
+    this.state.combatLog.push(logEntry);
+    
+    // Update the UI
     this.ui.renderCombatLog();
   }
   
-  showAlert(message, title) {
-    if (!title) title = 'Notification';
+  /**
+   * Show an alert message
+   * @param {string} message - The message to show
+   * @param {string} [title='Notification'] - The title of the alert
+   */
+  showAlert(message, title = 'Notification') {
     this.ui.showAlert(message, title);
-    this.logEvent("Alert: " + title + " - " + message);
   }
   
+  /**
+   * Show a confirmation dialog
+   * @param {string} message - The message to show
+   * @param {Function} onConfirm - The function to call when confirmed
+   */
   showConfirm(message, onConfirm) {
     this.ui.showConfirm(message, onConfirm);
   }
   
-  formatTime(milliseconds) {
-    const seconds = Math.floor(milliseconds / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const hours = Math.floor(minutes / 60);
-    
-    return `${hours > 0 ? hours + 'h ' : ''}${minutes % 60}m ${seconds % 60}s`;
-  }
-  
+  /**
+   * Get the current combat duration as a formatted string
+   * @returns {string} - The formatted duration
+   */
   getCombatDuration() {
     if (!this.state.combatStartTime) return '0m 0s';
+    
     const now = new Date();
-    const duration = now - this.state.combatStartTime;
-    return this.formatTime(duration);
+    const durationMs = now - this.state.combatStartTime;
+    
+    return this.formatTime(durationMs);
+  }
+  
+  /**
+   * Format a time duration in milliseconds
+   * @param {number} ms - The duration in milliseconds
+   * @returns {string} - The formatted duration
+   */
+  formatTime(ms) {
+    const seconds = Math.floor((ms / 1000) % 60);
+    const minutes = Math.floor((ms / (1000 * 60)) % 60);
+    const hours = Math.floor(ms / (1000 * 60 * 60));
+    
+    if (hours > 0) {
+      return `${hours}h ${minutes}m ${seconds}s`;
+    } else {
+      return `${minutes}m ${seconds}s`;
+    }
   }
 }
 
-// Initialize the application when the DOM is loaded
-document.addEventListener('DOMContentLoaded', function() {
-  var app = new JesstersCombatTracker();
-  app.init();
-  
-  // Make app available globally for debugging
-  window.jessterApp = app;
+// Initialize the app when the DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+  window.jessterCombatTracker = new JessterCombatTracker();
 });
