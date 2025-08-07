@@ -243,13 +243,22 @@ class APIManager {
                     // Generate ID
                     character.id = 'dndb-' + Date.now();
                     
-                    // Output the character data
-                    console.log('Copy the following JSON and paste it into the import field:');
-                    console.log(JSON.stringify(character, null, 2));
-                    return JSON.stringify(character);
+                    // Create a clean JSON string with proper formatting
+                    const jsonString = JSON.stringify(character, null, 2);
+                    
+                    // Display instructions with a clear visual separator
+                    console.log('='.repeat(50));
+                    console.log('COPY EVERYTHING BETWEEN THE LINES BELOW:');
+                    console.log('='.repeat(50));
+                    console.log('{');
+                    console.log(jsonString.substring(1, jsonString.length - 1));
+                    console.log('}');
+                    console.log('='.repeat(50));
+                    
+                    return jsonString;
                 } catch (error) {
                     console.error('Error extracting character data:', error);
-                    return '{"error": "' + error.message + '"}';
+                    return JSON.stringify({"error": error.message});
                 }
             })();
         `;
@@ -264,7 +273,7 @@ class APIManager {
         try {
             // Validate required fields
             if (!data.name) {
-                throw new Error('Character name is missing');
+                data.name = "Unnamed Character";
             }
             
             // Create character object
