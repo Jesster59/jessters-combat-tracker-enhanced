@@ -1,597 +1,636 @@
 /**
  * UI Manager for Jesster's Combat Tracker
- * Handles all UI-related functionality
+ * Handles all user interface rendering and interactions
  */
 class UIManager {
   constructor(app) {
     this.app = app;
-    this.dicePresets = [
-      { label: 'd20', value: '1d20' },
-      { label: 'Adv', value: '2d20kh1' },
-      { label: 'Dis', value: '2d20kl1' },
-      { label: 'd4', value: '1d4' },
-      { label: 'd6', value: '1d6' },
-      { label: 'd8', value: '1d8' },
-      { label: 'd10', value: '1d10' },
-      { label: 'd12', value: '1d12' },
-      { label: 'd100', value: '1d100' }
-    ];
+    this.elements = {};
+    console.log("UI.js loaded successfully");
   }
   
-  renderInitialUI(appContainer) {
-    // This function now takes the appContainer as a parameter
-    // to ensure we're working with the correct element
-    if (!appContainer) {
-      console.error("Fatal Error: appContainer not provided to renderInitialUI");
-      return;
-    }
-    
-    appContainer.innerHTML = `
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <!-- Combat Timeline -->
-        <div class="md:col-span-2 bg-gray-800 p-4 rounded-lg">
-          <div class="flex justify-between items-center">
-            <h2 class="text-xl font-semibold">Combat Timeline</h2>
-            <div class="flex items-center">
-              <span class="text-gray-400 mr-2">Turn:</span>
-              <span id="turn-indicator" class="text-xl font-bold text-yellow-400">Waiting to Start</span>
+  /**
+   * Render the initial UI structure
+   */
+  renderInitialUI(container) {
+    container.innerHTML = `
+      <div class="min-h-screen bg-gray-900 text-white">
+        <!-- Header -->
+        <header class="bg-gray-800 shadow-lg">
+          <div class="container mx-auto px-4 py-6">
+            <div class="flex items-center justify-between">
+              <h1 class="text-3xl font-bold text-blue-400">⚔️ Jesster's Combat Tracker</h1>
+              <div class="flex items-center space-x-4">
+                <div id="combat-status" class="text-lg font-semibold text-gray-300">
+                  Combat Not Started
+                </div>
+                <button id="start-combat-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
+                  Start Combat
+                </button>
+                <button id="end-combat-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded hidden">
+                  End Combat
+                </button>
+              </div>
             </div>
           </div>
-          <div id="combat-timeline" class="combat-timeline flex items-center justify-between mt-3">
-            <!-- Round counter -->
-            <div class="flex items-center justify-center bg-gray-700 px-4 py-2 rounded-lg">
-              <span class="text-gray-400 mr-2">Round:</span>
-              <span id="round-counter" class="text-xl font-bold">1</span>
-            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="container mx-auto px-4 py-8">
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
             
-            <!-- Initiative type selector -->
-            <div class="flex items-center bg-gray-700 px-4 py-2 rounded-lg">
-              <span class="text-gray-400 mr-2">Initiative:</span>
-              <select id="initiative-type" class="bg-gray-600 rounded px-2 py-1 text-white">
-                <option value="dynamic">Dynamic (Team)</option>
-                <option value="team">Fixed Team</option>
-                <option value="normal">Individual</option>
-              </select>
+            <!-- Left Column: Creatures -->
+            <div class="lg:col-span-2">
+              <div class="bg-gray-800 rounded-lg shadow-lg p-6">
+                <div class="flex items-center justify-between mb-6">
+                  <h2 class="text-2xl font-bold text-blue-400">Combat Participants</h2>
+                  <div class="flex space-x-2">
+                    <button id="add-hero-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                      Add Hero
+                    </button>
+                    <button id="add-monster-btn" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded">
+                      Add Monster
+                    </button>
+                  </div>
+                </div>
+                
+                <div id="creatures-container" class="space-y-4">
+                  <div class="text-center text-gray-400 py-8">
+                    No creatures added yet. Click "Add Hero" or "Add Monster" to begin.
+                  </div>
+                </div>
+              </div>
             </div>
-            
-            <!-- Player view options -->
-            <div class="flex items-center bg-gray-700 px-4 py-2 rounded-lg">
-              <span class="text-gray-400 mr-2">Player View:</span>
-              <select id="player-hp-view" class="bg-gray-600 rounded px-2 py-1 text-white">
-                <option value="descriptive">Descriptive HP</option>
-                <option value="exact">Exact HP</option>
-                <option value="none">No HP</option>
-              </select>
-            </div>
-            
-            <!-- Player view button -->
-            <button id="open-player-view-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">
-              Open Player View
-            </button>
-          </div>
-        </div>
-        
-        <!-- Heroes Column -->
-        <div id="heroes-column" class="bg-gray-800 p-4 rounded-lg shadow-lg border-2 border-transparent">
-          <h2 class="text-2xl font-semibold mb-4 text-center text-blue-400">Heroes</h2>
-          <div id="heroes-list" class="overflow-y-auto tracker-column space-y-3 pr-2"></div>
-          <div class="mt-4">
-            <button id="add-hero-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md transition-colors duration-300">Add Hero</button>
-          </div>
-        </div>
-        
-        <!-- Monsters Column -->
-        <div id="monsters-column" class="bg-gray-800 p-4 rounded-lg shadow-lg border-2 border-transparent">
-          <div class="flex justify-between items-center mb-4">
-            <h2 class="text-2xl font-semibold text-center text-red-400">Monsters</h2>
-            <button id="open-encounter-builder-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-3 rounded text-sm">
-              Encounter Builder
-            </button>
-          </div>
-          <div id="monsters-list" class="overflow-y-auto tracker-column space-y-3 pr-2"></div>
-          <div class="mt-4">
-            <button id="add-monster-btn" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-md transition-colors duration-300">Add Monster</button>
-          </div>
-        </div>
-        
-        <!-- Combat Controls -->
-        <div class="md:col-span-2 flex flex-wrap justify-center gap-4">
-          <button id="roll-all-btn" class="bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded-md transition-colors duration-300">Roll All Initiative</button>
-          <button id="start-combat-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md transition-colors duration-300" disabled>Start Combat</button>
-          <button id="end-turn-btn" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-md transition-colors duration-300" disabled>End Turn</button>
-          <button id="reset-combat-btn" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-md transition-colors duration-300">Reset Combat</button>
-          <button id="end-combat-btn" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-md transition-colors duration-300">End Combat</button>
-        </div>
-        
-        <!-- Combat Log -->
-        <div class="md:col-span-2 bg-gray-800 p-4 rounded-lg">
-          <div class="flex justify-between items-center mb-2">
-            <h2 class="text-xl font-semibold">Combat Log</h2>
-            <div class="flex space-x-2">
-              <button id="clear-log-btn" class="text-gray-400 hover:text-white">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-              </button>
-              <button id="export-log-btn" class="text-gray-400 hover:text-white">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
-              </button>
+
+            <!-- Right Column: Tools and Log -->
+            <div class="space-y-6">
+              
+              <!-- Initiative Tracker -->
+              <div class="bg-gray-800 rounded-lg shadow-lg p-6">
+                <h3 class="text-xl font-bold text-blue-400 mb-4">Initiative Order</h3>
+                <div id="initiative-container" class="space-y-2">
+                  <div class="text-center text-gray-400 py-4">
+                    No initiative rolled yet
+                  </div>
+                </div>
+                <div class="mt-4 flex space-x-2">
+                  <button id="roll-initiative-btn" class="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded flex-1">
+                    Roll Initiative
+                  </button>
+                  <button id="next-turn-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded flex-1 hidden">
+                    Next Turn
+                  </button>
+                </div>
+              </div>
+
+              <!-- Quick Dice Roller -->
+              <div class="bg-gray-800 rounded-lg shadow-lg p-6">
+                <h3 class="text-xl font-bold text-blue-400 mb-4">Quick Dice</h3>
+                <div class="grid grid-cols-3 gap-2 mb-4">
+                  <button class="dice-btn bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-3 rounded" data-dice="1d4">d4</button>
+                  <button class="dice-btn bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-3 rounded" data-dice="1d6">d6</button>
+                  <button class="dice-btn bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-3 rounded" data-dice="1d8">d8</button>
+                  <button class="dice-btn bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-3 rounded" data-dice="1d10">d10</button>
+                  <button class="dice-btn bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-3 rounded" data-dice="1d12">d12</button>
+                  <button class="dice-btn bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-3 rounded" data-dice="1d20">d20</button>
+                </div>
+                <div class="flex space-x-2">
+                  <input type="text" id="custom-dice-input" placeholder="2d6+3" class="flex-1 bg-gray-700 text-white px-3 py-2 rounded">
+                  <button id="roll-custom-dice-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                    Roll
+                  </button>
+                </div>
+                <div id="dice-results" class="mt-4 p-3 bg-gray-700 rounded min-h-[60px]">
+                  <div class="text-gray-400 text-center">Roll some dice to see results</div>
+                </div>
+              </div>
+
+              <!-- Combat Log -->
+              <div class="bg-gray-800 rounded-lg shadow-lg p-6">
+                <h3 class="text-xl font-bold text-blue-400 mb-4">Combat Log</h3>
+                <div id="combat-log" class="bg-gray-900 rounded p-4 h-64 overflow-y-auto text-sm">
+                  <div class="text-gray-400">Combat log will appear here...</div>
+                </div>
+                <button id="clear-log-btn" class="mt-2 bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-3 rounded text-sm">
+                  Clear Log
+                </button>
+              </div>
             </div>
           </div>
-          <div id="combat-log" class="bg-gray-900 p-3 rounded-lg h-40 overflow-y-auto text-sm"></div>
-        </div>
-        
-        <!-- Dice Roller -->
-        <div class="md:col-span-2 bg-gray-800 p-4 rounded-lg">
-          <h2 class="text-xl font-semibold mb-2">Dice Roller</h2>
-          <div class="flex flex-wrap gap-2 mb-3">
-            ${this.dicePresets.map(preset => `
-              <button class="dice-preset-btn bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-1 px-3 rounded" data-value="${preset.value}">
-                ${preset.label}
-              </button>
-            `).join('')}
-          </div>
-          <div class="flex gap-2">
-            <input type="text" id="dice-input" class="bg-gray-700 rounded px-3 py-2 text-white flex-grow" placeholder="e.g., 2d6+3">
-            <button id="roll-dice-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded">Roll</button>
-          </div>
-          <div id="dice-results" class="mt-2 text-gray-300"></div>
-        </div>
-        
-        <!-- Hidden elements for modals and alerts -->
-        <div id="modal-container" class="fixed inset-0 flex items-center justify-center z-50 hidden">
-          <div class="modal-backdrop fixed inset-0 bg-black opacity-50"></div>
-          <div class="modal-content bg-gray-800 rounded-lg shadow-xl p-6 max-w-lg w-full mx-auto z-10">
-            <!-- Modal content will be inserted here -->
-          </div>
-        </div>
-        
-        <div id="alert-container" class="fixed top-4 right-4 z-50">
-          <!-- Alerts will be inserted here -->
-        </div>
-        
-        <!-- Hidden inputs for lair actions -->
-        <div class="hidden">
-          <input type="checkbox" id="lair-action-enable">
-          <textarea id="lair-action-text"></textarea>
-        </div>
+        </main>
       </div>
     `;
   }
   
+  /**
+   * Cache DOM elements for better performance
+   */
   cacheDOMElements() {
-    // Cache commonly used elements for better performance
     this.elements = {
-      heroesColumn: document.getElementById('heroes-column'),
-      monsterColumn: document.getElementById('monsters-column'),
-      heroesList: document.getElementById('heroes-list'),
-      monstersList: document.getElementById('monsters-list'),
-      combatLog: document.getElementById('combat-log'),
-      diceInput: document.getElementById('dice-input'),
+      combatStatus: document.getElementById('combat-status'),
+      startCombatBtn: document.getElementById('start-combat-btn'),
+      endCombatBtn: document.getElementById('end-combat-btn'),
+      addHeroBtn: document.getElementById('add-hero-btn'),
+      addMonsterBtn: document.getElementById('add-monster-btn'),
+      creaturesContainer: document.getElementById('creatures-container'),
+      initiativeContainer: document.getElementById('initiative-container'),
+      rollInitiativeBtn: document.getElementById('roll-initiative-btn'),
+      nextTurnBtn: document.getElementById('next-turn-btn'),
+      customDiceInput: document.getElementById('custom-dice-input'),
+      rollCustomDiceBtn: document.getElementById('roll-custom-dice-btn'),
       diceResults: document.getElementById('dice-results'),
-      modalContainer: document.getElementById('modal-container'),
-      modalContent: document.querySelector('#modal-container .modal-content'),
-      alertContainer: document.getElementById('alert-container'),
-      turnIndicator: document.getElementById('turn-indicator'),
-      roundCounter: document.getElementById('round-counter')
+      combatLog: document.getElementById('combat-log'),
+      clearLogBtn: document.getElementById('clear-log-btn')
     };
   }
   
+  /**
+   * Set up event listeners
+   */
   setupEventListeners() {
     // Combat controls
-    document.getElementById('roll-all-btn').addEventListener('click', () => {
-      this.app.combat.rollAllInitiative();
-    });
-    
-    document.getElementById('start-combat-btn').addEventListener('click', () => {
+    this.elements.startCombatBtn?.addEventListener('click', () => {
       this.app.combat.startCombat();
     });
     
-    document.getElementById('end-turn-btn').addEventListener('click', () => {
-      this.app.combat.endTurn();
-    });
-    
-    document.getElementById('reset-combat-btn').addEventListener('click', () => {
-      this.app.combat.resetCombat();
-    });
-    
-    document.getElementById('end-combat-btn').addEventListener('click', () => {
+    this.elements.endCombatBtn?.addEventListener('click', () => {
       this.app.combat.endCombat();
     });
     
-    // Add combatants
-    document.getElementById('add-hero-btn').addEventListener('click', () => {
-      this.app.roster.openAddHeroModal();
+    // Add creature buttons
+    this.elements.addHeroBtn?.addEventListener('click', () => {
+      this.openAddCreatureModal('hero');
     });
     
-    document.getElementById('add-monster-btn').addEventListener('click', () => {
-      this.app.monsters.openAddMonsterModal();
+    this.elements.addMonsterBtn?.addEventListener('click', () => {
+      this.openAddCreatureModal('monster');
     });
     
-    // Encounter builder
-    document.getElementById('open-encounter-builder-btn').addEventListener('click', () => {
-      if (this.app.encounter) {
-        this.app.encounter.openEncounterBuilder();
-      }
+    // Initiative controls
+    this.elements.rollInitiativeBtn?.addEventListener('click', () => {
+      this.app.combat.rollInitiativeForAll();
     });
     
-    // Player view
-    document.getElementById('open-player-view-btn').addEventListener('click', () => {
-      this.app.combat.openOrRefreshPlayerView();
+    this.elements.nextTurnBtn?.addEventListener('click', () => {
+      this.app.combat.nextTurn();
     });
     
-    // Combat log controls
-    document.getElementById('clear-log-btn').addEventListener('click', () => {
-      this.app.state.combatLog = [];
-      this.renderCombatLog();
-      this.app.logEvent("Combat log cleared.");
-    });
-    
-    document.getElementById('export-log-btn').addEventListener('click', () => {
-      this.exportCombatLog();
-    });
-    
-    // Dice roller
-    document.getElementById('roll-dice-btn').addEventListener('click', () => {
-      const diceExpression = this.elements.diceInput.value;
-      if (diceExpression) {
-        this.app.dice.rollAndDisplay(diceExpression);
-      }
-    });
-    
-    // Dice presets
-    document.querySelectorAll('.dice-preset-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const diceExpression = btn.dataset.value;
-        this.app.dice.rollAndDisplay(diceExpression);
+    // Dice rolling
+    document.querySelectorAll('.dice-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const diceNotation = e.target.dataset.dice;
+        this.app.dice.rollAndDisplay(diceNotation);
       });
     });
     
-    // Allow Enter key to roll dice
-    this.elements.diceInput.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') {
-        const diceExpression = this.elements.diceInput.value;
-        if (diceExpression) {
-          this.app.dice.rollAndDisplay(diceExpression);
-        }
+    this.elements.rollCustomDiceBtn?.addEventListener('click', () => {
+      const diceNotation = this.elements.customDiceInput.value.trim();
+      if (diceNotation) {
+        this.app.dice.rollAndDisplay(diceNotation);
+        this.elements.customDiceInput.value = '';
       }
     });
     
-    // Modal backdrop click to close
-    document.querySelector('.modal-backdrop')?.addEventListener('click', () => {
-      this.hideModal();
+    this.elements.customDiceInput?.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        this.elements.rollCustomDiceBtn.click();
+      }
     });
     
-    // Initialize the initiative tracker
-    if (this.app.initiative) {
-      setTimeout(() => {
-        this.app.initiative.init();
-      }, 100);
-    }
-    
-    // Add group saving throw button
-    if (this.app.saves) {
-      setTimeout(() => {
-        this.app.saves.addGroupSavingThrowButton();
-      }, 100);
-    }
-    
-    // Add lair actions button
-    if (this.app.lair) {
-      setTimeout(() => {
-        this.app.lair.addLairActionsButton();
-      }, 100);
-    }
+    // Clear log
+    this.elements.clearLogBtn?.addEventListener('click', () => {
+      this.app.state.combatLog = [];
+      this.renderCombatLog();
+    });
   }
   
-  renderCombatLog() {
-    if (!this.elements.combatLog) return;
+  /**
+   * Open the add creature modal
+   */
+  openAddCreatureModal(type) {
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 flex items-center justify-center z-50 p-4 modal-backdrop';
+    modal.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
     
-    const logEntries = this.app.state.combatLog;
+    const isHero = type === 'hero';
+    const title = isHero ? 'Add Hero' : 'Add Monster';
+    const bgColor = isHero ? 'bg-blue-600' : 'bg-purple-600';
+    const hoverColor = isHero ? 'hover:bg-blue-700' : 'hover:bg-purple-700';
     
-    // Clear the log
-    this.elements.combatLog.innerHTML = '';
+    modal.innerHTML = `
+      <div class="bg-gray-800 rounded-lg shadow-2xl p-6 max-w-md w-full mx-auto fade-in">
+        <h3 class="text-xl font-bold text-blue-400 mb-4">${title}</h3>
+        
+        <div class="space-y-4">
+          <div>
+            <label class="block text-gray-300 mb-2">Name:</label>
+            <input type="text" id="creature-name" class="w-full bg-gray-700 text-white px-3 py-2 rounded" placeholder="Enter name">
+          </div>
+          
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-gray-300 mb-2">Max HP:</label>
+              <input type="number" id="creature-max-hp" class="w-full bg-gray-700 text-white px-3 py-2 rounded" placeholder="100">
+            </div>
+            <div>
+              <label class="block text-gray-300 mb-2">AC:</label>
+              <input type="number" id="creature-ac" class="w-full bg-gray-700 text-white px-3 py-2 rounded" placeholder="15">
+            </div>
+          </div>
+          
+          <div>
+            <label class="block text-gray-300 mb-2">Initiative Modifier:</label>
+            <input type="number" id="creature-init" class="w-full bg-gray-700 text-white px-3 py-2 rounded" placeholder="2">
+          </div>
+        </div>
+        
+        <div class="flex justify-end space-x-2 mt-6">
+          <button id="cancel-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
+            Cancel
+          </button>
+          <button id="add-creature-btn" class="${bgColor} ${hoverColor} text-white font-bold py-2 px-4 rounded">
+            Add ${isHero ? 'Hero' : 'Monster'}
+          </button>
+        </div>
+      </div>
+    `;
     
-    // Add each log entry
-    logEntries.forEach(entry => {
-      const logItem = document.createElement('div');
-      logItem.className = 'mb-1 text-gray-300';
-      logItem.textContent = entry;
-      this.elements.combatLog.appendChild(logItem);
+    document.body.appendChild(modal);
+    
+    // Focus on name input
+    document.getElementById('creature-name').focus();
+    
+    // Event listeners
+    document.getElementById('cancel-btn').addEventListener('click', () => {
+      modal.remove();
     });
+    
+    document.getElementById('add-creature-btn').addEventListener('click', () => {
+      const name = document.getElementById('creature-name').value.trim();
+      const maxHP = parseInt(document.getElementById('creature-max-hp').value) || 100;
+      const ac = parseInt(document.getElementById('creature-ac').value) || 15;
+      const initMod = parseInt(document.getElementById('creature-init').value) || 0;
+      
+      if (!name) {
+        alert('Please enter a name for the creature.');
+        return;
+      }
+      
+      const creature = {
+        id: Date.now().toString(),
+        name: name,
+        type: type,
+        maxHP: maxHP,
+        currentHP: maxHP,
+        ac: ac,
+        initiativeModifier: initMod,
+        initiative: null,
+        conditions: [],
+        notes: ''
+      };
+      
+      this.app.combat.addCreature(creature);
+      modal.remove();
+    });
+    
+    // Close on outside click
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        modal.remove();
+      }
+    });
+  }
+  
+  /**
+   * Render the creatures list
+   */
+  renderCreatures() {
+    const container = this.elements.creaturesContainer;
+    if (!container) return;
+    
+    const creatures = this.app.combat.creatures || [];
+    
+    if (creatures.length === 0) {
+      container.innerHTML = `
+        <div class="text-center text-gray-400 py-8">
+          No creatures added yet. Click "Add Hero" or "Add Monster" to begin.
+        </div>
+      `;
+      return;
+    }
+    
+    container.innerHTML = creatures.map(creature => `
+      <div class="creature-card bg-gray-700 rounded-lg p-4 ${creature.id === this.app.state.currentTurn ? 'active-turn' : ''}">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center space-x-4">
+            <div class="text-2xl">${creature.type === 'hero' ? '🛡️' : '👹'}</div>
+            <div>
+              <h4 class="text-lg font-bold text-white">${creature.name}</h4>
+              <div class="text-sm text-gray-300">
+                HP: ${creature.currentHP}/${creature.maxHP} | AC: ${creature.ac}
+                ${creature.initiative !== null ? ` | Init: ${creature.initiative}` : ''}
+              </div>
+            </div>
+          </div>
+          
+          <div class="flex items-center space-x-2">
+            <button class="damage-btn bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-3 rounded text-sm" data-creature-id="${creature.id}">
+              Damage
+            </button>
+            <button class="heal-btn bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-3 rounded text-sm" data-creature-id="${creature.id}">
+              Heal
+            </button>
+            <button class="remove-btn bg-gray-600 hover:bg-gray-700 text-white font-bold py-1 px-3 rounded text-sm" data-creature-id="${creature.id}">
+              Remove
+            </button>
+          </div>
+        </div>
+        
+        ${creature.conditions.length > 0 ? `
+          <div class="mt-2">
+            <div class="text-xs text-gray-400 mb-1">Conditions:</div>
+            <div class="flex flex-wrap gap-1">
+              ${creature.conditions.map(condition => `
+                <span class="condition-tag bg-yellow-600 text-yellow-100">${condition}</span>
+              `).join('')}
+            </div>
+          </div>
+        ` : ''}
+      </div>
+    `).join('');
+    
+    // Add event listeners for creature buttons
+    container.querySelectorAll('.damage-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const creatureId = e.target.dataset.creatureId;
+        this.openDamageModal(creatureId);
+      });
+    });
+    
+    container.querySelectorAll('.heal-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const creatureId = e.target.dataset.creatureId;
+        this.openHealModal(creatureId);
+      });
+    });
+    
+    container.querySelectorAll('.remove-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const creatureId = e.target.dataset.creatureId;
+        if (confirm('Are you sure you want to remove this creature?')) {
+          this.app.combat.removeCreature(creatureId);
+        }
+      });
+    });
+  }
+  
+  /**
+   * Open damage modal
+   */
+  openDamageModal(creatureId) {
+    const creature = this.app.combat.getCreature(creatureId);
+    if (!creature) return;
+    
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 flex items-center justify-center z-50 p-4 modal-backdrop';
+    modal.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+    
+    modal.innerHTML = `
+      <div class="bg-gray-800 rounded-lg shadow-2xl p-6 max-w-sm w-full mx-auto fade-in">
+        <h3 class="text-xl font-bold text-red-400 mb-4">Damage ${creature.name}</h3>
+        
+        <div class="space-y-4">
+          <div>
+            <label class="block text-gray-300 mb-2">Damage Amount:</label>
+            <input type="number" id="damage-amount" class="w-full bg-gray-700 text-white px-3 py-2 rounded" placeholder="10" min="0">
+          </div>
+        </div>
+        
+        <div class="flex justify-end space-x-2 mt-6">
+          <button id="cancel-damage-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
+            Cancel
+          </button>
+          <button id="apply-damage-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">
+            Apply Damage
+          </button>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+    document.getElementById('damage-amount').focus();
+    
+    document.getElementById('cancel-damage-btn').addEventListener('click', () => {
+      modal.remove();
+    });
+    
+    document.getElementById('apply-damage-btn').addEventListener('click', () => {
+      const damage = parseInt(document.getElementById('damage-amount').value) || 0;
+      if (damage > 0) {
+        this.app.damage.applyDamage(creatureId, damage);
+      }
+      modal.remove();
+    });
+    
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) modal.remove();
+    });
+  }
+  
+  /**
+   * Open heal modal
+   */
+  openHealModal(creatureId) {
+    const creature = this.app.combat.getCreature(creatureId);
+    if (!creature) return;
+    
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 flex items-center justify-center z-50 p-4 modal-backdrop';
+    modal.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+    
+    modal.innerHTML = `
+      <div class="bg-gray-800 rounded-lg shadow-2xl p-6 max-w-sm w-full mx-auto fade-in">
+        <h3 class="text-xl font-bold text-green-400 mb-4">Heal ${creature.name}</h3>
+        
+        <div class="space-y-4">
+          <div>
+            <label class="block text-gray-300 mb-2">Healing Amount:</label>
+            <input type="number" id="heal-amount" class="w-full bg-gray-700 text-white px-3 py-2 rounded" placeholder="10" min="0">
+          </div>
+        </div>
+        
+        <div class="flex justify-end space-x-2 mt-6">
+          <button id="cancel-heal-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
+            Cancel
+          </button>
+          <button id="apply-heal-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
+            Apply Healing
+          </button>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+    document.getElementById('heal-amount').focus();
+    
+    document.getElementById('cancel-heal-btn').addEventListener('click', () => {
+      modal.remove();
+    });
+    
+    document.getElementById('apply-heal-btn').addEventListener('click', () => {
+      const healing = parseInt(document.getElementById('heal-amount').value) || 0;
+      if (healing > 0) {
+        this.app.damage.applyHealing(creatureId, healing);
+      }
+      modal.remove();
+    });
+    
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) modal.remove();
+    });
+  }
+  
+  /**
+   * Render the initiative order
+   */
+  renderInitiativeOrder() {
+    const container = this.elements.initiativeContainer;
+    if (!container) return;
+    
+    const creatures = this.app.combat.creatures || [];
+    const sortedCreatures = creatures
+      .filter(c => c.initiative !== null)
+      .sort((a, b) => b.initiative - a.initiative);
+    
+    if (sortedCreatures.length === 0) {
+      container.innerHTML = `
+        <div class="text-center text-gray-400 py-4">
+          No initiative rolled yet
+        </div>
+      `;
+      return;
+    }
+    
+    container.innerHTML = sortedCreatures.map((creature, index) => `
+      <div class="flex items-center justify-between p-2 rounded ${creature.id === this.app.state.currentTurn ? 'bg-blue-600' : 'bg-gray-700'}">
+        <div class="flex items-center space-x-2">
+          <span class="text-lg font-bold">${index + 1}.</span>
+          <span class="text-sm">${creature.type === 'hero' ? '🛡️' : '👹'}</span>
+          <span class="font-semibold">${creature.name}</span>
+        </div>
+        <span class="font-bold text-yellow-400">${creature.initiative}</span>
+      </div>
+    `).join('');
+  }
+  
+  /**
+   * Render the combat log
+   */
+  renderCombatLog() {
+    const container = this.elements.combatLog;
+    if (!container) return;
+    
+    const logs = this.app.state.combatLog || [];
+    
+    if (logs.length === 0) {
+      container.innerHTML = '<div class="text-gray-400">Combat log will appear here...</div>';
+      return;
+    }
+    
+    container.innerHTML = logs.map(log => `
+      <div class="mb-1 text-gray-300">${log}</div>
+    `).join('');
     
     // Scroll to bottom
-    this.elements.combatLog.scrollTop = this.elements.combatLog.scrollHeight;
+    container.scrollTop = container.scrollHeight;
   }
   
-  exportCombatLog() {
-    const logText = this.app.state.combatLog.join('\n');
-    const blob = new Blob([logText], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
+  /**
+   * Update combat status display
+   */
+  updateCombatStatus() {
+    if (!this.elements.combatStatus) return;
     
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `combat-log-${new Date().toISOString().slice(0, 10)}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    
-    this.app.logEvent("Combat log exported.");
+    if (this.app.state.combatStarted) {
+      this.elements.combatStatus.textContent = `Round ${this.app.state.roundNumber} - Combat Active`;
+      this.elements.startCombatBtn?.classList.add('hidden');
+      this.elements.endCombatBtn?.classList.remove('hidden');
+      this.elements.nextTurnBtn?.classList.remove('hidden');
+    } else {
+      this.elements.combatStatus.textContent = 'Combat Not Started';
+      this.elements.startCombatBtn?.classList.remove('hidden');
+      this.elements.endCombatBtn?.classList.add('hidden');
+      this.elements.nextTurnBtn?.classList.add('hidden');
+    }
   }
   
-  showModal(content) {
-    if (!this.elements.modalContainer || !this.elements.modalContent) return;
-    
-    this.elements.modalContent.innerHTML = content;
-    this.elements.modalContainer.classList.remove('hidden');
-  }
-  
-  hideModal() {
-    if (!this.elements.modalContainer) return;
-    
-    this.elements.modalContainer.classList.add('hidden');
-  }
-  
+  /**
+   * Show an alert message
+   */
   showAlert(message, title = 'Notification') {
-    if (!this.elements.alertContainer) return;
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 flex items-center justify-center z-50 p-4 modal-backdrop';
+    modal.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
     
-    const alertId = 'alert-' + Date.now();
-    const alert = document.createElement('div');
-    alert.id = alertId;
-    alert.className = 'bg-gray-800 text-white p-4 rounded-lg shadow-lg mb-3 transform translate-x-full transition-transform duration-300 ease-in-out';
-    
-    alert.innerHTML = `
-      <div class="flex justify-between items-start">
-        <div>
-          <h3 class="font-bold text-yellow-400">${title}</h3>
-          <p class="mt-1">${message}</p>
+    modal.innerHTML = `
+      <div class="bg-gray-800 rounded-lg shadow-2xl p-6 max-w-sm w-full mx-auto fade-in">
+        <h3 class="text-xl font-bold text-blue-400 mb-4">${title}</h3>
+        <p class="text-gray-300 mb-6">${message}</p>
+        <div class="flex justify-end">
+          <button id="alert-ok-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+            OK
+          </button>
         </div>
-        <button class="text-gray-400 hover:text-white close-alert-btn">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
       </div>
     `;
     
-    this.elements.alertContainer.appendChild(alert);
+    document.body.appendChild(modal);
     
-    // Add event listener to close button
-    alert.querySelector('.close-alert-btn').addEventListener('click', () => {
-      this.dismissAlert(alertId);
+    document.getElementById('alert-ok-btn').addEventListener('click', () => {
+      modal.remove();
     });
     
-    // Animate in
-    setTimeout(() => {
-      alert.classList.remove('translate-x-full');
-    }, 10);
-    
-    // Auto dismiss after 5 seconds
-    setTimeout(() => {
-      this.dismissAlert(alertId);
-    }, 5000);
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) modal.remove();
+    });
   }
   
-  dismissAlert(alertId) {
-    const alert = document.getElementById(alertId);
-    if (!alert) return;
-    
-    // Animate out
-    alert.classList.add('translate-x-full');
-    
-    // Remove after animation
-    setTimeout(() => {
-      alert.remove();
-    }, 300);
-  }
-  
+  /**
+   * Show a confirmation dialog
+   */
   showConfirm(message, onConfirm) {
-    const content = `
-      <h3 class="text-xl font-bold text-yellow-400 mb-4">Confirmation</h3>
-      <p class="mb-6">${message}</p>
-      <div class="flex justify-end space-x-2">
-        <button id="confirm-cancel-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
-          Cancel
-        </button>
-        <button id="confirm-ok-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">
-          Confirm
-        </button>
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 flex items-center justify-center z-50 p-4 modal-backdrop';
+    modal.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+    
+    modal.innerHTML = `
+      <div class="bg-gray-800 rounded-lg shadow-2xl p-6 max-w-sm w-full mx-auto fade-in">
+        <h3 class="text-xl font-bold text-yellow-400 mb-4">Confirm</h3>
+        <p class="text-gray-300 mb-6">${message}</p>
+        <div class="flex justify-end space-x-2">
+          <button id="confirm-cancel-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
+            Cancel
+          </button>
+          <button id="confirm-ok-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">
+            Confirm
+          </button>
+        </div>
       </div>
     `;
     
-    this.showModal(content);
+    document.body.appendChild(modal);
     
-    // Add event listeners
     document.getElementById('confirm-cancel-btn').addEventListener('click', () => {
-      this.hideModal();
+      modal.remove();
     });
     
     document.getElementById('confirm-ok-btn').addEventListener('click', () => {
-      this.hideModal();
-      if (typeof onConfirm === 'function') {
-        onConfirm();
-      }
-    });
-  }
-  
-  createCombatantCard(data) {
-    const card = document.createElement('div');
-    card.id = data.id;
-    card.className = 'combatant-card bg-gray-700 rounded-lg p-3 shadow-md';
-    card.dataset.type = data.type;
-    
-    // Create the card content
-    card.innerHTML = `
-      <div class="flex justify-between items-start">
-        <div class="flex items-center combatant-header">
-          <img src="${data.image || 'img/default-avatar.png'}" alt="${data.name}" class="combatant-img w-10 h-10 rounded-full mr-3 border-2 ${data.type === 'hero' ? 'border-blue-300' : 'border-red-300'}">
-          <div>
-            <h3 class="combatant-name font-bold text-lg">${data.name}</h3>
-            <div class="flex items-center text-sm text-gray-400">
-              <span>AC: ${data.ac || '—'}</span>
-              <span class="mx-2">|</span>
-              <span>Init: <input type="number" class="initiative-input bg-gray-600 w-12 text-center rounded" value="${data.initiative || ''}"></span>
-            </div>
-          </div>
-        </div>
-        <div class="flex">
-          <button class="edit-combatant-btn text-gray-400 hover:text-white mr-2">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-            </svg>
-          </button>
-          <button class="remove-combatant-btn text-gray-400 hover:text-red-500">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
-          </button>
-        </div>
-      </div>
-      
-      <div class="mt-3">
-        <div class="flex items-center justify-between mb-1">
-          <span class="text-sm text-gray-400">HP:</span>
-          <span class="text-sm text-gray-400">${data.currentHp || 0}/${data.maxHp || 0}</span>
-        </div>
-        <div class="hp-bar bg-gray-600 rounded-full h-2 overflow-hidden">
-          <div class="hp-bar-current bg-green-500 h-full" style="width: ${data.maxHp ? (data.currentHp / data.maxHp) * 100 : 0}%"></div>
-        </div>
-        <div class="flex items-center mt-2">
-          <button class="hp-minus-btn bg-red-600 hover:bg-red-700 text-white w-6 h-6 rounded-l flex items-center justify-center">-</button>
-          <input type="number" class="hp-input bg-gray-600 text-center w-full" value="${data.currentHp || 0}" data-max-hp="${data.maxHp || 0}">
-          <button class="hp-plus-btn bg-green-600 hover:bg-green-700 text-white w-6 h-6 rounded-r flex items-center justify-center">+</button>
-        </div>
-      </div>
-      
-      <div class="hidden-data" 
-        data-str="${data.str || 10}" 
-        data-dex="${data.dex || 10}" 
-        data-con="${data.con || 10}" 
-        data-int="${data.int || 10}" 
-        data-wis="${data.wis || 10}" 
-        data-cha="${data.cha || 10}"
-        data-prof-bonus="${data.profBonus || 2}"
-        data-init-mod="${data.initMod || ''}"
-        data-conditions-data="[]"
-        data-resistances="[]"
-        data-immunities="[]"
-        data-vulnerabilities="[]"
-        data-save-proficiencies="${JSON.stringify(data.saveProficiencies || [])}"
-      ></div>
-    `;
-    
-    // Add event listeners
-    this.addCombatantCardEventListeners(card, data);
-    
-    // Add initiative modifier display if initiative tracker exists
-    if (this.app.initiative) {
-      this.app.initiative.addInitiativeModifierDisplay(card);
-    }
-    
-    // Add damage button if damage manager exists
-    if (this.app.damage) {
-      this.app.damage.addDamageButtonToCombatantCard(card);
-      this.app.damage.addDamageModifiersButtonToCombatantCard(card);
-    }
-    
-    // Add saving throw button if saves manager exists
-    if (this.app.saves) {
-      this.app.saves.addSavingThrowButtonToCombatantCard(card);
-    }
-    
-    // Add notes button if notes manager exists
-    if (this.app.notes) {
-      this.app.notes.addNoteButtonToCombatantCard(card);
-    }
-    
-    // Add legendary actions button if legendary actions tracker exists and it's a monster
-    if (this.app.legendary && data.type === 'monster') {
-      this.app.legendary.addLegendaryActionsButtonToMonsterCard(card);
-    }
-    
-    return card;
-  }
-  
-  addCombatantCardEventListeners(card, data) {
-    // HP adjustment buttons
-    card.querySelector('.hp-minus-btn').addEventListener('click', () => {
-      const input = card.querySelector('.hp-input');
-      const currentHp = parseInt(input.value) || 0;
-      if (currentHp > 0) {
-        input.value = currentHp - 1;
-        this.updateHPBar(card);
-      }
+      onConfirm();
+      modal.remove();
     });
     
-    card.querySelector('.hp-plus-btn').addEventListener('click', () => {
-      const input = card.querySelector('.hp-input');
-      const currentHp = parseInt(input.value) || 0;
-      const maxHp = parseInt(input.dataset.maxHp) || 0;
-      if (currentHp < maxHp) {
-        input.value = currentHp + 1;
-        this.updateHPBar(card);
-      }
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) modal.remove();
     });
-    
-    card.querySelector('.hp-input').addEventListener('change', () => {
-      this.updateHPBar(card);
-    });
-    
-    // Edit button
-    card.querySelector('.edit-combatant-btn').addEventListener('click', () => {
-      if (data.type === 'hero') {
-        this.app.roster.openEditHeroModal(card.id);
-      } else {
-        this.app.monsters.openEditMonsterModal(card.id);
-      }
-    });
-    
-    // Remove button
-    card.querySelector('.remove-combatant-btn').addEventListener('click', () => {
-      this.app.showConfirm(`Remove ${data.name} from combat?`, () => {
-        card.remove();
-        this.app.logEvent(`${data.name} removed from combat.`);
-      });
-    });
-  }
-  
-  updateHPBar(card) {
-    const input = card.querySelector('.hp-input');
-    const bar = card.querySelector('.hp-bar-current');
-    
-    if (!input || !bar) return;
-    
-    const currentHp = parseInt(input.value) || 0;
-    const maxHp = parseInt(input.dataset.maxHp) || 1;
-    const percentage = Math.max(0, Math.min(100, (currentHp / maxHp) * 100));
-    
-    bar.style.width = `${percentage}%`;
-    
-    // Update color based on percentage
-    if (percentage <= 25) {
-      bar.className = 'hp-bar-current bg-red-600 h-full';
-    } else if (percentage <= 50) {
-      bar.className = 'hp-bar-current bg-yellow-500 h-full';
-    } else {
-      bar.className = 'hp-bar-current bg-green-500 h-full';
-    }
-  }
-  
-  getThemeColors() {
-    return {
-      primary: '#4C51BF', // indigo-600
-      secondary: '#ED8936', // orange-500
-      success: '#48BB78', // green-500
-      danger: '#E53E3E', // red-600
-      warning: '#ECC94B', // yellow-500
-      info: '#4299E1', // blue-500
-      light: '#E2E8F0', // gray-300
-      dark: '#1A202C', // gray-900
-      heroColor: '#63B3ED', // blue-400
-      monsterColor: '#FC8181' // red-400
-    };
   }
 }
