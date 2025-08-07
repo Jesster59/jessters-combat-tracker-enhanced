@@ -25,7 +25,8 @@ class CombatManager {
             initiativeBonus: 0,
             initiative: null,
             conditions: [],
-            imageUrl: null
+            imageUrl: null,
+            source: null
         };
         
         // Merge with defaults
@@ -38,7 +39,8 @@ class CombatManager {
         this.app.ui.renderCreatures();
         
         // Log the event
-        this.app.logEvent(`${newCreature.name} added to combat.`);
+        const sourceText = newCreature.source ? ` from ${newCreature.source}` : '';
+        this.app.logEvent(`${newCreature.name} added to combat${sourceText}.`);
     }
     
     /**
@@ -95,36 +97,36 @@ class CombatManager {
     }
     
     /**
- * Roll initiative for all creatures
- */
-rollInitiativeForAll() {
-    if (this.creatures.length === 0) {
-        this.app.showAlert('No creatures to roll initiative for.');
-        return;
+     * Roll initiative for all creatures
+     */
+    rollInitiativeForAll() {
+        if (this.creatures.length === 0) {
+            this.app.showAlert('No creatures to roll initiative for.');
+            return;
+        }
+        
+        // Roll initiative for each creature
+        this.creatures.forEach(creature => {
+            // Make sure we're passing a string or number to the roll function
+            const roll = this.app.dice.roll(20, 1, 0); // Roll 1d20
+            creature.initiative = roll.total + creature.initiativeBonus;
+            this.app.logEvent(`${creature.name} rolled ${roll.total} + ${creature.initiativeBonus} = ${creature.initiative} for initiative.`);
+        });
+        
+        // Sort by initiative
+        this.sortByInitiative();
+        
+        // Update UI
+        this.app.ui.renderCreatures();
+        this.app.ui.renderInitiativeOrder();
+        this.app.updatePlayerView();
+        
+        // Play sound
+        this.app.audio.play('diceRoll');
+        
+        // Log the event
+        this.app.logEvent('Initiative rolled for all creatures.');
     }
-    
-    // Roll initiative for each creature
-    this.creatures.forEach(creature => {
-        // Make sure we're passing a string or number to the roll function
-        const roll = this.app.dice.roll(20, 1, 0); // Roll 1d20
-        creature.initiative = roll.total + creature.initiativeBonus;
-        this.app.logEvent(`${creature.name} rolled ${roll.total} + ${creature.initiativeBonus} = ${creature.initiative} for initiative.`);
-    });
-    
-    // Sort by initiative
-    this.sortByInitiative();
-    
-    // Update UI
-    this.app.ui.renderCreatures();
-    this.app.ui.renderInitiativeOrder();
-    this.app.updatePlayerView();
-    
-    // Play sound
-    this.app.audio.play('diceRoll');
-    
-    // Log the event
-    this.app.logEvent('Initiative rolled for all creatures.');
-}
     
     /**
      * Sort creatures by initiative
