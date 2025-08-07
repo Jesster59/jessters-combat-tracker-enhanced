@@ -20,7 +20,7 @@ class JessterCombatTracker {
     this.dice = new DiceRoller(this);
     this.combat = new CombatManager(this);
     this.conditions = new ConditionsManager(this);
-    // this.damage = new DamageTracker(this); // Commented out until we verify the class exists
+    this.damage = new DamageTracker(this);
     this.saves = new SavingThrowManager(this);
     this.actions = new ActionEconomyTracker(this);
     this.legendary = new LegendaryActionsTracker(this);
@@ -28,7 +28,18 @@ class JessterCombatTracker {
     this.notes = new CombatNotesManager(this);
     this.stats = new CombatStatisticsManager(this);
     this.spells = new SpellTracker(this);
-    this.audio = new AudioManager(this);
+    // Temporarily disable audio to prevent errors
+    // this.audio = new AudioManager(this);
+    
+    // Create a mock audio object to prevent errors
+    this.audio = {
+      play: (soundName) => {
+        console.log(`Audio: ${soundName} (disabled)`);
+      },
+      init: () => {},
+      toggleSound: () => {},
+      toggleMusic: () => {}
+    };
     
     // Initialize the app
     this.init();
@@ -72,9 +83,10 @@ class JessterCombatTracker {
         this.stats.init();
       }
       
-      if (this.audio && typeof this.audio.init === 'function') {
-        this.audio.init();
-      }
+      // Audio is disabled for now
+      // if (this.audio && typeof this.audio.init === 'function') {
+      //   this.audio.init();
+      // }
       
       if (this.spells && typeof this.spells.addConcentrationCheckButton === 'function') {
         this.spells.addConcentrationCheckButton();
