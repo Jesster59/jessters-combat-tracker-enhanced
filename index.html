@@ -93,6 +93,39 @@
             object-fit: cover;
             border: 2px solid #4b5563;
         }
+        
+        /* Dropdown styles */
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+
+        .dropdown-menu,
+        .hero-dropdown-menu {
+            position: absolute;
+            left: 0;
+            top: 100%;
+            margin-top: 0.25rem;
+            width: 12rem;
+            background-color: #1f2937;
+            border-radius: 0.375rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            z-index: 10;
+        }
+
+        .dropdown-menu a,
+        .hero-dropdown-menu a {
+            display: block;
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+            color: white;
+            text-decoration: none;
+        }
+
+        .dropdown-menu a:hover,
+        .hero-dropdown-menu a:hover {
+            background-color: #374151;
+        }
     </style>
 </head>
 <body class="bg-gray-900 text-white">
@@ -122,12 +155,26 @@
                         <div class="mb-4">
                             <h2 class="text-xl font-bold mb-3 text-primary-300">Combat Controls</h2>
                             <div class="flex flex-wrap gap-2 mb-4">
-                                <button id="add-hero-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                                    Add Hero
-                                </button>
-                                <button id="add-monster-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">
-                                    Add Monster
-                                </button>
+                                <div class="dropdown relative">
+                                    <button id="add-hero-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                                        Add Hero
+                                    </button>
+                                    <div class="hero-dropdown-menu hidden absolute left-0 mt-1 w-48 bg-gray-800 rounded-md shadow-lg z-10">
+                                        <a href="#" id="add-custom-hero-btn" class="block px-4 py-2 text-sm text-white hover:bg-gray-700">Custom Hero</a>
+                                        <a href="#" id="import-dndbeyond-btn" class="block px-4 py-2 text-sm text-white hover:bg-gray-700">Import from D&D Beyond</a>
+                                    </div>
+                                </div>
+                                
+                                <div class="dropdown relative">
+                                    <button id="add-monster-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">
+                                        Add Monster
+                                    </button>
+                                    <div class="dropdown-menu hidden absolute left-0 mt-1 w-48 bg-gray-800 rounded-md shadow-lg z-10">
+                                        <a href="#" id="add-custom-monster-btn" class="block px-4 py-2 text-sm text-white hover:bg-gray-700">Custom Monster</a>
+                                        <a href="#" id="search-srd-monsters-btn" class="block px-4 py-2 text-sm text-white hover:bg-gray-700">Search SRD Monsters</a>
+                                    </div>
+                                </div>
+                                
                                 <button id="roll-initiative-btn" class="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded">
                                     Roll Initiative
                                 </button>
@@ -233,7 +280,7 @@
         <!-- Footer -->
         <footer class="bg-gray-800 shadow-inner p-2">
             <div class="container mx-auto flex justify-between items-center text-sm text-gray-400">
-                                <div>Jesster's Combat Tracker v1.0.0</div>
+                <div>Jesster's Combat Tracker v1.0.0</div>
                 <div class="flex space-x-4">
                     <button id="save-state-btn" class="hover:text-white">Save</button>
                     <button id="load-state-btn" class="hover:text-white">Load</button>
@@ -256,6 +303,9 @@
                     <img src="{{imageUrl}}" alt="{{name}}" class="character-image mr-2">
                     {{/if}}
                     <span class="text-xl font-bold">{{typeIcon}} {{name}}</span>
+                    {{#if source}}
+                    <span class="ml-2 text-xs bg-gray-600 text-gray-300 px-2 py-1 rounded">{{source}}</span>
+                    {{/if}}
                 </div>
                 <div class="flex space-x-1">
                     <button class="damage-btn bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-2 rounded text-xs" data-creature-id="{{id}}">
@@ -304,6 +354,14 @@
                     </div>
                 </div>
             </div>
+            
+            {{#if cr}}
+            <div class="mt-2 text-xs text-gray-400">
+                <span>CR {{cr}}</span>
+                {{#if size}} • <span>{{size}}</span>{{/if}}
+                {{#if alignment}} • <span>{{alignment}}</span>{{/if}}
+            </div>
+            {{/if}}
         </div>
     </template>
 
@@ -392,15 +450,75 @@
                 }
             });
             
-            // Combat control buttons
-            safeAddEventListener('#add-hero-btn', 'click', () => {
+            // Hero dropdown
+            const addHeroBtn = document.getElementById('add-hero-btn');
+            const heroDropdownMenu = document.querySelector('.hero-dropdown-menu');
+            
+            if (addHeroBtn && heroDropdownMenu) {
+                addHeroBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    heroDropdownMenu.classList.toggle('hidden');
+                });
+            }
+            
+            // Monster dropdown
+            const addMonsterBtn = document.getElementById('add-monster-btn');
+            const monsterDropdownMenu = document.querySelector('.dropdown-menu');
+            
+            if (addMonsterBtn && monsterDropdownMenu) {
+                addMonsterBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    monsterDropdownMenu.classList.toggle('hidden');
+                });
+            }
+            
+            // Close dropdowns when clicking elsewhere
+            document.addEventListener('click', () => {
+                const heroDropdown = document.querySelector('.hero-dropdown-menu');
+                const monsterDropdown = document.querySelector('.dropdown-menu');
+                
+                if (heroDropdown && !heroDropdown.classList.contains('hidden')) {
+                    heroDropdown.classList.add('hidden');
+                }
+                
+                if (monsterDropdown && !monsterDropdown.classList.contains('hidden')) {
+                    monsterDropdown.classList.add('hidden');
+                }
+            });
+            
+            // Custom hero button
+            safeAddEventListener('#add-custom-hero-btn', 'click', (e) => {
+                e.preventDefault();
                 window.app.ui.openAddHeroModal();
+                const dropdown = document.querySelector('.hero-dropdown-menu');
+                if (dropdown) dropdown.classList.add('hidden');
             });
             
-            safeAddEventListener('#add-monster-btn', 'click', () => {
+            // Import from D&D Beyond button
+            safeAddEventListener('#import-dndbeyond-btn', 'click', (e) => {
+                e.preventDefault();
+                window.app.ui.openDnDBeyondImportModal();
+                const dropdown = document.querySelector('.hero-dropdown-menu');
+                if (dropdown) dropdown.classList.add('hidden');
+            });
+            
+            // Custom monster button
+            safeAddEventListener('#add-custom-monster-btn', 'click', (e) => {
+                e.preventDefault();
                 window.app.ui.openAddMonsterModal();
+                const dropdown = document.querySelector('.dropdown-menu');
+                if (dropdown) dropdown.classList.add('hidden');
             });
             
+            // Search SRD monsters button
+            safeAddEventListener('#search-srd-monsters-btn', 'click', (e) => {
+                e.preventDefault();
+                window.app.ui.openMonsterSearchModal();
+                const dropdown = document.querySelector('.dropdown-menu');
+                if (dropdown) dropdown.classList.add('hidden');
+            });
+            
+            // Combat control buttons
             safeAddEventListener('#roll-initiative-btn', 'click', () => {
                 window.app.combat.rollInitiativeForAll();
             });
