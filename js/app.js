@@ -17,7 +17,7 @@ class JessterCombatTracker {
     
     // Initialize modules
     this.ui = new UIManager(this);
-    this.dice = new DiceRoller(this);
+    this.dice = new DiceRoller(this)
     this.combat = new CombatManager(this);
     this.initiative = new InitiativeTracker(this);
     this.conditions = new ConditionsManager(this);
