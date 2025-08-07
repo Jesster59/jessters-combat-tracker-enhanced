@@ -1,73 +1,87 @@
 /**
  * Dice Roller for Jesster's Combat Tracker
- * Handles dice rolling and results display
+ * Handles dice rolling functionality
  */
 class DiceRoller {
     constructor(app) {
         this.app = app;
-        this.history = [];
-        this.maxHistoryLength = 20;
         console.log("Dice Roller initialized");
     }
     
     /**
-     * Roll dice
-     * @param {string} notation - The dice notation (e.g., "2d6+3")
-     * @param {Object} [options] - Roll options
-     * @param {boolean} [options.advantage] - Whether to roll with advantage
-     * @param {boolean} [options.disadvantage] - Whether to roll with disadvantage
-     * @returns {Promise<Object>} - The roll result
+     * Roll dice based on notation
+     * @param {string|number} notation - The dice notation (e.g., "2d6+3") or number of sides
+     * @param {number} [count=1] - The number of dice to roll (if notation is a number)
+     * @param {number} [modifier=0] - The modifier to add (if notation is a number)
+     * @returns {Object} - The roll result
      */
-    async roll(notation, options = {}) {
+    roll(notation, count = 1, modifier = 0) {
         try {
-            // Clean up notation
-            const cleanNotation = notation.replace(/\s/g, '').toLowerCase();
+            // If notation is a number, convert to standard notation
+            if (typeof notation === 'number') {
+                notation = `${count}d${notation}${modifier !== 0 ? (modifier > 0 ? '+' + modifier : modifier) : ''}`;
+            }
             
-            // Handle advantage/disadvantage for d20 rolls
-            if (cleanNotation.match(/^(\d*)d20/) && (options.advantage || options.disadvantage)) {
-                return this.rollWithAdvantageOrDisadvantage(cleanNotation, options);
+            // Ensure notation is a string
+            if (typeof notation !== 'string') {
+                throw new Error('Invalid dice notation');
             }
             
             // Parse the notation
-            const { dice, modifier } = this.parseNotation(cleanNotation);
+            const regex = /(\d+)d(\d+)(?:\s*([+-])\s*(\d+))?/i;
+            const match = notation.replace(/\s+/g, '').match(regex);
+            
+            if (!match) {
+                throw new Error('Invalid dice notation format');
+            }
+            
+            const numDice = parseInt(match[1]);
+            const numSides = parseInt(match[2]);
+            const hasModifier = match[3] !== undefined;
+            const modifierSign = hasModifier ? match[3] : '+';
+            const modifierValue = hasModifier ? parseInt(match[4]) : 0;
+            
+            // Validate the dice
+            if (numDice <= 0 || numSides <= 0) {
+                throw new Error('Number of dice and sides must be positive');
+            }
+            
+            if (numDice > 100) {
+                throw new Error('Too many dice (maximum 100)');
+            }
             
             // Roll the dice
             const rolls = [];
             let total = 0;
             
-            for (const die of dice) {
-                for (let i = 0; i < die.count; i++) {
-                    const roll = Math.floor(Math.random() * die.sides) + 1;
-                    rolls.push(roll);
-                    total += roll;
+            for (let i = 0; i < numDice; i++) {
+                const roll = Math.floor(Math.random() * numSides) + 1;
+                rolls.push(roll);
+                total += roll;
+            }
+            
+            // Apply modifier
+            if (hasModifier) {
+                if (modifierSign === '+') {
+                    total += modifierValue;
+                } else {
+                    total -= modifierValue;
                 }
             }
             
-            // Add modifier
-            total += modifier;
-            
-            // Add to history
-            this.addToHistory({
-                notation: cleanNotation,
-                rolls,
-                modifier,
-                total
-            });
-            
-            // Play sound
-            this.app.audio.play('diceRoll');
-            
+            // Return the result
             return {
-                notation: cleanNotation,
-                rolls,
-                modifier,
-                total
+                notation: notation,
+                rolls: rolls,
+                modifier: hasModifier ? (modifierSign === '+' ? modifierValue : -modifierValue) : 0,
+                total: total
             };
         } catch (error) {
             console.error('Error rolling dice:', error);
+            // Return a default result instead of throwing
             return {
-                notation,
-                rolls: [],
+                notation: String(notation),
+                rolls: [0],
                 modifier: 0,
                 total: 0,
                 error: error.message
@@ -76,151 +90,66 @@ class DiceRoller {
     }
     
     /**
-     * Roll with advantage or disadvantage
-     * @param {string} notation - The dice notation
-     * @param {Object} options - Roll options
-     * @returns {Promise<Object>} - The roll result
+     * Roll multiple dice
+     * @param {Array} notations - Array of dice notations
+     * @returns {Array} - Array of roll results
      */
-    async rollWithAdvantageOrDisadvantage(notation, options) {
-        // Parse the notation
-        const { dice, modifier } = this.parseNotation(notation);
-        
-        // Make sure it's a d20 roll
-        if (dice.length !== 1 || dice[0].sides !== 20) {
-            throw new Error('Advantage/disadvantage only applies to d20 rolls');
-        }
-        
-        // Roll twice
-        const roll1 = Math.floor(Math.random() * 20) + 1;
-        const roll2 = Math.floor(Math.random() * 20) + 1;
-        
-        // Determine which roll to use
-        const useRoll = options.advantage ? Math.max(roll1, roll2) : Math.min(roll1, roll2);
-        
-        // Calculate total
-        const total = useRoll + modifier;
-        
-        // Add to history
-        this.addToHistory({
-            notation,
-            rolls: [roll1, roll2],
-            modifier,
-            total,
-            advantage: options.advantage,
-            disadvantage: options.disadvantage
-        });
+    rollMultiple(notations) {
+        return notations.map(notation => this.roll(notation));
+    }
+    
+    /**
+     * Roll dice and display the result
+     * @param {string|number} notation - The dice notation or number of sides
+     * @param {number} [count=1] - The number of dice to roll (if notation is a number)
+     * @param {number} [modifier=0] - The modifier to add (if notation is a number)
+     * @returns {Object} - The roll result
+     */
+    rollAndDisplay(notation, count = 1, modifier = 0) {
+        // Roll the dice
+        const result = this.roll(notation, count, modifier);
         
         // Play sound
         this.app.audio.play('diceRoll');
         
-        return {
-            notation,
-            rolls: [roll1, roll2],
-            modifier,
-            total,
-            advantage: options.advantage,
-            disadvantage: options.disadvantage
-        };
-    }
-    
-    /**
-     * Parse dice notation
-     * @param {string} notation - The dice notation
-     * @returns {Object} - The parsed notation
-     */
-    parseNotation(notation) {
-        // Simple regex to match dice notation
-        const diceRegex = /(\d*)d(\d+)/g;
-        const modifierRegex = /([+-]\d+)(?![^d]*d)/g;
-        
-        // Extract dice
-        const dice = [];
-        let match;
-        while ((match = diceRegex.exec(notation)) !== null) {
-            const count = match[1] ? parseInt(match[1]) : 1;
-            const sides = parseInt(match[2]);
-            dice.push({ count, sides });
-        }
-        
-        // Extract modifier
-        let modifier = 0;
-        while ((match = modifierRegex.exec(notation)) !== null) {
-            modifier += parseInt(match[1]);
-        }
-        
-        return { dice, modifier };
-    }
-    
-    /**
-     * Add a roll to history
-     * @param {Object} roll - The roll to add
-     */
-    addToHistory(roll) {
-        this.history.unshift(roll);
-        
-        // Limit history length
-        if (this.history.length > this.maxHistoryLength) {
-            this.history.pop();
-        }
-    }
-    
-    /**
-     * Get roll history
-     * @returns {Array} - The roll history
-     */
-    getHistory() {
-        return this.history;
-    }
-    
-    /**
-     * Clear roll history
-     */
-    clearHistory() {
-        this.history = [];
-    }
-    
-    /**
-     * Roll and display result
-     * @param {string} notation - The dice notation
-     */
-    async rollAndDisplay(notation) {
-        const result = await this.roll(notation);
-        
-        // Format the result for display
-        let displayText = '';
-        
-        if (result.error) {
-            displayText = `Error: ${result.error}`;
-        } else {
-            displayText = `${result.total}`;
-            
-            // Add breakdown for complex rolls
-            if (result.rolls.length > 1 || result.modifier !== 0) {
-                let breakdown = `[${result.rolls.join(' + ')}]`;
-                if (result.modifier !== 0) {
-                    const sign = result.modifier > 0 ? '+' : '';
-                    breakdown += ` ${sign}${result.modifier}`;
-                }
-                displayText += ` (${breakdown})`;
-            }
-        }
-        
         // Update the UI
-        if (this.app.ui.elements.diceResults) {
-            this.app.ui.elements.diceResults.innerHTML = `
-                <div class="text-center">
-                    <div class="text-2xl font-bold">${result.total}</div>
-                    <div class="text-sm text-gray-400">${notation}</div>
-                    ${result.rolls.length > 1 || result.modifier !== 0 ? 
-                        `<div class="text-xs text-gray-500">[${result.rolls.join(', ')}]${result.modifier !== 0 ? ` ${result.modifier >= 0 ? '+' : ''}${result.modifier}` : ''}</div>` : 
-                        ''}
-                </div>
-            `;
-        }
+        this.updateDiceResultsUI(result);
         
         // Log the roll
-        this.app.logEvent(`Rolled ${notation}: ${result.total}`);
+        this.logRoll(result);
         
         return result;
+    }
+    
+    /**
+     * Update the dice results UI
+     * @param {Object} result - The roll result
+     */
+    updateDiceResultsUI(result) {
+        const diceResults = document.getElementById('dice-results');
+        if (!diceResults) return;
+        
+        // Format the result
+        const rollsText = result.rolls.join(', ');
+        const modifierText = result.modifier !== 0 ? 
+            (result.modifier > 0 ? ` + ${result.modifier}` : ` - ${Math.abs(result.modifier)}`) : '';
+        
+        // Update the UI
+        diceResults.innerHTML = `
+            <div class="text-2xl font-bold">${result.total}</div>
+            <div class="text-sm text-gray-400">${result.notation}: [${rollsText}]${modifierText}</div>
+        `;
+    }
+    
+    /**
+     * Log a dice roll
+     * @param {Object} result - The roll result
+     */
+    logRoll(result) {
+        const rollsText = result.rolls.join(', ');
+        const modifierText = result.modifier !== 0 ? 
+            (result.modifier > 0 ? ` + ${result.modifier}` : ` - ${Math.abs(result.modifier)}`) : '';
+        
+        this.app.logEvent(`Rolled ${result.notation}: [${rollsText}]${modifierText} = ${result.total}`);
     }
 }
