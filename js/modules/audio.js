@@ -5,17 +5,7 @@
 class AudioManager {
   constructor(app) {
     this.app = app;
-    this.sounds = {
-      combatStart: new Audio('audio/combat-start.mp3'),
-      roundStart: new Audio('audio/round-start.mp3'),
-      turnEnd: new Audio('audio/turn-end.mp3'),
-      diceRoll: new Audio('audio/dice-roll.mp3'),
-      hit: new Audio('audio/hit.mp3'),
-      miss: new Audio('audio/miss.mp3'),
-      criticalHit: new Audio('audio/critical-hit.mp3'),
-      heal: new Audio('audio/heal.mp3'),
-      spellCast: new Audio('audio/spell-cast.mp3')
-    };
+    this.sounds = {};
     this.backgroundMusic = null;
     this.soundEnabled = true;
     this.musicEnabled = false;
@@ -31,12 +21,41 @@ class AudioManager {
     // Load settings from localStorage
     this.loadSettings();
     
+    // Initialize sound objects (but don't preload)
+    this.initializeSounds();
+    
     // Create the audio controls
     this.createAudioControls();
   }
   
   /**
-   * Load audio settings from localStorage
+   * Initialize sound objects without preloading
+   */
+  initializeSounds() {
+    const soundFiles = {
+      combatStart: 'audio/combat-start.mp3',
+      roundStart: 'audio/round-start.mp3',
+      turnEnd: 'audio/turn-end.mp3',
+      diceRoll: 'audio/dice-roll.mp3',
+      hit: 'audio/hit.mp3',
+      miss: 'audio/miss.mp3',
+      criticalHit: 'audio/critical-hit.mp3',
+      heal: 'audio/heal.mp3',
+      spellCast: 'audio/spell-cast.mp3'
+    };
+    
+    // Create audio objects but don't load them yet
+    for (const [name, path] of Object.entries(soundFiles)) {
+      this.sounds[name] = {
+        path: path,
+        audio: null,
+        loaded: false
+      };
+    }
+  }
+  
+  /**
+   * Load settings from localStorage
    */
   loadSettings() {
     try {
@@ -53,7 +72,7 @@ class AudioManager {
   }
   
   /**
-   * Save audio settings to localStorage
+   * Save settings to localStorage
    */
   saveSettings() {
     try {
@@ -83,23 +102,19 @@ class AudioManager {
     
     // Create the controls content
     controls.innerHTML = `
-      <button id="toggle-sound-btn" class="text-gray-400 hover:text-white p-1 rounded">
+      <button id="toggle-sound-btn" class="text-gray-400 hover:text-white p-1 rounded" title="Toggle Sound Effects">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${this.soundEnabled ? 
-            'M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z' : 
-            'M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2'}" />
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
         </svg>
       </button>
       
-      <button id="toggle-music-btn" class="text-gray-400 hover:text-white p-1 rounded">
+      <button id="toggle-music-btn" class="text-gray-400 hover:text-white p-1 rounded" title="Toggle Background Music">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${this.musicEnabled ? 
-            'M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3' : 
-            'M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3 M14 11l3-1'}" />
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
         </svg>
       </button>
       
-      <button id="audio-settings-btn" class="text-gray-400 hover:text-white p-1 rounded">
+      <button id="audio-settings-btn" class="text-gray-400 hover:text-white p-1 rounded" title="Audio Settings">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -122,6 +137,44 @@ class AudioManager {
     document.getElementById('audio-settings-btn').addEventListener('click', () => {
       this.openAudioSettingsModal();
     });
+    
+    // Update initial UI state
+    this.updateAudioControlsUI();
+  }
+  
+  /**
+   * Play a sound effect
+   * @param {string} soundName - The name of the sound to play
+   */
+  play(soundName) {
+    if (!this.soundEnabled) return;
+    
+    const soundObj = this.sounds[soundName];
+    if (!soundObj) {
+      console.warn(`Sound ${soundName} not found`);
+      return;
+    }
+    
+    // Load the audio if not already loaded
+    if (!soundObj.loaded) {
+      soundObj.audio = new Audio(soundObj.path);
+      soundObj.audio.volume = this.soundVolume;
+      soundObj.loaded = true;
+      
+      // Handle load errors gracefully
+      soundObj.audio.addEventListener('error', () => {
+        console.warn(`Could not load sound: ${soundObj.path}`);
+        soundObj.loaded = false;
+      });
+    }
+    
+    if (soundObj.audio) {
+      soundObj.audio.currentTime = 0;
+      soundObj.audio.volume = this.soundVolume;
+      soundObj.audio.play().catch(error => {
+        console.warn(`Error playing sound ${soundName}:`, error);
+      });
+    }
   }
   
   /**
@@ -129,23 +182,8 @@ class AudioManager {
    */
   toggleSound() {
     this.soundEnabled = !this.soundEnabled;
-    
-    // Update the button icon
-    const soundBtn = document.getElementById('toggle-sound-btn');
-    if (soundBtn) {
-      soundBtn.innerHTML = `
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${this.soundEnabled ? 
-            'M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z' : 
-            'M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2'}" />
-        </svg>
-      `;
-    }
-    
-    // Save settings
+    this.updateAudioControlsUI();
     this.saveSettings();
-    
-    // Log the action
     this.app.logEvent(`Sound effects ${this.soundEnabled ? 'enabled' : 'disabled'}.`);
   }
   
@@ -155,29 +193,14 @@ class AudioManager {
   toggleMusic() {
     this.musicEnabled = !this.musicEnabled;
     
-    // Update the button icon
-    const musicBtn = document.getElementById('toggle-music-btn');
-    if (musicBtn) {
-      musicBtn.innerHTML = `
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${this.musicEnabled ? 
-            'M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3' : 
-            'M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3 M14 11l3-1'}" />
-        </svg>
-      `;
-    }
-    
-    // Start or stop the music
     if (this.musicEnabled) {
       this.startBackgroundMusic();
     } else {
       this.stopBackgroundMusic();
     }
     
-    // Save settings
+    this.updateAudioControlsUI();
     this.saveSettings();
-    
-    // Log the action
     this.app.logEvent(`Background music ${this.musicEnabled ? 'enabled' : 'disabled'}.`);
   }
   
@@ -189,10 +212,19 @@ class AudioManager {
       this.backgroundMusic = new Audio('audio/background-music.mp3');
       this.backgroundMusic.loop = true;
       this.backgroundMusic.volume = this.musicVolume;
+      
+      // Handle load errors gracefully
+      this.backgroundMusic.addEventListener('error', () => {
+        console.warn('Could not load background music');
+        this.musicEnabled = false;
+        this.updateAudioControlsUI();
+      });
     }
     
     this.backgroundMusic.play().catch(error => {
-      console.error("Error playing background music:", error);
+      console.warn("Error playing background music:", error);
+      this.musicEnabled = false;
+      this.updateAudioControlsUI();
     });
   }
   
@@ -207,19 +239,19 @@ class AudioManager {
   }
   
   /**
-   * Play a sound effect
-   * @param {string} soundName - The name of the sound to play
+   * Update the audio controls UI
    */
-  play(soundName) {
-    if (!this.soundEnabled) return;
+  updateAudioControlsUI() {
+    // Update sound button
+    const soundBtn = document.getElementById('toggle-sound-btn');
+    if (soundBtn) {
+      soundBtn.className = `p-1 rounded ${this.soundEnabled ? 'text-white' : 'text-gray-400'} hover:text-white`;
+    }
     
-    const sound = this.sounds[soundName];
-    if (sound) {
-      sound.volume = this.soundVolume;
-      sound.currentTime = 0;
-      sound.play().catch(error => {
-        console.error(`Error playing sound ${soundName}:`, error);
-      });
+    // Update music button
+    const musicBtn = document.getElementById('toggle-music-btn');
+    if (musicBtn) {
+      musicBtn.className = `p-1 rounded ${this.musicEnabled ? 'text-white' : 'text-gray-400'} hover:text-white`;
     }
   }
   
@@ -229,28 +261,24 @@ class AudioManager {
   openAudioSettingsModal() {
     // Create modal
     const modal = document.createElement('div');
-    modal.className = 'fixed inset-0 flex items-center justify-center z-50 p-4';
+    modal.className = 'fixed inset-0 flex items-center justify-center z-50 p-4 modal-backdrop';
     modal.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
     
     modal.innerHTML = `
-      <div class="bg-gray-800 rounded-lg shadow-2xl p-6 max-w-md w-full mx-auto">
+      <div class="bg-gray-800 rounded-lg shadow-2xl p-6 max-w-md w-full mx-auto fade-in">
         <h3 class="text-xl font-bold text-blue-400 mb-4">Audio Settings</h3>
         
         <div class="mb-4">
           <label class="flex items-center justify-between">
             <span class="text-gray-300">Sound Effects:</span>
-            <div class="relative inline-block w-12 h-6 transition duration-200 ease-in-out rounded-full">
-              <input type="checkbox" id="sound-toggle" class="absolute w-6 h-6 transition duration-200 ease-in-out bg-white border-2 border-gray-600 rounded-full appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-600 checked:bg-blue-600 checked:border-blue-600 checked:right-0"
-                ${this.soundEnabled ? 'checked' : ''}>
-              <label for="sound-toggle" class="block w-full h-full cursor-pointer rounded-full bg-gray-600"></label>
-            </div>
+            <input type="checkbox" id="sound-toggle" class="form-checkbox h-5 w-5 text-blue-600" ${this.soundEnabled ? 'checked' : ''}>
           </label>
         </div>
         
         <div class="mb-4">
           <label class="block text-gray-300 mb-2">Sound Volume:</label>
           <input type="range" id="sound-volume" class="w-full" min="0" max="1" step="0.1" value="${this.soundVolume}">
-          <div class="flex justify-between text-xs text-gray-400">
+          <div class="flex justify-between text-xs text-gray-400 mt-1">
             <span>0%</span>
             <span>50%</span>
             <span>100%</span>
@@ -260,33 +288,17 @@ class AudioManager {
         <div class="mb-4">
           <label class="flex items-center justify-between">
             <span class="text-gray-300">Background Music:</span>
-            <div class="relative inline-block w-12 h-6 transition duration-200 ease-in-out rounded-full">
-              <input type="checkbox" id="music-toggle" class="absolute w-6 h-6 transition duration-200 ease-in-out bg-white border-2 border-gray-600 rounded-full appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-600 checked:bg-blue-600 checked:border-blue-600 checked:right-0"
-                ${this.musicEnabled ? 'checked' : ''}>
-              <label for="music-toggle" class="block w-full h-full cursor-pointer rounded-full bg-gray-600"></label>
-            </div>
+            <input type="checkbox" id="music-toggle" class="form-checkbox h-5 w-5 text-blue-600" ${this.musicEnabled ? 'checked' : ''}>
           </label>
         </div>
         
-        <div class="mb-4">
+        <div class="mb-6">
           <label class="block text-gray-300 mb-2">Music Volume:</label>
           <input type="range" id="music-volume" class="w-full" min="0" max="1" step="0.1" value="${this.musicVolume}">
-          <div class="flex justify-between text-xs text-gray-400">
+          <div class="flex justify-between text-xs text-gray-400 mt-1">
             <span>0%</span>
             <span>50%</span>
             <span>100%</span>
-          </div>
-        </div>
-        
-        <div class="mb-4">
-          <label class="block text-gray-300 mb-2">Test Sounds:</label>
-          <div class="grid grid-cols-2 gap-2">
-            <button id="test-combat-start" class="bg-gray-700 hover:bg-gray-600 text-white py-1 px-2 rounded text-sm">Combat Start</button>
-            <button id="test-round-start" class="bg-gray-700 hover:bg-gray-600 text-white py-1 px-2 rounded text-sm">Round Start</button>
-            <button id="test-turn-end" class="bg-gray-700 hover:bg-gray-600 text-white py-1 px-2 rounded text-sm">Turn End</button>
-            <button id="test-dice-roll" class="bg-gray-700 hover:bg-gray-600 text-white py-1 px-2 rounded text-sm">Dice Roll</button>
-            <button id="test-hit" class="bg-gray-700 hover:bg-gray-600 text-white py-1 px-2 rounded text-sm">Hit</button>
-            <button id="test-critical-hit" class="bg-gray-700 hover:bg-gray-600 text-white py-1 px-2 rounded text-sm">Critical Hit</button>
           </div>
         </div>
         
@@ -309,99 +321,33 @@ class AudioManager {
     });
     
     document.getElementById('audio-settings-save-btn').addEventListener('click', () => {
-      // Save the settings
       this.soundEnabled = document.getElementById('sound-toggle').checked;
       this.musicEnabled = document.getElementById('music-toggle').checked;
       this.soundVolume = parseFloat(document.getElementById('sound-volume').value);
       this.musicVolume = parseFloat(document.getElementById('music-volume').value);
       
-      // Update background music volume if playing
       if (this.backgroundMusic) {
         this.backgroundMusic.volume = this.musicVolume;
       }
       
-      // Start or stop the music based on the setting
       if (this.musicEnabled) {
         this.startBackgroundMusic();
       } else {
         this.stopBackgroundMusic();
       }
       
-      // Save settings
       this.saveSettings();
-      
-      // Update the UI
       this.updateAudioControlsUI();
       
       modal.remove();
       this.app.logEvent("Audio settings updated.");
     });
     
-    // Test sound buttons
-    document.getElementById('test-combat-start').addEventListener('click', () => {
-      this.play('combatStart');
-    });
-    
-    document.getElementById('test-round-start').addEventListener('click', () => {
-      this.play('roundStart');
-    });
-    
-    document.getElementById('test-turn-end').addEventListener('click', () => {
-      this.play('turnEnd');
-    });
-    
-    document.getElementById('test-dice-roll').addEventListener('click', () => {
-      this.play('diceRoll');
-    });
-    
-    document.getElementById('test-hit').addEventListener('click', () => {
-      this.play('hit');
-    });
-    
-    document.getElementById('test-critical-hit').addEventListener('click', () => {
-      this.play('criticalHit');
-    });
-    
-    // Live update sound volume
-    document.getElementById('sound-volume').addEventListener('input', (e) => {
-      this.soundVolume = parseFloat(e.target.value);
-    });
-    
-    // Live update music volume
-    document.getElementById('music-volume').addEventListener('input', (e) => {
-      this.musicVolume = parseFloat(e.target.value);
-      if (this.backgroundMusic) {
-        this.backgroundMusic.volume = this.musicVolume;
+    // Close modal when clicking outside
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        modal.remove();
       }
     });
-  }
-  
-  /**
-   * Update the audio controls UI
-   */
-  updateAudioControlsUI() {
-    // Update sound button
-    const soundBtn = document.getElementById('toggle-sound-btn');
-    if (soundBtn) {
-      soundBtn.innerHTML = `
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${this.soundEnabled ? 
-            'M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z' : 
-            'M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2'}" />
-        </svg>
-      `;
-    }
-    
-    // Update music button
-    const musicBtn = document.getElementById('toggle-music-btn');
-    if (musicBtn) {
-      musicBtn.innerHTML = `
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${this.musicEnabled ? 
-            'M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3' : 
-            'M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3 M14 11l3-1'}" />
-        </svg>
-      `;
-    }
   }
 }
