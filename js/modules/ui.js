@@ -122,16 +122,6 @@ class UIManager {
             const hpPercentage = Math.max(0, Math.min(100, (creature.currentHp / creature.maxHp) * 100));
             const typeIcon = creature.type === 'hero' ? '👤' : '👹';
             
-            const html = this.templates['creature-card']
-                .replace(/{{id}}/g, creature.id)
-                .replace(/{{name}}/g, creature.name)
-                .replace(/{{typeIcon}}/g, typeIcon)
-                .replace(/{{currentHp}}/g, creature.currentHp)
-                .replace(/{{maxHp}}/g, creature.maxHp)
-                .replace(/{{hpPercentage}}/g, hpPercentage)
-                .replace(/{{ac}}/g, creature.ac)
-                .replace(/{{initiative}}/g, creature.initiative !== null ? creature.initiative : '-');
-            
             // Handle conditions
             let conditionsHtml = '';
             if (creature.conditions && creature.conditions.length > 0) {
@@ -150,6 +140,24 @@ class UIManager {
                 imageHtml = `<img src="${creature.imageUrl}" alt="${creature.name}" class="character-image mr-2">`;
             }
             
+            // Handle source badge
+            let sourceHtml = '';
+            if (creature.source) {
+                sourceHtml = `<span class="ml-2 text-xs bg-gray-600 text-gray-300 px-2 py-1 rounded">${creature.source}</span>`;
+            }
+            
+            // Handle monster details
+            let monsterDetailsHtml = '';
+            if (creature.cr) {
+                monsterDetailsHtml = `
+                    <div class="mt-2 text-xs text-gray-400">
+                        <span>CR ${creature.cr}</span>
+                        ${creature.size ? ` • <span>${creature.size}</span>` : ''}
+                        ${creature.alignment ? ` • <span>${creature.alignment}</span>` : ''}
+                    </div>
+                `;
+            }
+            
             const cardElement = document.createElement('div');
             cardElement.className = 'creature-card bg-gray-700 rounded-lg shadow mb-4 p-3';
             cardElement.dataset.id = creature.id;
@@ -159,6 +167,7 @@ class UIManager {
                     <div class="flex items-center">
                         ${imageHtml}
                         <span class="text-xl font-bold">${typeIcon} ${creature.name}</span>
+                        ${sourceHtml}
                     </div>
                     <div class="flex space-x-1">
                         <button class="damage-btn bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-2 rounded text-xs" data-creature-id="${creature.id}">
@@ -201,6 +210,8 @@ class UIManager {
                         </div>
                     </div>
                 </div>
+                
+                ${monsterDetailsHtml}
             `;
             
             container.appendChild(cardElement);
@@ -441,7 +452,7 @@ class UIManager {
         });
     }
     
-        /**
+    /**
      * Open the add hero modal
      */
     openAddHeroModal() {
@@ -559,7 +570,8 @@ class UIManager {
                 initiativeBonus: initiativeBonus,
                 initiative: null,
                 conditions: [],
-                imageUrl: imageUrl
+                imageUrl: imageUrl,
+                source: 'Custom'
             };
             
             // Add the hero to combat
@@ -638,7 +650,7 @@ class UIManager {
                 img.src = url;
                 imagePreview.classList.remove('hidden');
                 
-                // Handle image load error
+                                // Handle image load error
                 img.onerror = () => {
                     img.src = 'data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2232%22%20height%3D%2232%22%20viewBox%3D%220%200%2032%2032%22%3E%3Cpath%20fill%3D%22%23D32F2F%22%20d%3D%22M16%202C8.268%202%202%208.268%202%2016s6.268%2014%2014%2014%2014-6.268%2014-14S23.732%202%2016%202zm0%2025.6c-6.408%200-11.6-5.192-11.6-11.6S9.592%204.4%2016%204.4%2027.6%209.592%2027.6%2016%2022.408%2027.6%2016%2027.6z%22%2F%3E%3Cpath%20fill%3D%22%23D32F2F%22%20d%3D%22M14.8%2010.4h2.4v8h-2.4v-8zm0%2010.4h2.4v2.4h-2.4v-2.4z%22%2F%3E%3C%2Fsvg%3E';
                 };
@@ -690,7 +702,8 @@ class UIManager {
                 initiativeBonus: initiativeBonus,
                 initiative: null,
                 conditions: [],
-                imageUrl: imageUrl
+                imageUrl: imageUrl,
+                source: 'Custom'
             };
             
             // Add the monster to combat
@@ -701,6 +714,234 @@ class UIManager {
             
             // Log the event
             this.app.logEvent(`${name} added to combat.`);
+        });
+    }
+    
+    /**
+     * Open the monster search modal
+     */
+    openMonsterSearchModal() {
+        const modal = this.createModal({
+            title: 'Search Monsters (Open5e SRD)',
+            content: `
+                <div class="space-y-4">
+                    <div class="flex">
+                        <input type="text" id="monster-search-input" class="flex-1 bg-gray-700 text-white px-3 py-2 rounded-l" placeholder="Search for monsters...">
+                        <button id="search-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-r">
+                            Search
+                        </button>
+                    </div>
+                    
+                    <div id="search-results" class="max-h-96 overflow-y-auto">
+                        <div class="text-center text-gray-400 py-4">
+                            Enter a search term to find monsters
+                        </div>
+                    </div>
+                    
+                    <div class="flex justify-end">
+                        <button id="close-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
+                            Close
+                        </button>
+                    </div>
+                </div>
+            `,
+            width: 'max-w-2xl'
+        });
+        
+        // Add event listeners
+        const searchInput = modal.querySelector('#monster-search-input');
+        const searchBtn = modal.querySelector('#search-btn');
+        const searchResults = modal.querySelector('#search-results');
+        const closeBtn = modal.querySelector('#close-btn');
+        
+        // Search function
+        const performSearch = async () => {
+            const query = searchInput.value.trim();
+            if (!query) return;
+            
+            // Show loading state
+            searchResults.innerHTML = `
+                <div class="text-center text-gray-400 py-4">
+                    <svg class="animate-spin h-6 w-6 mx-auto mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Searching...
+                </div>
+            `;
+            
+            // Perform search
+            const monsters = await this.app.api.searchMonsters(query);
+            
+            // Display results
+            if (monsters.length === 0) {
+                searchResults.innerHTML = `
+                    <div class="text-center text-gray-400 py-4">
+                        No monsters found matching "${query}"
+                    </div>
+                `;
+                return;
+            }
+            
+            // Create results HTML
+            searchResults.innerHTML = `
+                <div class="grid grid-cols-1 gap-2">
+                    ${monsters.map(monster => `
+                        <div class="monster-result bg-gray-700 hover:bg-gray-600 p-3 rounded cursor-pointer" data-slug="${monster.slug}">
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <div class="font-semibold">${monster.name}</div>
+                                    <div class="text-sm text-gray-400">${monster.size} ${monster.type}, CR ${monster.challenge_rating}</div>
+                                </div>
+                                <div class="text-sm">
+                                    <span class="bg-gray-800 px-2 py-1 rounded">HP: ${monster.hit_points}</span>
+                                    <span class="bg-gray-800 px-2 py-1 rounded ml-1">AC: ${monster.armor_class}</span>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+            
+            // Add click event for monster selection
+            searchResults.querySelectorAll('.monster-result').forEach(element => {
+                element.addEventListener('click', async () => {
+                    const slug = element.dataset.slug;
+                    const monsterData = await this.app.api.getMonster(slug);
+                    
+                    if (monsterData) {
+                        // Convert to our format
+                        const monster = this.app.api.convertOpen5eMonster(monsterData);
+                        
+                        // Add to combat
+                        this.app.combat.addCreature(monster);
+                        
+                        // Close the modal
+                        this.app.ui.closeModal(modal.parentNode);
+                        
+                        // Log the event
+                        this.app.logEvent(`${monster.name} added to combat from Open5e SRD.`);
+                    }
+                });
+            });
+        };
+        
+        // Add event listeners
+        searchBtn.addEventListener('click', performSearch);
+        searchInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                performSearch();
+            }
+        });
+        
+        closeBtn.addEventListener('click', () => {
+            this.closeModal(modal.parentNode);
+        });
+        
+        // Focus the search input
+        searchInput.focus();
+    }
+    
+    /**
+     * Open the D&D Beyond import modal
+     */
+    openDnDBeyondImportModal() {
+        const modal = this.createModal({
+            title: 'Import from D&D Beyond',
+            content: `
+                <div class="space-y-4">
+                    <div class="bg-gray-700 p-4 rounded">
+                        <h3 class="font-semibold mb-2">Instructions:</h3>
+                        <ol class="list-decimal list-inside space-y-2 text-sm">
+                            <li>Open your character sheet on D&D Beyond</li>
+                            <li>Open the browser console (F12 or right-click > Inspect > Console)</li>
+                            <li>Copy the script below and paste it into the console</li>
+                            <li>Copy the JSON output and paste it below</li>
+                        </ol>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-gray-300 mb-2">Copy this script:</label>
+                        <div class="relative">
+                            <textarea id="import-script" class="w-full bg-gray-800 text-white px-3 py-2 rounded h-32 font-mono text-xs" readonly></textarea>
+                            <button id="copy-script-btn" class="absolute top-2 right-2 bg-gray-600 hover:bg-gray-500 text-white text-xs py-1 px-2 rounded">
+                                Copy
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-gray-300 mb-2">Paste the JSON result here:</label>
+                        <textarea id="import-json" class="w-full bg-gray-700 text-white px-3 py-2 rounded h-32 font-mono text-xs" placeholder='{"name": "Character Name", ...}'></textarea>
+                    </div>
+                    
+                    <div class="flex justify-end space-x-2">
+                        <button id="cancel-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
+                            Cancel
+                        </button>
+                        <button id="import-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                            Import Character
+                        </button>
+                    </div>
+                </div>
+            `,
+            width: 'max-w-2xl'
+        });
+        
+        // Add event listeners
+        const importScript = modal.querySelector('#import-script');
+        const copyScriptBtn = modal.querySelector('#copy-script-btn');
+        const importJson = modal.querySelector('#import-json');
+        const cancelBtn = modal.querySelector('#cancel-btn');
+        const importBtn = modal.querySelector('#import-btn');
+        
+        // Set the import script
+        importScript.value = this.app.api.getDnDBeyondImportScript();
+        
+        // Copy script button
+        copyScriptBtn.addEventListener('click', () => {
+            importScript.select();
+            document.execCommand('copy');
+            copyScriptBtn.textContent = 'Copied!';
+            setTimeout(() => {
+                copyScriptBtn.textContent = 'Copy';
+            }, 2000);
+        });
+        
+        cancelBtn.addEventListener('click', () => {
+            this.closeModal(modal.parentNode);
+        });
+        
+        importBtn.addEventListener('click', () => {
+            const jsonText = importJson.value.trim();
+            if (!jsonText) {
+                this.app.showAlert('Please paste the JSON data from D&D Beyond.');
+                return;
+            }
+            
+            try {
+                // Parse the JSON
+                const data = JSON.parse(jsonText);
+                
+                // Check for error
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                // Parse the character
+                const character = this.app.api.parseDnDBeyondCharacter(data);
+                
+                // Add to combat
+                this.app.combat.addCreature(character);
+                
+                // Close the modal
+                this.closeModal(modal.parentNode);
+                
+                // Log the event
+                this.app.logEvent(`${character.name} imported from D&D Beyond.`);
+            } catch (error) {
+                this.app.showAlert(`Error importing character: ${error.message}`);
+            }
         });
     }
     
