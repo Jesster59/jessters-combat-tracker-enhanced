@@ -20,7 +20,7 @@ class JessterCombatTracker {
     this.dice = new DiceRoller(this);
     this.combat = new CombatManager(this);
     this.conditions = new ConditionsManager(this);
-    this.damage = new DamageTracker(this);  // Changed from DamageTypeManager
+    this.damage = new DamageTracker(this);
     this.saves = new SavingThrowManager(this);
     this.actions = new ActionEconomyTracker(this);
     this.legendary = new LegendaryActionsTracker(this);
@@ -55,15 +55,19 @@ class JessterCombatTracker {
     this.ui.setupEventListeners();
     
     // Initialize modules that need initialization
-    this.conditions.addGroupConditionsButton();
-    this.actions.addActionReferenceButton();
-    this.notes.init();
-    this.stats.init();
-    this.audio.init();
-    this.spells.addConcentrationCheckButton();
-    
-    // Add dice history button
-    this.dice.addDiceHistoryButton();
+    try {
+      this.conditions.addGroupConditionsButton();
+      this.actions.addActionReferenceButton();
+      this.notes.init();
+      this.stats.init();
+      this.audio.init();
+      this.spells.addConcentrationCheckButton();
+      
+      // Add dice history button
+      this.dice.addDiceHistoryButton();
+    } catch (error) {
+      console.error("Error initializing modules:", error);
+    }
     
     // Log initialization
     this.logEvent("Combat Tracker initialized.");
