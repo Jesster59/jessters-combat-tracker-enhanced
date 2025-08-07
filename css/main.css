@@ -1,0 +1,222 @@
+/* Main CSS styles */
+:root {
+    --primary-color: #0ea5e9;
+    --primary-hover: #0284c7;
+    --secondary-color: #10b981;
+    --secondary-hover: #059669;
+    --danger-color: #ef4444;
+    --danger-hover: #dc2626;
+    --warning-color: #f59e0b;
+    --warning-hover: #d97706;
+    --success-color: #10b981;
+    --success-hover: #059669;
+    --info-color: #6366f1;
+    --info-hover: #4f46e5;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #1f2937;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #4b5563;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #6b7280;
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideIn {
+    from { transform: translateY(-10px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+.fade-in {
+    animation: fadeIn 0.3s ease-in;
+}
+
+.slide-in {
+    animation: slideIn 0.3s ease-out;
+}
+
+/* Utility classes */
+.dice-roll {
+    display: inline-block;
+    padding: 2px 6px;
+    margin: 0 2px;
+    background-color: #374151;
+    border-radius: 4px;
+    font-weight: bold;
+}
+
+.creature-card {
+    transition: all 0.3s ease;
+}
+
+.creature-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.active-turn {
+    box-shadow: 0 0 20px rgba(250, 204, 21, 0.5);
+    border-color: #FACC15;
+}
+
+.inspiration-btn {
+    cursor: pointer;
+}
+
+.inspiration-btn.active {
+    color: #FACC15;
+    text-shadow: 0 0 8px #FACC15;
+}
+
+.modal-backdrop {
+    background-color: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(4px);
+}
+
+.condition-tag {
+    cursor: pointer;
+    position: relative;
+}
+
+.condition-tag[data-rounds]:hover:after {
+    content: attr(data-rounds) " rounds left";
+    position: absolute;
+    top: -25px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    white-space: nowrap;
+    z-index: 10;
+}
+
+/* Tooltips */
+[data-tooltip] {
+    position: relative;
+}
+
+[data-tooltip]:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    white-space: nowrap;
+    z-index: 10;
+    margin-bottom: 5px;
+}
+
+/* Combat Log Styling */
+.combat-log-container {
+    max-height: 250px;
+    overflow-y: auto;
+    background-color: #1f2937;
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    color: #d1d5db;
+    line-height: 1.4;
+}
+
+.log-entry {
+    margin-bottom: 0.25rem;
+    word-wrap: break-word;
+}
+
+.log-entry:last-child {
+    margin-bottom: 0;
+}
+
+/* SRD Statblock Modal Styling */
+.srd-statblock-section {
+    margin-bottom: 1rem;
+    border-bottom: 1px solid #4B5563;
+    padding-bottom: 0.5rem;
+}
+
+.srd-statblock-section:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.srd-statblock-section h4 {
+    font-weight: 600;
+    color: #9CA3AF;
+    margin-bottom: 0.25rem;
+}
+
+.srd-statblock-section p {
+    margin-bottom: 0.1rem;
+}
+
+.srd-statblock-ability-scores {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 0.5rem;
+    text-align: center;
+    font-size: 0.875rem;
+}
+
+.srd-statblock-ability-scores div {
+    padding: 0.25rem;
+    background-color: #374151;
+    border-radius: 0.25rem;
+}
+
+.srd-statblock-ability-scores strong {
+    display: block;
+    font-size: 1rem;
+    color: #D1D5DB;
+}
+
+/* Keyboard shortcuts help */
+.keyboard-shortcut {
+    display: inline-block;
+    padding: 2px 6px;
+    background-color: #374151;
+    border-radius: 4px;
+    font-family: monospace;
+    font-weight: bold;
+    margin: 0 2px;
+}
+
+/* Loading spinner */
+.loading-spinner {
+    border: 4px solid rgba(255, 255, 255, 0.1);
+    border-left-color: #0ea5e9;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
