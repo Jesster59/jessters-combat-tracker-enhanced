@@ -6,6 +6,7 @@
     <title>Jesster's Combat Tracker</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
     <style>
         :root {
             --primary-color: #4f46e5;
@@ -82,6 +83,15 @@
         
         .log-entry:last-child {
             border-bottom: none;
+        }
+        
+        /* Character image */
+        .character-image {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid #4b5563;
         }
     </style>
 </head>
@@ -223,13 +233,16 @@
         <!-- Footer -->
         <footer class="bg-gray-800 shadow-inner p-2">
             <div class="container mx-auto flex justify-between items-center text-sm text-gray-400">
-                <div>Jesster's Combat Tracker v1.0.0</div>
+                                <div>Jesster's Combat Tracker v1.0.0</div>
                 <div class="flex space-x-4">
                     <button id="save-state-btn" class="hover:text-white">Save</button>
                     <button id="load-state-btn" class="hover:text-white">Load</button>
                     <button id="export-data-btn" class="hover:text-white">Export</button>
                     <button id="import-data-btn" class="hover:text-white">Import</button>
                 </div>
+            </div>
+            <div class="container mx-auto mt-1 text-xs text-gray-500 text-center">
+                Dungeons & Dragons, D&D, their respective logos, and all Wizards titles and characters are property of Wizards of the Coast LLC in the U.S.A. and other countries. ©2024 Wizards.
             </div>
         </footer>
     </div>
@@ -239,6 +252,9 @@
         <div class="creature-card bg-gray-700 rounded-lg shadow mb-4 p-3" data-id="{{id}}">
             <div class="flex justify-between items-center mb-2">
                 <div class="flex items-center">
+                    {{#if imageUrl}}
+                    <img src="{{imageUrl}}" alt="{{name}}" class="character-image mr-2">
+                    {{/if}}
                     <span class="text-xl font-bold">{{typeIcon}} {{name}}</span>
                 </div>
                 <div class="flex space-x-1">
@@ -295,6 +311,9 @@
         <div class="initiative-item p-2 mb-1 rounded flex justify-between items-center {{#if active}}bg-blue-900{{else}}bg-gray-700{{/if}}">
             <div class="flex items-center">
                 <span class="w-6 h-6 flex items-center justify-center bg-gray-600 rounded-full text-sm mr-2">{{index}}</span>
+                {{#if imageUrl}}
+                <img src="{{imageUrl}}" alt="{{name}}" class="character-image w-6 h-6 mr-2">
+                {{/if}}
                 <span>{{typeIcon}} {{name}}</span>
             </div>
             <div class="font-bold">{{initiative}}</div>
@@ -333,45 +352,60 @@
         });
         
         function initEventListeners() {
+            // Helper function to safely add event listener
+            function safeAddEventListener(selector, event, handler) {
+                const element = document.querySelector(selector);
+                if (element) {
+                    element.addEventListener(event, handler);
+                } else {
+                    console.warn(`Element not found: ${selector}`);
+                }
+            }
+            
             // Quick dice buttons
             document.querySelectorAll('.quick-dice-btn').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const dice = btn.dataset.dice;
-                    window.app.dice.rollAndDisplay(`1${dice}`);
-                });
+                if (btn) {
+                    btn.addEventListener('click', () => {
+                        const dice = btn.dataset.dice;
+                        window.app.dice.rollAndDisplay(`1${dice}`);
+                    });
+                }
             });
             
             // Custom dice roll
-            document.getElementById('roll-custom-dice-btn').addEventListener('click', () => {
+            safeAddEventListener('#roll-custom-dice-btn', 'click', () => {
                 const input = document.getElementById('custom-dice-input');
-                const notation = input.value.trim();
-                if (notation) {
-                    window.app.dice.rollAndDisplay(notation);
-                    input.value = '';
+                if (input) {
+                    const notation = input.value.trim();
+                    if (notation) {
+                        window.app.dice.rollAndDisplay(notation);
+                        input.value = '';
+                    }
                 }
             });
             
             // Custom dice input - roll on Enter
-            document.getElementById('custom-dice-input').addEventListener('keypress', (e) => {
+            safeAddEventListener('#custom-dice-input', 'keypress', (e) => {
                 if (e.key === 'Enter') {
-                    document.getElementById('roll-custom-dice-btn').click();
+                    const rollBtn = document.getElementById('roll-custom-dice-btn');
+                    if (rollBtn) rollBtn.click();
                 }
             });
             
             // Combat control buttons
-            document.getElementById('add-hero-btn').addEventListener('click', () => {
+            safeAddEventListener('#add-hero-btn', 'click', () => {
                 window.app.ui.openAddHeroModal();
             });
             
-            document.getElementById('add-monster-btn').addEventListener('click', () => {
+            safeAddEventListener('#add-monster-btn', 'click', () => {
                 window.app.ui.openAddMonsterModal();
             });
             
-            document.getElementById('roll-initiative-btn').addEventListener('click', () => {
+            safeAddEventListener('#roll-initiative-btn', 'click', () => {
                 window.app.combat.rollInitiativeForAll();
             });
             
-            document.getElementById('start-combat-btn').addEventListener('click', () => {
+            safeAddEventListener('#start-combat-btn', 'click', () => {
                 if (window.app.state.combatStarted) {
                     window.app.showAlert('Combat is already in progress.');
                 } else {
@@ -379,7 +413,7 @@
                 }
             });
             
-            document.getElementById('next-turn-btn').addEventListener('click', () => {
+            safeAddEventListener('#next-turn-btn', 'click', () => {
                 if (!window.app.state.combatStarted) {
                     window.app.showAlert('Start combat first.');
                 } else {
@@ -387,7 +421,7 @@
                 }
             });
             
-            document.getElementById('end-combat-btn').addEventListener('click', () => {
+            safeAddEventListener('#end-combat-btn', 'click', () => {
                 if (!window.app.state.combatStarted) {
                     window.app.showAlert('No combat in progress.');
                 } else {
@@ -396,35 +430,35 @@
             });
             
             // Player view button
-            document.getElementById('player-view-btn').addEventListener('click', () => {
+            safeAddEventListener('#player-view-btn', 'click', () => {
                 window.app.ui.openPlayerView();
             });
             
             // Export log button
-            document.getElementById('export-log-btn').addEventListener('click', () => {
+            safeAddEventListener('#export-log-btn', 'click', () => {
                 window.app.export.exportCombatLog();
             });
             
             // Settings button
-            document.getElementById('settings-btn').addEventListener('click', () => {
+            safeAddEventListener('#settings-btn', 'click', () => {
                 window.app.settings.openSettingsModal();
             });
             
             // Help button
-            document.getElementById('help-btn').addEventListener('click', () => {
+            safeAddEventListener('#help-btn', 'click', () => {
                 window.app.help.openHelpModal();
             });
             
             // Save/Load/Export/Import buttons
-            document.getElementById('save-state-btn').addEventListener('click', () => {
+            safeAddEventListener('#save-state-btn', 'click', () => {
                 window.app.export.saveCombatState();
             });
             
-            document.getElementById('load-state-btn').addEventListener('click', () => {
+            safeAddEventListener('#load-state-btn', 'click', () => {
                 window.app.export.loadCombatState();
             });
             
-            document.getElementById('export-data-btn').addEventListener('click', async () => {
+            safeAddEventListener('#export-data-btn', 'click', async () => {
                 try {
                     const data = await window.app.storage.exportAllData();
                     window.app.export.exportJSON(data, `combat-tracker-export-${new Date().toISOString().slice(0, 10)}.json`);
@@ -433,7 +467,7 @@
                 }
             });
             
-            document.getElementById('import-data-btn').addEventListener('click', () => {
+            safeAddEventListener('#import-data-btn', 'click', () => {
                 window.app.export.showImportDialog(async (data) => {
                     try {
                         const results = await window.app.storage.importData(data);
