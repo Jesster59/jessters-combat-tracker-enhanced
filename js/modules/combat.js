@@ -110,21 +110,21 @@ class CombatManager {
   }
   
   /**
-   * Start the first turn
-   */
-  startFirstTurn() {
-    const sortedCreatures = this.creatures
-      .filter(c => c.initiative !== null)
-      .sort((a, b) => b.initiative - a.initiative);
-    
-    if (sortedCreatures.length > 0) {
-      this.app.state.currentTurn = sortedCreatures[0].id;
-      this.app.logEvent(`${sortedCreatures[0].name}'s turn begins!`);
-      this.app.ui.renderCreatures();
-      this.app.ui.renderInitiativeOrder();
-      this.app.audio.play('turnStart');
-    }
+ * Start the first turn
+ */
+startFirstTurn() {
+  const sortedCreatures = this.creatures
+    .filter(c => c.initiative !== null)
+    .sort((a, b) => b.initiative - a.initiative);
+  
+  if (sortedCreatures.length > 0) {
+    this.app.state.currentTurn = sortedCreatures[0].id;
+    this.app.logEvent(`${sortedCreatures[0].name}'s turn begins!`);
+    this.app.ui.renderCreatures();
+    this.app.ui.renderInitiativeOrder();
+    this.app.audio.play('turnStart'); // REPLACE THIS LINE (was 'turnStart')
   }
+}
   
   /**
    * Move to the next turn
