@@ -1,708 +1,263 @@
 /**
  * Combat Manager for Jesster's Combat Tracker
- * Handles combat flow, initiative, turns, etc.
+ * Handles combat flow, creatures, and turn management
  */
 class CombatManager {
   constructor(app) {
     this.app = app;
-    this.playerViewWindow = null;
-  }
-  
-  async rollAllInitiative() {
-    const heroCards = Array.from(document.querySelectorAll('#heroes-list .combatant-card'));
-    const monsterCards = Array.from(document.querySelectorAll('#monsters-list .combatant-card'));
-    
-    if (heroCards.length === 0 && monsterCards.length === 0) {
-      this.app.showAlert("Please add some combatants before rolling initiative!");
-      return;
-    }
-    
-    this.app.logEvent("Rolling initiative for all combatants...");
-    
-    // Roll for heroes
-    for (const card of heroCards) {
-      await this.rollInitiativeForCard(card);
-    }
-    
-    // Roll for monsters
-    for (const card of monsterCards) {
-      await this.rollInitiativeForCard(card);
-    }
-    
-    this.app.showAlert("Initiative rolled for all combatants!", "Initiative");
-    
-    // Enable the Start Combat button
-    const startCombatBtn = document.getElementById('start-combat-btn');
-    if (startCombatBtn) startCombatBtn.disabled = false;
-  }
-  
-  async rollInitiativeForCard(card) {
-    const initiativeInput = card.querySelector('.initiative-input');
-    if (!initiativeInput) return;
-    
-    // Get the DEX modifier or initiative modifier
-    const hiddenData = card.querySelector('.hidden-data');
-    let modifier = 0;
-    
-    if (card.dataset.type === 'hero') {
-      // For heroes, use DEX modifier
-      if (hiddenData && hiddenData.dataset.dex) {
-        const dex = parseInt(hiddenData.dataset.dex) || 10;
-        modifier = Math.floor((dex - 10) / 2);
-      }
-    } else {
-      // For monsters, use initiative modifier if available, otherwise DEX modifier
-      if (hiddenData && hiddenData.dataset.initMod && !isNaN(parseInt(hiddenData.dataset.initMod))) {
-        modifier = parseInt(hiddenData.dataset.initMod);
-      } else if (hiddenData && hiddenData.dataset.dex) {
-        const dex = parseInt(hiddenData.dataset.dex) || 10;
-        modifier = Math.floor((dex - 10) / 2);
-      }
-    }
-    
-    // Roll 1d20
-    const roll = Math.floor(Math.random() * 20) + 1;
-    const totalInit = roll + modifier;
-    
-    // Set the initiative value
-    initiativeInput.value = totalInit;
-    
-    // Log the roll
-    const name = card.querySelector('.combatant-name')?.textContent || 'Unknown';
-    this.app.logEvent(`${name} rolled initiative: ${totalInit} (d20: ${roll}, mod: ${modifier}).`);
-    
-    return totalInit;
-  }
-  
-  startCombat() {
-    if (this.app.state.combatStarted) return;
-    
-    const heroCards = Array.from(document.querySelectorAll('#heroes-list .combatant-card'));
-    const monsterCards = Array.from(document.querySelectorAll('#monsters-list .combatant-card'));
-    
-    if (heroCards.length === 0 && monsterCards.length === 0) {
-      this.app.showAlert("Please add at least one combatant before starting combat.");
-      return;
-    }
-    
-    // Determine initiative order
-    const initiativeType = document.getElementById('initiative-type')?.value || 'dynamic';
-    
-    if (initiativeType === 'normal') {
-      this.determineNormalInitiative();
-    } else if (initiativeType === 'team') {
-      this.determineTeamInitiative();
-    } else {
-      // Default to dynamic initiative
-      this.determineDynamicInitiative();
-    }
-    
-    // Start combat
-    this.app.state.combatStarted = true;
-    this.app.state.roundNumber = 1;
-    this.app.state.combatStartTime = new Date();
-    
-    // Update UI
-    document.getElementById('round-counter').textContent = '1';
-    document.getElementById('start-combat-btn').disabled = true;
-    document.getElementById('roll-all-btn').disabled = true;
-    document.getElementById('end-turn-btn').disabled = false;
-    
-    // Reset action economy for all combatants
-    if (this.app.actions) {
-      this.app.actions.resetAllActionEconomy();
-    }
-    
-    // Initialize lair actions if enabled
-    if (this.app.lair) {
-      this.app.lair.initializeLairActions();
-    }
-    
-    // Start tracking combat statistics
-    if (this.app.stats) {
-      this.app.stats.startCombatTracking();
-    }
-    
-    this.updateTurnIndicator();
-    this.app.logEvent("Combat Started!");
-    this.app.audio.play('combatStart');
-  }
-  
-  determineNormalInitiative() {
-    // Sort all combatants by initiative (highest first)
-    const allCombatants = [
-      ...Array.from(document.querySelectorAll('#heroes-list .combatant-card')),
-      ...Array.from(document.querySelectorAll('#monsters-list .combatant-card'))
-    ];
-    
-    // Sort by initiative, then by DEX modifier for ties
-    const sortedCombatants = allCombatants.sort((a, b) => {
-      const aInit = parseInt(a.querySelector('.initiative-input').value) || 0;
-      const bInit = parseInt(b.querySelector('.initiative-input').value) || 0;
-      
-      // If initiatives are tied, check DEX modifier
-      if (aInit === bInit) {
-        const aHiddenData = a.querySelector('.hidden-data');
-        const bHiddenData = b.querySelector('.hidden-data');
-        
-        const aDex = aHiddenData ? parseInt(aHiddenData.dataset.dex) || 10 : 10;
-        const bDex = bHiddenData ? parseInt(bHiddenData.dataset.dex) || 10 : 10;
-        
-        const aDexMod = Math.floor((aDex - 10) / 2);
-        const bDexMod = Math.floor((bDex - 10) / 2);
-        
-        return bDexMod - aDexMod;
-      }
-      
-      return bInit - aInit;
-    });
-    
-    // Store the initiative order
-    this.app.state.normalInitiativeOrder = sortedCombatants.map(card => card.id);
-    this.app.state.currentNormalInitiativeIndex = 0;
-    
-    // Set the current turn to the first combatant
-    if (sortedCombatants.length > 0) {
-      this.app.state.currentTurn = sortedCombatants[0].id;
-      
-      // Log the initiative order
-      const orderNames = sortedCombatants.map(card => {
-        const name = card.querySelector('.combatant-name').textContent;
-        const init = card.querySelector('.initiative-input').value;
-        return `${name} (${init})`;
-      }).join(', ');
-      
-      this.app.logEvent(`Initiative order: ${orderNames}`);
-    }
-  }
-  
-  determineDynamicInitiative() {
-    // Compare highest initiative between heroes and monsters
-    const heroCards = Array.from(document.querySelectorAll('#heroes-list .combatant-card'));
-    const monsterCards = Array.from(document.querySelectorAll('#monsters-list .combatant-card'));
-    
-    const highestHeroInit = Math.max(0, ...heroCards.map(card => 
-      parseInt(card.querySelector('.initiative-input').value) || 0
-    ));
-    
-    const highestMonsterInit = Math.max(0, ...monsterCards.map(card => 
-      parseInt(card.querySelector('.initiative-input').value) || 0
-    ));
-    
-    // Set current turn to the side with highest initiative
-    this.app.state.currentTurn = highestHeroInit >= highestMonsterInit ? 'heroes' : 'monsters';
-    
-    this.app.logEvent(`Dynamic Initiative: Heroes (${highestHeroInit}) vs Monsters (${highestMonsterInit}). ${this.app.state.currentTurn === 'heroes' ? 'Heroes' : 'Monsters'} go first.`);
-  }
-  
-  determineTeamInitiative() {
-    // Roll a single initiative for each team
-    const heroRoll = Math.floor(Math.random() * 20) + 1;
-    const monsterRoll = Math.floor(Math.random() * 20) + 1;
-    
-    // Set current turn to the side with highest roll
-    this.app.state.currentTurn = heroRoll >= monsterRoll ? 'heroes' : 'monsters';
-    
-    this.app.logEvent(`Team Initiative: Heroes (${heroRoll}) vs Monsters (${monsterRoll}). ${this.app.state.currentTurn === 'heroes' ? 'Heroes' : 'Monsters'} go first.`);
-  }
-  
-  endTurn() {
-    if (!this.app.state.combatStarted) return;
-    
-    const initiativeType = document.getElementById('initiative-type')?.value || 'dynamic';
-    
-    if (initiativeType === 'normal') {
-      this.endNormalInitiativeTurn();
-    } else if (initiativeType === 'team') {
-      this.endTeamInitiativeTurn();
-    } else {
-      // Default to dynamic initiative
-      this.endDynamicInitiativeTurn();
-    }
-    
-    // Check for expired conditions
-    if (this.app.conditions) {
-      this.app.conditions.checkExpiredConditions();
-    }
-    
-    // Check for expired spells
-    if (this.app.spells) {
-      this.app.spells.checkSpellsAtEndOfTurn();
-    }
-    
-    // Update UI
-    this.updateTurnIndicator();
-    this.app.audio.play('turnEnd');
-    
-    // Update player view
-    this.updatePlayerView();
-  }
-  
-  endNormalInitiativeTurn() {
-    // Get the current combatant
-    const currentCombatantId = this.app.state.currentTurn;
-    const currentCombatant = document.getElementById(currentCombatantId);
-    
-    if (!currentCombatant) {
-      console.error("Current combatant not found:", currentCombatantId);
-      return;
-    }
-    
-    // Get current combatant name for logging
-    const currentName = currentCombatant.querySelector('.combatant-name').textContent;
-    this.app.logEvent(`${currentName}'s turn ends.`);
-    
-    // Process end of turn effects
-    this.processEndOfTurnEffects(currentCombatant);
-    
-    // Get the initiative order
-    const initiativeOrder = this.app.state.normalInitiativeOrder;
-    
-    // Find current index
-    const currentIndex = this.app.state.currentNormalInitiativeIndex;
-    
-    // Move to next combatant
-    const nextIndex = (currentIndex + 1) % initiativeOrder.length;
-    
-    // If we're looping back to the first combatant, it's a new round
-    if (nextIndex === 0) {
-      this.startNewRound();
-    }
-    
-    // Set new current turn
-    this.app.state.currentTurn = initiativeOrder[nextIndex];
-    this.app.state.currentNormalInitiativeIndex = nextIndex;
-    
-    // Reset action economy for the next combatant
-    if (this.app.actions) {
-      this.app.actions.resetActionEconomy(initiativeOrder[nextIndex]);
-    }
-    
-    // Reset legendary actions if it's a monster's turn
-    const nextCombatant = document.getElementById(initiativeOrder[nextIndex]);
-    if (nextCombatant && nextCombatant.dataset.type === 'monster' && this.app.legendary) {
-      this.app.legendary.resetLegendaryActions(initiativeOrder[nextIndex]);
-    }
-    
-    // Log new turn
-    const nextName = nextCombatant ? nextCombatant.querySelector('.combatant-name').textContent : "Unknown";
-    this.app.logEvent(`${nextName}'s turn begins.`);
-  }
-  
-  endDynamicInitiativeTurn() {
-    // In dynamic initiative, teams alternate turns
-    const currentTurn = this.app.state.currentTurn;
-    
-    // Log end of turn
-    this.app.logEvent(`${currentTurn === 'heroes' ? 'Heroes' : 'Monsters'} turn ends.`);
-    
-    // Process end of turn effects for the current team
-    const selector = currentTurn === 'heroes' ? '#heroes-list .combatant-card' : '#monsters-list .combatant-card';
-    const teamCards = Array.from(document.querySelectorAll(selector));
-    teamCards.forEach(card => this.processEndOfTurnEffects(card));
-    
-    // Switch teams
-    const nextTurn = currentTurn === 'heroes' ? 'monsters' : 'heroes';
-    
-    // Check if this completes a round - only if we're going from monsters back to heroes
-    if (nextTurn === 'heroes') {
-      this.startNewRound();
-    }
-    
-    // Set new current turn
-    this.app.state.currentTurn = nextTurn;
-    
-    // Reset action economy for the next team
-    if (this.app.actions) {
-      const nextTeamSelector = nextTurn === 'heroes' ? '#heroes-list .combatant-card' : '#monsters-list .combatant-card';
-      const nextTeamCards = Array.from(document.querySelectorAll(nextTeamSelector));
-      nextTeamCards.forEach(card => {
-        this.app.actions.resetActionEconomy(card.id);
-      });
-    }
-    
-    // Reset legendary actions if it's monsters' turn
-    if (nextTurn === 'monsters' && this.app.legendary) {
-      const monsterCards = Array.from(document.querySelectorAll('#monsters-list .combatant-card'));
-      monsterCards.forEach(card => {
-        this.app.legendary.resetLegendaryActions(card.id);
-      });
-    }
-    
-    // Log new turn
-    this.app.logEvent(`${nextTurn === 'heroes' ? 'Heroes' : 'Monsters'} turn begins.`);
-  }
-  
-  endTeamInitiativeTurn() {
-    // Similar to dynamic, but without re-rolling each round
-    const currentTurn = this.app.state.currentTurn;
-    
-    // Log end of turn
-    this.app.logEvent(`${currentTurn === 'heroes' ? 'Heroes' : 'Monsters'} turn ends.`);
-    
-    // Process end of turn effects for the current team
-    const selector = currentTurn === 'heroes' ? '#heroes-list .combatant-card' : '#monsters-list .combatant-card';
-    const teamCards = Array.from(document.querySelectorAll(selector));
-    teamCards.forEach(card => this.processEndOfTurnEffects(card));
-    
-    // Switch teams
-    const nextTurn = currentTurn === 'heroes' ? 'monsters' : 'heroes';
-    
-    // Check if this completes a round - only if we're going from monsters back to heroes
-    if (nextTurn === 'heroes') {
-      this.startNewRound();
-    }
-    
-    // Set new current turn
-    this.app.state.currentTurn = nextTurn;
-    
-    // Reset action economy for the next team
-    if (this.app.actions) {
-      const nextTeamSelector = nextTurn === 'heroes' ? '#heroes-list .combatant-card' : '#monsters-list .combatant-card';
-      const nextTeamCards = Array.from(document.querySelectorAll(nextTeamSelector));
-      nextTeamCards.forEach(card => {
-        this.app.actions.resetActionEconomy(card.id);
-      });
-    }
-    
-    // Reset legendary actions if it's monsters' turn
-    if (nextTurn === 'monsters' && this.app.legendary) {
-      const monsterCards = Array.from(document.querySelectorAll('#monsters-list .combatant-card'));
-      monsterCards.forEach(card => {
-        this.app.legendary.resetLegendaryActions(card.id);
-      });
-    }
-    
-    // Log new turn
-    this.app.logEvent(`${nextTurn === 'heroes' ? 'Heroes' : 'Monsters'} turn begins.`);
-  }
-  
-  startNewRound() {
-    this.app.state.roundNumber++;
-    document.getElementById('round-counter').textContent = this.app.state.roundNumber;
-    this.app.logEvent(`Round ${this.app.state.roundNumber} begins.`);
-    this.app.audio.play('roundStart');
-    
-    // Reset action economy for all combatants
-    this.resetActionEconomy();
-    
-    // Reset legendary actions for all monsters
-    if (this.app.legendary) {
-      this.app.legendary.resetLegendaryActionsAtRoundStart();
-    }
-    
-    // Trigger lair actions at initiative count 20
-    if (this.app.lair) {
-      this.app.lair.triggerLairAction();
-    }
-  }
-  
-  processEndOfTurnEffects(card) {
-    // Process any effects that happen at the end of a turn
-    console.log(`Processing end of turn effects for ${card.querySelector('.combatant-name')?.textContent || 'Unknown'}`);
-    
-    // Check for any conditions that end at the end of a turn
-    const hiddenData = card.querySelector('.hidden-data');
-    if (hiddenData && hiddenData.dataset.conditionsData) {
-      try {
-        const conditions = JSON.parse(hiddenData.dataset.conditionsData || '[]');
-        // Process conditions that end at the end of a turn
-        // This would be implemented in a real application
-      } catch (e) { /* ignore */ }
-    }
-  }
-  
-  resetActionEconomy() {
-    // Reset action economy for all combatants
-    console.log("Resetting action economy for all combatants");
-    
-    if (this.app.actions) {
-      this.app.actions.resetAllActionEconomy();
-    }
-  }
-  
-  resetCombat() {
-    // Reset combat state
-    this.app.state.combatStarted = false;
-    this.app.state.roundNumber = 1;
-    this.app.state.currentTurn = null;
-    
-    // End combat statistics tracking
-    if (this.app.stats) {
-      this.app.stats.endCombatTracking();
-    }
-    
-    // Update UI
-    document.getElementById('round-counter').textContent = '1';
-    document.getElementById('turn-indicator').textContent = 'Waiting to Start';
-    
-    // Clear active turn highlights
-    document.querySelectorAll('.active-turn').forEach(el => {
-      el.classList.remove('active-turn');
-    });
-    
-    // Reset initiative values
-    document.querySelectorAll('.initiative-input').forEach(input => {
-      input.value = '';
-    });
-    
-    // Reset buttons
-    document.getElementById('start-combat-btn').disabled = true;
-    document.getElementById('roll-all-btn').disabled = false;
-    document.getElementById('end-turn-btn').disabled = true;
-    
-    this.app.logEvent("Combat Reset.");
-  }
-  
-  endCombat() {
-    this.app.showConfirm("This will clear the board and end combat. Are you sure?", () => {
-      // Reset combat state
-      this.resetCombat();
-      
-      // Clear combatants
-      document.getElementById('heroes-list').innerHTML = '';
-      document.getElementById('monsters-list').innerHTML = '';
-      
-      this.app.logEvent("Combat Ended and board cleared.");
-    });
-  }
-  
-  updateTurnIndicator() {
-    // Clear all active turn highlights
-    document.querySelectorAll('.active-turn').forEach(el => {
-      el.classList.remove('active-turn');
-    });
-    
-    const turnIndicator = document.getElementById('turn-indicator');
-    if (!turnIndicator) return;
-    
-    if (!this.app.state.combatStarted) {
-      turnIndicator.textContent = 'Waiting to Start';
-      return;
-    }
-    
-    const initiativeType = document.getElementById('initiative-type')?.value || 'dynamic';
-    
-    if (initiativeType === 'normal') {
-      // Highlight individual combatant
-      const currentCard = document.getElementById(this.app.state.currentTurn);
-      if (currentCard) {
-        currentCard.classList.add('active-turn');
-        const name = currentCard.querySelector('.combatant-name').textContent;
-        turnIndicator.textContent = `${name}'s Turn`;
-      } else {
-        turnIndicator.textContent = 'Error: Combatant not found';
-      }
-    } else {
-      // Highlight team column
-      const column = this.app.state.currentTurn === 'heroes' ? 
-        document.getElementById('heroes-column') : 
-        document.getElementById('monsters-column');
-      
-      if (column) {
-        column.classList.add('active-turn');
-      }
-      
-      turnIndicator.textContent = this.app.state.currentTurn === 'heroes' ? 
-        "Heroes' Turn" : "Monsters' Turn";
-    }
-  }
-  
-  openOrRefreshPlayerView() {
-    if (this.playerViewWindow && !this.playerViewWindow.closed) {
-      // Refresh existing window
-      this.updatePlayerView();
-      this.playerViewWindow.focus();
-      this.app.logEvent("Player view refreshed.");
-    } else {
-      // Open new window
-      this.playerViewWindow = window.open('', 'JessterPlayerView', 'width=800,height=600');
-      if (this.playerViewWindow) {
-        this.updatePlayerView();
-        this.app.logEvent("Player view opened.");
-      } else {
-        this.app.showAlert("Could not open player view. Please check your popup blocker settings.");
-      }
-    }
-  }
-  
-  updatePlayerView() {
-    if (!this.playerViewWindow || this.playerViewWindow.closed) return;
-    
-    // Generate HTML for player view
-    const html = this.generatePlayerViewHTML();
-    
-    // Update the player view window
-    this.playerViewWindow.document.open();
-    this.playerViewWindow.document.write(html);
-    this.playerViewWindow.document.close();
-  }
-  
-  generatePlayerViewHTML() {
-    // This would generate the HTML for the player view
-    // For brevity, I'm providing a simplified version
-    
-    const roundInfo = this.app.state.combatStarted ? 
-      `<h1 class="text-3xl font-bold">Round ${this.app.state.roundNumber}</h1>` : 
-      '<h1 class="text-3xl font-bold">Prepare for Combat</h1>';
-    
-    const turnInfo = this.app.state.combatStarted ? 
-      `<p class="text-2xl font-bold text-yellow-400 mt-2">${this.getTurnDisplayText()}</p>` : 
-      '';
-    
-    return `<!DOCTYPE html>
-      <html lang="en">
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Combat Tracker - Player View</title>
-        <script src="https://cdn.tailwindcss.com"></script>
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-        <style>
-          body {
-            font-family: 'Inter', sans-serif;
-            background-color: #1a202c;
-            color: #e2e8f0;
-          }
-        </style>
-      </head>
-      <body class="p-4">
-        <div class="text-center mb-6">
-          ${roundInfo}
-          ${turnInfo}
-        </div>
-        
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <h2 class="text-2xl font-semibold mb-4 text-center text-blue-400">Heroes</h2>
-            <div id="heroes-list-player" class="space-y-3">
-              ${this.generatePlayerViewCombatants('heroes')}
-            </div>
-          </div>
-          
-          <div>
-            <h2 class="text-2xl font-semibold mb-4 text-center text-red-400">Monsters</h2>
-            <div id="monsters-list-player" class="space-y-3">
-              ${this.generatePlayerViewCombatants('monsters')}
-            </div>
-          </div>
-        </div>
-      </body>
-      </html>`;
-  }
-  
-  getTurnDisplayText() {
-    const initiativeType = document.getElementById('initiative-type')?.value || 'dynamic';
-    
-    if (initiativeType === 'normal') {
-      const currentCard = document.getElementById(this.app.state.currentTurn);
-      if (currentCard) {
-        const name = currentCard.querySelector('.combatant-name').textContent;
-        return `${name}'s Turn`;
-      }
-      return 'Current Turn';
-    } else {
-      return this.app.state.currentTurn === 'heroes' ? "Heroes' Turn" : "Monsters' Turn";
-    }
-  }
-  
-  generatePlayerViewCombatants(type) {
-    // Generate HTML for combatants in player view
-    // This would be more detailed in a real implementation
-    const selector = type === 'heroes' ? '#heroes-list .combatant-card' : '#monsters-list .combatant-card';
-    const cards = Array.from(document.querySelectorAll(selector));
-    
-    if (cards.length === 0) {
-      return '<p class="text-gray-500 text-center">No combatants.</p>';
-    }
-    
-    return cards.map(card => {
-      const name = card.querySelector('.combatant-name').textContent;
-      const initiative = card.querySelector('.initiative-input').value;
-      const isActive = card.classList.contains('active-turn');
-      
-      // Get HP status for descriptive view
-      const hpInput = card.querySelector('.hp-input');
-      const currentHp = parseInt(hpInput?.value || 0);
-      const maxHp = parseInt(hpInput?.dataset.maxHp || 0);
-      let hpDisplay = '';
-      const hpView = document.getElementById('player-hp-view')?.value || 'descriptive';
-
-      if (hpView === 'descriptive') {
-        if (maxHp <= 0) {
-            hpDisplay = '<span class="px-2 py-1 text-xs font-bold rounded-full bg-gray-500 text-white">Unknown</span>';
-        } else if (currentHp <= 0) {
-            hpDisplay = '<span class="px-2 py-1 text-xs font-bold rounded-full bg-black text-white">Down</span>';
-        } else {
-            const percentage = (currentHp / maxHp) * 100;
-            if (percentage <= 50) {
-                hpDisplay = '<span class="px-2 py-1 text-xs font-bold rounded-full bg-red-600 text-white">Bloodied</span>';
-            } else if (percentage < 100) {
-                hpDisplay = '<span class="px-2 py-1 text-xs font-bold rounded-full bg-orange-500 text-white">Wounded</span>';
-            } else {
-                hpDisplay = '<span class="px-2 py-1 text-xs font-bold rounded-full bg-green-500 text-white">Unharmed</span>';
-            }
-        }
-      } else if (hpView === 'exact' && type === 'heroes') {
-        hpDisplay = `${currentHp} / ${maxHp} HP`;
-      }
-
-      // Get conditions
-      const hiddenData = card.querySelector('.hidden-data');
-      let conditionsHTML = '';
-      if (hiddenData && hiddenData.dataset.conditionsData) {
-        try {
-          const conditions = JSON.parse(hiddenData.dataset.conditionsData || '[]');
-          conditionsHTML = conditions.map(cond => 
-            `<span class="bg-yellow-600 text-black text-xs font-semibold px-2 py-0.5 rounded-full">${cond.icon || ''} ${cond.name}</span>`
-          ).join(' ');
-        } catch (e) { /* ignore */ }
-      }
-      
-      return `
-        <div class="bg-gray-800 p-3 rounded-lg ${isActive ? 'border-2 border-yellow-400' : ''}">
-          <div class="flex justify-between items-center">
-            <div class="flex items-center">
-              <img src="${card.querySelector('.combatant-img')?.src || ''}" class="w-12 h-12 rounded-full mr-3 border-2 ${type === 'heroes' ? 'border-blue-300' : 'border-red-300'}">
-              <div>
-                <p class="font-bold">${name}</p>
-                <div class="flex flex-wrap gap-1 mt-1">${conditionsHTML}</div>
-              </div>
-            </div>
-            <div class="text-right">
-              <span class="text-xl font-bold">${initiative}</span>
-              <div class="text-sm text-gray-400 mt-1 h-6">${hpDisplay}</div>
-            </div>
-          </div>
-        </div>
-      `;
-    }).join('');
+    this.creatures = [];
+    console.log("Combat.js loaded successfully");
   }
   
   /**
-   * Set the initiative order manually
-   * @param {Array} order - Array of combatant IDs in order
+   * Add a creature to combat
+   * @param {Object} creature - The creature to add
    */
-  setInitiativeOrder(order) {
-    if (!order || !Array.isArray(order) || order.length === 0) return;
-    
-    // Store the order
-    this.app.state.normalInitiativeOrder = order;
-    
-    // If combat has started and we're using normal initiative, update the current turn
-    if (this.app.state.combatStarted && document.getElementById('initiative-type')?.value === 'normal') {
-      // Find the current index in the new order
-      const currentIndex = order.indexOf(this.app.state.currentTurn);
-      if (currentIndex !== -1) {
-        this.app.state.currentNormalInitiativeIndex = currentIndex;
-      } else {
-        // If the current turn is not in the new order, set to the first combatant
-        this.app.state.currentTurn = order[0];
-        this.app.state.currentNormalInitiativeIndex = 0;
-      }
-      
-      // Update the UI
-      this.updateTurnIndicator();
+  addCreature(creature) {
+    this.creatures.push(creature);
+    this.app.logEvent(`${creature.name} (${creature.type}) added to combat.`);
+    this.app.ui.renderCreatures();
+  }
+  
+  /**
+   * Remove a creature from combat
+   * @param {string} creatureId - The ID of the creature to remove
+   */
+  removeCreature(creatureId) {
+    const creature = this.getCreature(creatureId);
+    if (creature) {
+      this.creatures = this.creatures.filter(c => c.id !== creatureId);
+      this.app.logEvent(`${creature.name} removed from combat.`);
+      this.app.ui.renderCreatures();
+      this.app.ui.renderInitiativeOrder();
     }
+  }
+  
+  /**
+   * Get a creature by ID
+   * @param {string} creatureId - The ID of the creature
+   * @returns {Object|null} - The creature or null if not found
+   */
+  getCreature(creatureId) {
+    return this.creatures.find(c => c.id === creatureId) || null;
+  }
+  
+  /**
+   * Start combat
+   */
+  startCombat() {
+    if (this.creatures.length === 0) {
+      this.app.showAlert('Add some creatures before starting combat!');
+      return;
+    }
+    
+    this.app.state.combatStarted = true;
+    this.app.state.combatStartTime = new Date();
+    this.app.state.roundNumber = 1;
+    
+    this.app.logEvent('Combat started!');
+    this.app.ui.updateCombatStatus();
+    this.app.audio.play('combatStart');
+    
+    // Auto-roll initiative if not already rolled
+    const hasInitiative = this.creatures.some(c => c.initiative !== null);
+    if (!hasInitiative) {
+      this.rollInitiativeForAll();
+    } else {
+      this.startFirstTurn();
+    }
+  }
+  
+  /**
+   * End combat
+   */
+  endCombat() {
+    this.app.showConfirm('Are you sure you want to end combat?', () => {
+      this.app.state.combatStarted = false;
+      this.app.state.currentTurn = null;
+      this.app.state.roundNumber = 1;
+      this.app.state.combatStartTime = null;
+      
+      // Reset all creatures' initiative
+      this.creatures.forEach(creature => {
+        creature.initiative = null;
+        creature.conditions = [];
+      });
+      
+      this.app.logEvent('Combat ended.');
+      this.app.ui.updateCombatStatus();
+      this.app.ui.renderCreatures();
+      this.app.ui.renderInitiativeOrder();
+    });
+  }
+  
+  /**
+   * Roll initiative for all creatures
+   */
+  rollInitiativeForAll() {
+    this.creatures.forEach(creature => {
+      const roll = this.app.dice.roll('1d20');
+      creature.initiative = roll.total + creature.initiativeModifier;
+      this.app.logEvent(`${creature.name} rolls initiative: ${roll.total} + ${creature.initiativeModifier} = ${creature.initiative}`);
+    });
+    
+    this.app.ui.renderInitiativeOrder();
+    this.app.ui.renderCreatures();
+    
+    if (this.app.state.combatStarted) {
+      this.startFirstTurn();
+    }
+  }
+  
+  /**
+   * Start the first turn
+   */
+  startFirstTurn() {
+    const sortedCreatures = this.creatures
+      .filter(c => c.initiative !== null)
+      .sort((a, b) => b.initiative - a.initiative);
+    
+    if (sortedCreatures.length > 0) {
+      this.app.state.currentTurn = sortedCreatures[0].id;
+      this.app.logEvent(`${sortedCreatures[0].name}'s turn begins!`);
+      this.app.ui.renderCreatures();
+      this.app.ui.renderInitiativeOrder();
+      this.app.audio.play('turnStart');
+    }
+  }
+  
+  /**
+   * Move to the next turn
+   */
+  nextTurn() {
+    if (!this.app.state.combatStarted) return;
+    
+    const sortedCreatures = this.creatures
+      .filter(c => c.initiative !== null)
+      .sort((a, b) => b.initiative - a.initiative);
+    
+    if (sortedCreatures.length === 0) return;
+    
+    const currentIndex = sortedCreatures.findIndex(c => c.id === this.app.state.currentTurn);
+    let nextIndex = currentIndex + 1;
+    
+    // If we've reached the end, start a new round
+    if (nextIndex >= sortedCreatures.length) {
+      nextIndex = 0;
+      this.app.state.roundNumber++;
+      this.app.logEvent(`--- Round ${this.app.state.roundNumber} begins ---`);
+      this.app.audio.play('roundStart');
+    }
+    
+    this.app.state.currentTurn = sortedCreatures[nextIndex].id;
+    this.app.logEvent(`${sortedCreatures[nextIndex].name}'s turn begins!`);
+    
+    this.app.ui.updateCombatStatus();
+    this.app.ui.renderCreatures();
+    this.app.ui.renderInitiativeOrder();
+    this.app.audio.play('turnEnd');
+  }
+  
+  /**
+   * Get creatures sorted by initiative
+   * @returns {Array} - Sorted creatures array
+   */
+  getInitiativeOrder() {
+    return this.creatures
+      .filter(c => c.initiative !== null)
+      .sort((a, b) => b.initiative - a.initiative);
+  }
+  
+  /**
+   * Get the current turn creature
+   * @returns {Object|null} - The creature whose turn it is
+   */
+  getCurrentTurnCreature() {
+    return this.getCreature(this.app.state.currentTurn);
+  }
+  
+  /**
+   * Check if a creature is dead
+   * @param {string} creatureId - The creature ID
+   * @returns {boolean} - True if the creature is dead
+   */
+  isCreatureDead(creatureId) {
+    const creature = this.getCreature(creatureId);
+    return creature ? creature.currentHP <= 0 : false;
+  }
+  
+  /**
+   * Get all living creatures
+   * @returns {Array} - Array of living creatures
+   */
+  getLivingCreatures() {
+    return this.creatures.filter(c => c.currentHP > 0);
+  }
+  
+  /**
+   * Get all dead creatures
+   * @returns {Array} - Array of dead creatures
+   */
+  getDeadCreatures() {
+    return this.creatures.filter(c => c.currentHP <= 0);
+  }
+  
+  /**
+   * Add a condition to a creature
+   * @param {string} creatureId - The creature ID
+   * @param {string} condition - The condition to add
+   */
+  addCondition(creatureId, condition) {
+    const creature = this.getCreature(creatureId);
+    if (creature && !creature.conditions.includes(condition)) {
+      creature.conditions.push(condition);
+      this.app.logEvent(`${creature.name} gains condition: ${condition}`);
+      this.app.ui.renderCreatures();
+    }
+  }
+  
+  /**
+   * Remove a condition from a creature
+   * @param {string} creatureId - The creature ID
+   * @param {string} condition - The condition to remove
+   */
+  removeCondition(creatureId, condition) {
+    const creature = this.getCreature(creatureId);
+    if (creature) {
+      creature.conditions = creature.conditions.filter(c => c !== condition);
+      this.app.logEvent(`${creature.name} loses condition: ${condition}`);
+      this.app.ui.renderCreatures();
+    }
+  }
+  
+  /**
+   * Clear all conditions from a creature
+   * @param {string} creatureId - The creature ID
+   */
+  clearConditions(creatureId) {
+    const creature = this.getCreature(creatureId);
+    if (creature) {
+      creature.conditions = [];
+      this.app.logEvent(`${creature.name} has all conditions cleared`);
+      this.app.ui.renderCreatures();
+    }
+  }
+  
+  /**
+   * Reset combat (clear all creatures and state)
+   */
+  resetCombat() {
+    this.app.showConfirm('Are you sure you want to reset combat? This will remove all creatures.', () => {
+      this.creatures = [];
+      this.app.state.combatStarted = false;
+      this.app.state.currentTurn = null;
+      this.app.state.roundNumber = 1;
+      this.app.state.combatStartTime = null;
+      
+      this.app.logEvent('Combat reset - all creatures removed.');
+      this.app.ui.updateCombatStatus();
+      this.app.ui.renderCreatures();
+      this.app.ui.renderInitiativeOrder();
+    });
   }
 }
