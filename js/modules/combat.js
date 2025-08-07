@@ -96,9 +96,9 @@ class CombatManager {
     }
     
     // Initialize lair actions if enabled
-if (this.app.lair) {
-  this.app.lair.initializeLairActions();
-}
+    if (this.app.lair) {
+      this.app.lair.initializeLairActions();
+    }
     
     this.updateTurnIndicator();
     this.app.logEvent("Combat Started!");
@@ -568,7 +568,7 @@ if (this.app.lair) {
     }
   }
   
-    generatePlayerViewCombatants(type) {
+   generatePlayerViewCombatants(type) {
     // Generate HTML for combatants in player view
     // This would be more detailed in a real implementation
     const selector = type === 'heroes' ? '#heroes-list .combatant-card' : '#monsters-list .combatant-card';
@@ -616,7 +616,7 @@ if (this.app.lair) {
         try {
           const conditions = JSON.parse(hiddenData.dataset.conditionsData || '[]');
           conditionsHTML = conditions.map(cond => 
-            `<span class="bg-yellow-600 text-black text-xs font-semibold px-2 py-0.5 rounded-full">${cond.icon} ${cond.name}</span>`
+            `<span class="bg-yellow-600 text-black text-xs font-semibold px-2 py-0.5 rounded-full">${cond.icon || ''} ${cond.name}</span>`
           ).join(' ');
         } catch (e) { /* ignore */ }
       }
