@@ -3,13 +3,23 @@
  */
 class JesstersCombatTracker {
   constructor() {
-    this.version = "3.1.0"; // Updated version number
+    this.version = "3.5.0"; // Updated version number
     this.elements = {};
     this.state = {
       combatLog: [],
       combatStarted: false,
       currentTurn: null,
-      roundNumber: 1
+      roundNumber: 1,
+      normalInitiativeOrder: [],
+      currentNormalInitiativeIndex: 0,
+      combatStartTime: null,
+      combatStatistics: {
+        damageDealt: 0,
+        damageReceived: 0,
+        healingDone: 0,
+        criticalHits: 0,
+        missedAttacks: 0
+      }
     };
     
     // Firebase related properties
@@ -33,19 +43,28 @@ class JesstersCombatTracker {
     this.encounter = new EncounterBuilder(this);
     this.conditions = new ConditionsManager(this);
     this.actions = new ActionEconomyTracker(this);
+    this.notes = new CombatNotesManager(this);
+    this.damage = new DamageTypeManager(this);
+    this.saves = new SavingThrowManager(this);
+    this.stats = new CombatStatisticsManager(this);
     
-    // Conditionally initialize legendary actions tracker
+    // Conditionally initialize trackers
     if (typeof LegendaryActionsTracker !== 'undefined') {
       this.legendary = new LegendaryActionsTracker(this);
     } else {
       console.warn("LegendaryActionsTracker not found. Legendary actions will not be available.");
     }
     
-    // Conditionally initialize lair actions tracker
     if (typeof LairActionsTracker !== 'undefined') {
       this.lair = new LairActionsTracker(this);
     } else {
       console.warn("LairActionsTracker not found. Lair actions will not be available.");
+    }
+    
+    if (typeof InitiativeTracker !== 'undefined') {
+      this.initiative = new InitiativeTracker(this);
+    } else {
+      console.warn("InitiativeTracker not found. Initiative improvements will not be available.");
     }
     
     console.log("Jesster's Combat Tracker v" + this.version + " initializing...");
@@ -91,6 +110,11 @@ class JesstersCombatTracker {
       // Initialize managers that need initialization
       this.theme.init();
       this.audio.init();
+      if (this.initiative) this.initiative.init();
+      if (this.notes) this.notes.init();
+      if (this.damage) this.damage.init();
+      if (this.saves) this.saves.init();
+      if (this.stats) this.stats.init();
       
       // Load data
       await this.data.loadInitialData();
@@ -176,6 +200,21 @@ class JesstersCombatTracker {
   
   showConfirm(message, onConfirm) {
     this.ui.showConfirm(message, onConfirm);
+  }
+  
+  formatTime(milliseconds) {
+    const seconds = Math.floor(milliseconds / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    
+    return `${hours > 0 ? hours + 'h ' : ''}${minutes % 60}m ${seconds % 60}s`;
+  }
+  
+  getCombatDuration() {
+    if (!this.state.combatStartTime) return '0m 0s';
+    const now = new Date();
+    const duration = now - this.state.combatStartTime;
+    return this.formatTime(duration);
   }
 }
 
