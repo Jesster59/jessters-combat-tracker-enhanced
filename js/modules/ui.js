@@ -30,8 +30,14 @@ class UIManager {
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <!-- Combat Timeline -->
         <div class="md:col-span-2 bg-gray-800 p-4 rounded-lg">
-          <h2 class="text-xl font-semibold mb-2">Combat Timeline</h2>
-          <div id="combat-timeline" class="combat-timeline flex items-center justify-between">
+          <div class="flex justify-between items-center">
+            <h2 class="text-xl font-semibold">Combat Timeline</h2>
+            <div class="flex items-center">
+              <span class="text-gray-400 mr-2">Turn:</span>
+              <span id="turn-indicator" class="text-xl font-bold text-yellow-400">Waiting to Start</span>
+            </div>
+          </div>
+          <div id="combat-timeline" class="combat-timeline flex items-center justify-between mt-3">
             <!-- Round counter -->
             <div class="flex items-center justify-center bg-gray-700 px-4 py-2 rounded-lg">
               <span class="text-gray-400 mr-2">Round:</span>
@@ -94,413 +100,498 @@ class UIManager {
           <button id="start-combat-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md transition-colors duration-300" disabled>Start Combat</button>
           <button id="end-turn-btn" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-md transition-colors duration-300" disabled>End Turn</button>
           <button id="reset-combat-btn" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-md transition-colors duration-300">Reset Combat</button>
-          <button id="end-combat-btn" class="bg-red-700 hover:bg-red-800 text-white font-bold py-2 px-4 rounded-md transition-colors duration-300">End Combat</button>
-        </div>
-        
-        <!-- Dice Roller -->
-        <div class="md:col-span-2 max-w-md mx-auto bg-gray-800 p-4 rounded-lg flex flex-col items-center space-y-2">
-          <h2 class="text-xl font-semibold">Dice Roller</h2>
-          <div class="flex w-full items-center space-x-2">
-            <input id="dice-roll-input" type="text" class="bg-gray-700 w-full rounded px-2 py-1" placeholder="e.g., 2d8+5 or 1d20">
-            <button id="dice-roll-btn" class="bg-gray-600 hover:bg-gray-500 font-bold py-1 px-3 rounded">Roll</button>
-            <span id="dice-roll-output" class="font-bold text-lg text-green-400 w-24 text-center">--</span>
-          </div>
-          <div id="dice-presets-container" class="flex flex-wrap w-full"></div>
+          <button id="end-combat-btn" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-md transition-colors duration-300">End Combat</button>
         </div>
         
         <!-- Combat Log -->
-        <div class="md:col-span-2">
-          <h2 class="text-xl font-bold text-gray-100 mb-2">Combat Log</h2>
-          <div id="combat-log-container" class="border border-gray-700 p-2 rounded-lg h-48 overflow-y-auto"></div>
+        <div class="md:col-span-2 bg-gray-800 p-4 rounded-lg">
+          <div class="flex justify-between items-center mb-2">
+            <h2 class="text-xl font-semibold">Combat Log</h2>
+            <div class="flex space-x-2">
+              <button id="clear-log-btn" class="text-gray-400 hover:text-white">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </button>
+              <button id="export-log-btn" class="text-gray-400 hover:text-white">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div id="combat-log" class="bg-gray-900 p-3 rounded-lg h-40 overflow-y-auto text-sm"></div>
+        </div>
+        
+        <!-- Dice Roller -->
+        <div class="md:col-span-2 bg-gray-800 p-4 rounded-lg">
+          <h2 class="text-xl font-semibold mb-2">Dice Roller</h2>
+          <div class="flex flex-wrap gap-2 mb-3">
+            ${this.dicePresets.map(preset => `
+              <button class="dice-preset-btn bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-1 px-3 rounded" data-value="${preset.value}">
+                ${preset.label}
+              </button>
+            `).join('')}
+          </div>
+          <div class="flex gap-2">
+            <input type="text" id="dice-input" class="bg-gray-700 rounded px-3 py-2 text-white flex-grow" placeholder="e.g., 2d6+3">
+            <button id="roll-dice-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded">Roll</button>
+          </div>
+          <div id="dice-results" class="mt-2 text-gray-300"></div>
+        </div>
+        
+        <!-- Hidden elements for modals and alerts -->
+        <div id="modal-container" class="fixed inset-0 flex items-center justify-center z-50 hidden">
+          <div class="modal-backdrop fixed inset-0 bg-black opacity-50"></div>
+          <div class="modal-content bg-gray-800 rounded-lg shadow-xl p-6 max-w-lg w-full mx-auto z-10">
+            <!-- Modal content will be inserted here -->
+          </div>
+        </div>
+        
+        <div id="alert-container" class="fixed top-4 right-4 z-50">
+          <!-- Alerts will be inserted here -->
+        </div>
+        
+        <!-- Hidden inputs for lair actions -->
+        <div class="hidden">
+          <input type="checkbox" id="lair-action-enable">
+          <textarea id="lair-action-text"></textarea>
         </div>
       </div>
     `;
-    
-    // Verify that key elements were created
-    var criticalElements = [
-      'heroes-list', 'monsters-list', 'add-hero-btn', 'add-monster-btn',
-      'combat-log-container', 'roll-all-btn', 'start-combat-btn', 'end-turn-btn',
-      'initiative-type', 'player-hp-view', 'open-player-view-btn', 'open-encounter-builder-btn'
-    ];
-    
-    var allFound = true;
-    for (var i = 0; i < criticalElements.length; i++) {
-      var id = criticalElements[i];
-      var element = document.getElementById(id);
-      if (!element) {
-        console.error("Critical element #" + id + " was not created!");
-        allFound = false;
-      }
-    }
-    
-    if (!allFound) {
-      console.error("Some critical elements were not created. UI may not function correctly.");
-    }
-    
-    // After rendering the UI, also render these components
-    setTimeout(() => {
-      this.renderDicePresets();
-    }, 0);
   }
-
+  
   cacheDOMElements() {
-    var elementIds = [
-      'app-container', 'combat-log-container', 'turn-indicator', 'roll-all-btn', 
-      'start-combat-btn', 'end-turn-btn', 'reset-combat-btn', 'end-combat-btn',
-      'heroes-list', 'monsters-list', 'add-hero-btn', 'add-monster-btn',
-      'combat-timeline', 'dice-roll-input', 'dice-roll-btn', 'dice-roll-output',
-      'dice-presets-container', 'heroes-column', 'monsters-column', 'round-counter',
-      'initiative-type', 'player-hp-view', 'open-player-view-btn', 'open-encounter-builder-btn',
-      'lair-action-text', 'lair-action-enable'
-    ];
-    
-    this.app.elements = {};
-    
-    for (var i = 0; i < elementIds.length; i++) {
-      var id = elementIds[i];
-      var element = document.getElementById(id);
-      if (element) {
-        this.app.elements[this.camelCase(id)] = element;
-      } else {
-        // Instead of just warning, let's create these elements if they don't exist
-        if (id === 'initiative-type' || id === 'player-hp-view' || id === 'open-player-view-btn' || 
-            id === 'lair-action-text' || id === 'lair-action-enable') {
-          console.warn(`Element with ID "${id}" not found. Creating it now.`);
-          this.createMissingElement(id);
-        } else {
-          console.warn(`Element with ID "${id}" not found.`);
-        }
-      }
-    }
-  }
-  
-  camelCase(str) {
-    return str.replace(/-([a-z])/g, function (g) { return g[1].toUpperCase(); });
-  }
-  
-  createMissingElement(id) {
-    // Create missing elements that are critical for functionality
-    switch (id) {
-      case 'initiative-type':
-        var select = document.createElement('select');
-        select.id = id;
-        select.className = 'hidden';
-        select.innerHTML = `
-          <option value="dynamic">Dynamic (Team)</option>
-          <option value="team">Fixed Team</option>
-          <option value="normal">Individual</option>
-        `;
-        document.body.appendChild(select);
-        this.app.elements[this.camelCase(id)] = select;
-        break;
-        
-      case 'player-hp-view':
-        var select = document.createElement('select');
-        select.id = id;
-        select.className = 'hidden';
-        select.innerHTML = `
-          <option value="descriptive">Descriptive HP</option>
-          <option value="exact">Exact HP</option>
-          <option value="none">No HP</option>
-        `;
-        document.body.appendChild(select);
-        this.app.elements[this.camelCase(id)] = select;
-        break;
-        
-      case 'open-player-view-btn':
-        var button = document.createElement('button');
-        button.id = id;
-        button.className = 'hidden';
-        button.textContent = 'Open Player View';
-        document.body.appendChild(button);
-        this.app.elements[this.camelCase(id)] = button;
-        break;
-        
-      case 'lair-action-text':
-        var input = document.createElement('input');
-        input.id = id;
-        input.type = 'text';
-        input.className = 'hidden';
-        input.placeholder = 'Describe lair action...';
-        document.body.appendChild(input);
-        this.app.elements[this.camelCase(id)] = input;
-        break;
-        
-      case 'lair-action-enable':
-        var checkbox = document.createElement('input');
-        checkbox.id = id;
-        checkbox.type = 'checkbox';
-        checkbox.className = 'hidden';
-        document.body.appendChild(checkbox);
-        this.app.elements[this.camelCase(id)] = checkbox;
-        break;
-    }
+    // Cache commonly used elements for better performance
+    this.elements = {
+      heroesColumn: document.getElementById('heroes-column'),
+      monsterColumn: document.getElementById('monsters-column'),
+      heroesList: document.getElementById('heroes-list'),
+      monstersList: document.getElementById('monsters-list'),
+      combatLog: document.getElementById('combat-log'),
+      diceInput: document.getElementById('dice-input'),
+      diceResults: document.getElementById('dice-results'),
+      modalContainer: document.getElementById('modal-container'),
+      modalContent: document.querySelector('#modal-container .modal-content'),
+      alertContainer: document.getElementById('alert-container'),
+      turnIndicator: document.getElementById('turn-indicator'),
+      roundCounter: document.getElementById('round-counter')
+    };
   }
   
   setupEventListeners() {
-    // Set up event listeners for the main UI elements
-    var self = this;
+    // Combat controls
+    document.getElementById('roll-all-btn').addEventListener('click', () => {
+      this.app.combat.rollAllInitiative();
+    });
     
-    // Add hero button
-    if (this.app.elements.addHeroBtn) {
-      this.app.elements.addHeroBtn.addEventListener('click', function() {
-        self.app.roster.openRosterModal();
-      });
-    }
+    document.getElementById('start-combat-btn').addEventListener('click', () => {
+      this.app.combat.startCombat();
+    });
     
-    // Add monster button
-    if (this.app.elements.addMonsterBtn) {
-      this.app.elements.addMonsterBtn.addEventListener('click', function() {
-        self.app.monsters.openMonsterManualModal();
-      });
-    }
+    document.getElementById('end-turn-btn').addEventListener('click', () => {
+      this.app.combat.endTurn();
+    });
     
-    // Roll all initiative button
-    if (this.app.elements.rollAllBtn) {
-      this.app.elements.rollAllBtn.addEventListener('click', function() {
-        self.app.combat.rollAllInitiative();
-      });
-    }
+    document.getElementById('reset-combat-btn').addEventListener('click', () => {
+      this.app.combat.resetCombat();
+    });
     
-    // Start combat button
-    if (this.app.elements.startCombatBtn) {
-      this.app.elements.startCombatBtn.addEventListener('click', function() {
-        self.app.combat.startCombat();
-      });
-    }
+    document.getElementById('end-combat-btn').addEventListener('click', () => {
+      this.app.combat.endCombat();
+    });
     
-    // End turn button
-    if (this.app.elements.endTurnBtn) {
-      this.app.elements.endTurnBtn.addEventListener('click', function() {
-        self.app.combat.endTurn();
-      });
-    }
+    // Add combatants
+    document.getElementById('add-hero-btn').addEventListener('click', () => {
+      this.app.roster.openAddHeroModal();
+    });
     
-    // Reset combat button
-    if (this.app.elements.resetCombatBtn) {
-      this.app.elements.resetCombatBtn.addEventListener('click', function() {
-        self.app.combat.resetCombat();
-      });
-    }
+    document.getElementById('add-monster-btn').addEventListener('click', () => {
+      this.app.monsters.openAddMonsterModal();
+    });
     
-    // End combat button
-    if (this.app.elements.endCombatBtn) {
-      this.app.elements.endCombatBtn.addEventListener('click', function() {
-        self.app.combat.endCombat();
-      });
-    }
+    // Encounter builder
+    document.getElementById('open-encounter-builder-btn').addEventListener('click', () => {
+      if (this.app.encounter) {
+        this.app.encounter.openEncounterBuilder();
+      }
+    });
     
-    // Player view button
-    if (this.app.elements.openPlayerViewBtn) {
-      this.app.elements.openPlayerViewBtn.addEventListener('click', function() {
-        self.app.combat.openOrRefreshPlayerView();
-      });
-    }
+    // Player view
+    document.getElementById('open-player-view-btn').addEventListener('click', () => {
+      this.app.combat.openOrRefreshPlayerView();
+    });
     
-    // Encounter builder button
-    if (this.app.elements.openEncounterBuilderBtn) {
-      this.app.elements.openEncounterBuilderBtn.addEventListener('click', function() {
-        self.app.encounter.openEncounterBuilder();
-      });
-    }
+    // Combat log controls
+    document.getElementById('clear-log-btn').addEventListener('click', () => {
+      this.app.state.combatLog = [];
+      this.renderCombatLog();
+      this.app.logEvent("Combat log cleared.");
+    });
+    
+    document.getElementById('export-log-btn').addEventListener('click', () => {
+      this.exportCombatLog();
+    });
     
     // Dice roller
-    if (this.app.elements.diceRollBtn && this.app.elements.diceRollInput) {
-      this.app.elements.diceRollBtn.addEventListener('click', function() {
-        var diceExpression = self.app.elements.diceRollInput.value;
+    document.getElementById('roll-dice-btn').addEventListener('click', () => {
+      const diceExpression = this.elements.diceInput.value;
+      if (diceExpression) {
+        this.app.dice.rollAndDisplay(diceExpression);
+      }
+    });
+    
+    // Dice presets
+    document.querySelectorAll('.dice-preset-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const diceExpression = btn.dataset.value;
+        this.app.dice.rollAndDisplay(diceExpression);
+      });
+    });
+    
+    // Allow Enter key to roll dice
+    this.elements.diceInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        const diceExpression = this.elements.diceInput.value;
         if (diceExpression) {
-          self.app.dice.roll(diceExpression).then(function(result) {
-            if (self.app.elements.diceRollOutput) {
-              self.app.elements.diceRollOutput.textContent = result;
-            }
-            self.app.logEvent("Rolled " + diceExpression + ": " + result);
-          });
+          this.app.dice.rollAndDisplay(diceExpression);
         }
-      });
-      
-      this.app.elements.diceRollInput.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-          self.app.elements.diceRollBtn.click();
-        }
-      });
+      }
+    });
+    
+    // Modal backdrop click to close
+    document.querySelector('.modal-backdrop')?.addEventListener('click', () => {
+      this.hideModal();
+    });
+    
+    // Initialize the initiative tracker
+    if (this.app.initiative) {
+      setTimeout(() => {
+        this.app.initiative.init();
+      }, 100);
     }
     
-    // Add dice presets
-    this.renderDicePresets();
+    // Add group saving throw button
+    if (this.app.saves) {
+      setTimeout(() => {
+        this.app.saves.addGroupSavingThrowButton();
+      }, 100);
+    }
     
-    // Add the lair actions button to the UI
+    // Add lair actions button
     if (this.app.lair) {
       setTimeout(() => {
         this.app.lair.addLairActionsButton();
       }, 100);
     }
-    
-    console.log("Event listeners set up.");
-  }
-  
-  renderDicePresets() {
-    const container = document.getElementById('dice-presets-container');
-    if (!container) return;
-    
-    container.innerHTML = '';
-    
-    this.dicePresets.forEach(preset => {
-      const button = document.createElement('button');
-      button.className = 'bg-gray-700 hover:bg-gray-600 text-white text-sm py-1 px-2 rounded m-1';
-      button.textContent = preset.label;
-      button.addEventListener('click', () => {
-        const diceInput = document.getElementById('dice-roll-input');
-        if (diceInput) {
-          diceInput.value = preset.value;
-          const rollBtn = document.getElementById('dice-roll-btn');
-          if (rollBtn) rollBtn.click();
-        }
-      });
-      container.appendChild(button);
-    });
   }
   
   renderCombatLog() {
-    const container = document.getElementById('combat-log-container');
-    if (!container) return;
+    if (!this.elements.combatLog) return;
     
-    container.innerHTML = '';
+    const logEntries = this.app.state.combatLog;
     
-    // Get the last 50 log entries (or fewer if there aren't that many)
-    const logEntries = this.app.state.combatLog.slice(-50);
+    // Clear the log
+    this.elements.combatLog.innerHTML = '';
     
+    // Add each log entry
     logEntries.forEach(entry => {
       const logItem = document.createElement('div');
-      logItem.className = 'text-sm mb-1';
+      logItem.className = 'mb-1 text-gray-300';
       logItem.textContent = entry;
-      container.appendChild(logItem);
+      this.elements.combatLog.appendChild(logItem);
     });
     
     // Scroll to bottom
-    container.scrollTop = container.scrollHeight;
+    this.elements.combatLog.scrollTop = this.elements.combatLog.scrollHeight;
+  }
+  
+  exportCombatLog() {
+    const logText = this.app.state.combatLog.join('\n');
+    const blob = new Blob([logText], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `combat-log-${new Date().toISOString().slice(0, 10)}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    this.app.logEvent("Combat log exported.");
+  }
+  
+  showModal(content) {
+    if (!this.elements.modalContainer || !this.elements.modalContent) return;
+    
+    this.elements.modalContent.innerHTML = content;
+    this.elements.modalContainer.classList.remove('hidden');
+  }
+  
+  hideModal() {
+    if (!this.elements.modalContainer) return;
+    
+    this.elements.modalContainer.classList.add('hidden');
   }
   
   showAlert(message, title = 'Notification') {
-    // Create modal
-    const modal = document.createElement('div');
-    modal.className = 'fixed inset-0 flex items-center justify-center z-50 p-4';
-    modal.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+    if (!this.elements.alertContainer) return;
     
-    modal.innerHTML = `
-      <div class="bg-gray-800 rounded-lg shadow-2xl p-6 max-w-md w-full mx-auto">
-        <h3 class="text-xl font-bold text-gray-100 mb-4">${title}</h3>
-        <p class="text-gray-300 mb-6">${message}</p>
-        <div class="flex justify-end">
-          <button class="ok-btn bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-            OK
-          </button>
+    const alertId = 'alert-' + Date.now();
+    const alert = document.createElement('div');
+    alert.id = alertId;
+    alert.className = 'bg-gray-800 text-white p-4 rounded-lg shadow-lg mb-3 transform translate-x-full transition-transform duration-300 ease-in-out';
+    
+    alert.innerHTML = `
+      <div class="flex justify-between items-start">
+        <div>
+          <h3 class="font-bold text-yellow-400">${title}</h3>
+          <p class="mt-1">${message}</p>
         </div>
+        <button class="text-gray-400 hover:text-white close-alert-btn">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
       </div>
     `;
     
-    document.body.appendChild(modal);
+    this.elements.alertContainer.appendChild(alert);
     
-    // Add event listener to OK button
-    const okBtn = modal.querySelector('.ok-btn');
-    okBtn.addEventListener('click', () => {
-      modal.remove();
+    // Add event listener to close button
+    alert.querySelector('.close-alert-btn').addEventListener('click', () => {
+      this.dismissAlert(alertId);
     });
     
-    // Auto-close after 5 seconds
+    // Animate in
     setTimeout(() => {
-      if (document.body.contains(modal)) {
-        modal.remove();
-      }
+      alert.classList.remove('translate-x-full');
+    }, 10);
+    
+    // Auto dismiss after 5 seconds
+    setTimeout(() => {
+      this.dismissAlert(alertId);
     }, 5000);
   }
   
-  showConfirm(message, onConfirm) {
-    // Create modal
-    const modal = document.createElement('div');
-    modal.className = 'fixed inset-0 flex items-center justify-center z-50 p-4';
-    modal.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+  dismissAlert(alertId) {
+    const alert = document.getElementById(alertId);
+    if (!alert) return;
     
-    modal.innerHTML = `
-      <div class="bg-gray-800 rounded-lg shadow-2xl p-6 max-w-md w-full mx-auto">
-        <h3 class="text-xl font-bold text-gray-100 mb-4">Confirmation</h3>
-        <p class="text-gray-300 mb-6">${message}</p>
-        <div class="flex justify-end space-x-2">
-          <button class="cancel-btn bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
-            Cancel
-          </button>
-          <button class="confirm-btn bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">
-            Confirm
-          </button>
-        </div>
+    // Animate out
+    alert.classList.add('translate-x-full');
+    
+    // Remove after animation
+    setTimeout(() => {
+      alert.remove();
+    }, 300);
+  }
+  
+  showConfirm(message, onConfirm) {
+    const content = `
+      <h3 class="text-xl font-bold text-yellow-400 mb-4">Confirmation</h3>
+      <p class="mb-6">${message}</p>
+      <div class="flex justify-end space-x-2">
+        <button id="confirm-cancel-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
+          Cancel
+        </button>
+        <button id="confirm-ok-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">
+          Confirm
+        </button>
       </div>
     `;
     
-    document.body.appendChild(modal);
+    this.showModal(content);
     
     // Add event listeners
-    const cancelBtn = modal.querySelector('.cancel-btn');
-    const confirmBtn = modal.querySelector('.confirm-btn');
-    
-    cancelBtn.addEventListener('click', () => {
-      modal.remove();
+    document.getElementById('confirm-cancel-btn').addEventListener('click', () => {
+      this.hideModal();
     });
     
-    confirmBtn.addEventListener('click', () => {
-      modal.remove();
+    document.getElementById('confirm-ok-btn').addEventListener('click', () => {
+      this.hideModal();
       if (typeof onConfirm === 'function') {
         onConfirm();
       }
     });
   }
   
-  addEncounterBuilderButton() {
-    // Find the monsters column header
-    const monstersColumn = document.getElementById('monsters-column');
-    if (!monstersColumn) return;
+  createCombatantCard(data) {
+    const card = document.createElement('div');
+    card.id = data.id;
+    card.className = 'combatant-card bg-gray-700 rounded-lg p-3 shadow-md';
+    card.dataset.type = data.type;
     
-    // Check if there's already a header with a title
-    let headerContainer = monstersColumn.querySelector('h2')?.parentNode;
+    // Create the card content
+    card.innerHTML = `
+      <div class="flex justify-between items-start">
+        <div class="flex items-center combatant-header">
+          <img src="${data.image || 'img/default-avatar.png'}" alt="${data.name}" class="combatant-img w-10 h-10 rounded-full mr-3 border-2 ${data.type === 'hero' ? 'border-blue-300' : 'border-red-300'}">
+          <div>
+            <h3 class="combatant-name font-bold text-lg">${data.name}</h3>
+            <div class="flex items-center text-sm text-gray-400">
+              <span>AC: ${data.ac || '—'}</span>
+              <span class="mx-2">|</span>
+              <span>Init: <input type="number" class="initiative-input bg-gray-600 w-12 text-center rounded" value="${data.initiative || ''}"></span>
+            </div>
+          </div>
+        </div>
+        <div class="flex">
+          <button class="edit-combatant-btn text-gray-400 hover:text-white mr-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+          </button>
+          <button class="remove-combatant-btn text-gray-400 hover:text-red-500">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+          </button>
+        </div>
+      </div>
+      
+      <div class="mt-3">
+        <div class="flex items-center justify-between mb-1">
+          <span class="text-sm text-gray-400">HP:</span>
+          <span class="text-sm text-gray-400">${data.currentHp || 0}/${data.maxHp || 0}</span>
+        </div>
+        <div class="hp-bar bg-gray-600 rounded-full h-2 overflow-hidden">
+          <div class="hp-bar-current bg-green-500 h-full" style="width: ${data.maxHp ? (data.currentHp / data.maxHp) * 100 : 0}%"></div>
+        </div>
+        <div class="flex items-center mt-2">
+          <button class="hp-minus-btn bg-red-600 hover:bg-red-700 text-white w-6 h-6 rounded-l flex items-center justify-center">-</button>
+          <input type="number" class="hp-input bg-gray-600 text-center w-full" value="${data.currentHp || 0}" data-max-hp="${data.maxHp || 0}">
+          <button class="hp-plus-btn bg-green-600 hover:bg-green-700 text-white w-6 h-6 rounded-r flex items-center justify-center">+</button>
+        </div>
+      </div>
+      
+      <div class="hidden-data" 
+        data-str="${data.str || 10}" 
+        data-dex="${data.dex || 10}" 
+        data-con="${data.con || 10}" 
+        data-int="${data.int || 10}" 
+        data-wis="${data.wis || 10}" 
+        data-cha="${data.cha || 10}"
+        data-prof-bonus="${data.profBonus || 2}"
+        data-init-mod="${data.initMod || ''}"
+        data-conditions-data="[]"
+        data-resistances="[]"
+        data-immunities="[]"
+        data-vulnerabilities="[]"
+        data-save-proficiencies="${JSON.stringify(data.saveProficiencies || [])}"
+      ></div>
+    `;
     
-    // If the header is directly in the monsters column (no flex container)
-    if (!headerContainer || headerContainer === monstersColumn) {
-      // Create a new flex container
-      headerContainer = document.createElement('div');
-      headerContainer.className = 'flex justify-between items-center mb-4';
-      
-      // Move the existing h2 into this container
-      const h2 = monstersColumn.querySelector('h2');
-      if (h2) {
-        monstersColumn.removeChild(h2);
-        headerContainer.appendChild(h2);
-      } else {
-        // Create a new h2 if none exists
-        const newH2 = document.createElement('h2');
-        newH2.className = 'text-2xl font-semibold text-center text-red-400';
-        newH2.textContent = 'Monsters';
-        headerContainer.appendChild(newH2);
-      }
-      
-      // Insert the header container at the beginning of the monsters column
-      monstersColumn.insertBefore(headerContainer, monstersColumn.firstChild);
+    // Add event listeners
+    this.addCombatantCardEventListeners(card, data);
+    
+    // Add initiative modifier display if initiative tracker exists
+    if (this.app.initiative) {
+      this.app.initiative.addInitiativeModifierDisplay(card);
     }
     
-    // Create the encounter builder button
-    const encounterBtn = document.createElement('button');
-    encounterBtn.id = 'open-encounter-builder-btn';
-    encounterBtn.className = 'bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-3 rounded text-sm';
-    encounterBtn.textContent = 'Encounter Builder';
+    // Add damage button if damage manager exists
+    if (this.app.damage) {
+      this.app.damage.addDamageButtonToCombatantCard(card);
+      this.app.damage.addDamageModifiersButtonToCombatantCard(card);
+    }
     
-    // Add event listener
-    encounterBtn.addEventListener('click', () => {
-      this.app.encounter.openEncounterBuilder();
+    // Add saving throw button if saves manager exists
+    if (this.app.saves) {
+      this.app.saves.addSavingThrowButtonToCombatantCard(card);
+    }
+    
+    // Add notes button if notes manager exists
+    if (this.app.notes) {
+      this.app.notes.addNoteButtonToCombatantCard(card);
+    }
+    
+    // Add legendary actions button if legendary actions tracker exists and it's a monster
+    if (this.app.legendary && data.type === 'monster') {
+      this.app.legendary.addLegendaryActionsButtonToMonsterCard(card);
+    }
+    
+    return card;
+  }
+  
+  addCombatantCardEventListeners(card, data) {
+    // HP adjustment buttons
+    card.querySelector('.hp-minus-btn').addEventListener('click', () => {
+      const input = card.querySelector('.hp-input');
+      const currentHp = parseInt(input.value) || 0;
+      if (currentHp > 0) {
+        input.value = currentHp - 1;
+        this.updateHPBar(card);
+      }
     });
     
-    // Add the button to the header container
-    headerContainer.appendChild(encounterBtn);
+    card.querySelector('.hp-plus-btn').addEventListener('click', () => {
+      const input = card.querySelector('.hp-input');
+      const currentHp = parseInt(input.value) || 0;
+      const maxHp = parseInt(input.dataset.maxHp) || 0;
+      if (currentHp < maxHp) {
+        input.value = currentHp + 1;
+        this.updateHPBar(card);
+      }
+    });
     
-    // Cache the button element
-    this.app.elements.openEncounterBuilderBtn = encounterBtn;
+    card.querySelector('.hp-input').addEventListener('change', () => {
+      this.updateHPBar(card);
+    });
     
-    console.log("Encounter Builder button added to UI");
+    // Edit button
+    card.querySelector('.edit-combatant-btn').addEventListener('click', () => {
+      if (data.type === 'hero') {
+        this.app.roster.openEditHeroModal(card.id);
+      } else {
+        this.app.monsters.openEditMonsterModal(card.id);
+      }
+    });
+    
+    // Remove button
+    card.querySelector('.remove-combatant-btn').addEventListener('click', () => {
+      this.app.showConfirm(`Remove ${data.name} from combat?`, () => {
+        card.remove();
+        this.app.logEvent(`${data.name} removed from combat.`);
+      });
+    });
+  }
+  
+  updateHPBar(card) {
+    const input = card.querySelector('.hp-input');
+    const bar = card.querySelector('.hp-bar-current');
+    
+    if (!input || !bar) return;
+    
+    const currentHp = parseInt(input.value) || 0;
+    const maxHp = parseInt(input.dataset.maxHp) || 1;
+    const percentage = Math.max(0, Math.min(100, (currentHp / maxHp) * 100));
+    
+    bar.style.width = `${percentage}%`;
+    
+    // Update color based on percentage
+    if (percentage <= 25) {
+      bar.className = 'hp-bar-current bg-red-600 h-full';
+    } else if (percentage <= 50) {
+      bar.className = 'hp-bar-current bg-yellow-500 h-full';
+    } else {
+      bar.className = 'hp-bar-current bg-green-500 h-full';
+    }
+  }
+  
+  getThemeColors() {
+    return {
+      primary: '#4C51BF', // indigo-600
+      secondary: '#ED8936', // orange-500
+      success: '#48BB78', // green-500
+      danger: '#E53E3E', // red-600
+      warning: '#ECC94B', // yellow-500
+      info: '#4299E1', // blue-500
+      light: '#E2E8F0', // gray-300
+      dark: '#1A202C', // gray-900
+      heroColor: '#63B3ED', // blue-400
+      monsterColor: '#FC8181' // red-400
+    };
   }
 }
