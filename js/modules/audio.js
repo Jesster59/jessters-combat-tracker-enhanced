@@ -11,6 +11,7 @@ class AudioManager {
         this.musicEnabled = false;
         this.musicVolume = 0.3;
         this.soundVolume = 0.5;
+        this.audioInitialized = false;
         
         // Define sound mappings
         this.soundMappings = {
@@ -39,17 +40,43 @@ class AudioManager {
         // Create the audio controls
         this.createAudioControls();
         
-        // Create dummy audio files for all sounds to prevent 404 errors
-        this.createDummyAudioFiles();
+        // Setup audio initialization on user interaction
+        this.setupAudioInitialization();
     }
     
     /**
-     * Create dummy audio files for all sounds
+     * Setup audio initialization on user interaction
      */
-    createDummyAudioFiles() {
-        // Create a silent 1-second audio context
+    setupAudioInitialization() {
+        // Create placeholder objects for all sounds
+        for (const name of Object.keys(this.soundMappings)) {
+            this.sounds[name] = {
+                loaded: false
+            };
+        }
+        
+        // Add a one-time event listener to initialize audio on first user interaction
+        const initAudioOnUserInteraction = () => {
+            if (!this.audioInitialized) {
+                this.initializeAudio();
+                this.audioInitialized = true;
+            }
+            document.removeEventListener('click', initAudioOnUserInteraction);
+            document.removeEventListener('keydown', initAudioOnUserInteraction);
+        };
+        
+        document.addEventListener('click', initAudioOnUserInteraction);
+        document.addEventListener('keydown', initAudioOnUserInteraction);
+    }
+    
+    /**
+     * Initialize audio after user interaction
+     */
+    initializeAudio() {
         try {
             const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            
+            // Create a silent oscillator
             const oscillator = audioContext.createOscillator();
             oscillator.type = 'sine';
             oscillator.frequency.setValueAtTime(0, audioContext.currentTime); // Silent
@@ -74,6 +101,13 @@ class AudioManager {
             // Start the oscillator
             oscillator.start();
             setTimeout(() => oscillator.stop(), 100); // Stop after 100ms
+            
+            console.log("Audio initialized after user interaction");
+            
+            // If music was enabled in settings, start it now
+            if (this.musicEnabled) {
+                this.startBackgroundMusic();
+            }
         } catch (e) {
             console.warn("Web Audio API not supported, using silent audio elements instead");
             
@@ -163,17 +197,27 @@ class AudioManager {
         document.body.appendChild(controls);
         
         // Add event listeners
-        document.getElementById('toggle-sound-btn').addEventListener('click', () => {
-            this.toggleSound();
-        });
+        const toggleSoundBtn = document.getElementById('toggle-sound-btn');
+        const toggleMusicBtn = document.getElementById('toggle-music-btn');
+        const audioSettingsBtn = document.getElementById('audio-settings-btn');
         
-        document.getElementById('toggle-music-btn').addEventListener('click', () => {
-            this.toggleMusic();
-        });
+        if (toggleSoundBtn) {
+            toggleSoundBtn.addEventListener('click', () => {
+                this.toggleSound();
+            });
+        }
         
-        document.getElementById('audio-settings-btn').addEventListener('click', () => {
-            this.openAudioSettingsModal();
-        });
+        if (toggleMusicBtn) {
+            toggleMusicBtn.addEventListener('click', () => {
+                this.toggleMusic();
+            });
+        }
+        
+        if (audioSettingsBtn) {
+            audioSettingsBtn.addEventListener('click', () => {
+                this.openAudioSettingsModal();
+            });
+        }
         
         // Update initial UI state
         this.updateAudioControlsUI();
@@ -184,7 +228,7 @@ class AudioManager {
      * @param {string} soundName - The name of the sound to play
      */
     play(soundName) {
-        if (!this.soundEnabled) return;
+        if (!this.soundEnabled || !this.audioInitialized) return;
         
         // Check if sound exists
         if (!this.sounds[soundName]) {
@@ -192,10 +236,14 @@ class AudioManager {
             return;
         }
         
-        // Play the sound (silently since we're using dummy audio)
-        console.log(`Playing sound: ${soundName} (silent)`);
-        
         // In a real implementation, we would play the actual sound file
+        console.log(`Playing sound: ${soundName}`);
+        
+        // If we have actual audio files, we would play them here
+        // For example:
+        // const audio = new Audio(this.soundMappings[soundName]);
+        // audio.volume = this.soundVolume;
+        // audio.play();
     }
     
     /**
@@ -206,6 +254,12 @@ class AudioManager {
         this.updateAudioControlsUI();
         this.saveSettings();
         this.app.logEvent(`Sound effects ${this.soundEnabled ? 'enabled' : 'disabled'}.`);
+        
+        // Initialize audio if this is the first user interaction
+        if (!this.audioInitialized && this.soundEnabled) {
+            this.initializeAudio();
+            this.audioInitialized = true;
+        }
     }
     
     /**
@@ -215,6 +269,11 @@ class AudioManager {
         this.musicEnabled = !this.musicEnabled;
         
         if (this.musicEnabled) {
+            // Initialize audio if this is the first user interaction
+            if (!this.audioInitialized) {
+                this.initializeAudio();
+                this.audioInitialized = true;
+            }
             this.startBackgroundMusic();
         } else {
             this.stopBackgroundMusic();
@@ -231,6 +290,13 @@ class AudioManager {
     startBackgroundMusic() {
         // In a real implementation, we would play actual background music
         console.log("Background music started (silent)");
+        
+        // If we had actual music files, we would play them here
+        // For example:
+        // this.backgroundMusic = new Audio('audio/background-music.mp3');
+        // this.backgroundMusic.volume = this.musicVolume;
+        // this.backgroundMusic.loop = true;
+        // this.backgroundMusic.play();
     }
     
     /**
@@ -238,6 +304,13 @@ class AudioManager {
      */
     stopBackgroundMusic() {
         console.log("Background music stopped");
+        
+        // If we had actual music playing, we would stop it here
+        // For example:
+        // if (this.backgroundMusic) {
+        //     this.backgroundMusic.pause();
+        //     this.backgroundMusic.currentTime = 0;
+        // }
     }
     
     /**
@@ -257,7 +330,7 @@ class AudioManager {
         }
     }
     
-        /**
+    /**
      * Open the audio settings modal
      */
     openAudioSettingsModal() {
@@ -320,34 +393,44 @@ class AudioManager {
         const cancelBtn = modal.querySelector('#audio-settings-cancel-btn');
         const saveBtn = modal.querySelector('#audio-settings-save-btn');
         
-        cancelBtn.addEventListener('click', () => {
-            this.app.ui.closeModal(modal);
-        });
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', () => {
+                this.app.ui.closeModal(modal);
+            });
+        }
         
-        saveBtn.addEventListener('click', () => {
-            // Update settings
-            this.soundEnabled = soundToggle.checked;
-            this.soundVolume = parseFloat(soundVolume.value);
-            this.musicEnabled = musicToggle.checked;
-            this.musicVolume = parseFloat(musicVolume.value);
-            
-            // Apply settings
-            if (this.musicEnabled) {
-                this.startBackgroundMusic();
-            } else {
-                this.stopBackgroundMusic();
-            }
-            
-            // Save settings
-            this.saveSettings();
-            
-            // Update UI
-            this.updateAudioControlsUI();
-            
-            // Close modal
-            this.app.ui.closeModal(modal);
-            
-            this.app.logEvent('Audio settings updated.');
-        });
+        if (saveBtn) {
+            saveBtn.addEventListener('click', () => {
+                // Update settings
+                this.soundEnabled = soundToggle.checked;
+                this.soundVolume = parseFloat(soundVolume.value);
+                this.musicEnabled = musicToggle.checked;
+                this.musicVolume = parseFloat(musicVolume.value);
+                
+                // Initialize audio if this is the first user interaction and either sound or music is enabled
+                if (!this.audioInitialized && (this.soundEnabled || this.musicEnabled)) {
+                    this.initializeAudio();
+                    this.audioInitialized = true;
+                }
+                
+                // Apply settings
+                if (this.musicEnabled) {
+                    this.startBackgroundMusic();
+                } else {
+                    this.stopBackgroundMusic();
+                }
+                
+                // Save settings
+                this.saveSettings();
+                
+                // Update UI
+                this.updateAudioControlsUI();
+                
+                // Close modal
+                this.app.ui.closeModal(modal);
+                
+                this.app.logEvent('Audio settings updated.');
+            });
+        }
     }
 }
