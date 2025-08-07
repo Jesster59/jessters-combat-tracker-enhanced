@@ -1,594 +1,297 @@
 /**
  * Conditions Manager for Jesster's Combat Tracker
- * Handles applying, removing, and tracking conditions on combatants
+ * Handles condition tracking and effects
  */
 class ConditionsManager {
-  constructor(app) {
-    this.app = app;
-    this.conditions = [
-      { id: 'blinded', name: 'Blinded', icon: '👁️', description: 'A blinded creature can\'t see and automatically fails any ability check that requires sight.' },
-      { id: 'charmed', name: 'Charmed', icon: '❤️', description: 'A charmed creature can\'t attack the charmer or target them with harmful abilities or magical effects.' },
-      { id: 'deafened', name: 'Deafened', icon: '👂', description: 'A deafened creature can\'t hear and automatically fails any ability check that requires hearing.' },
-      { id: 'frightened', name: 'Frightened', icon: '😨', description: 'A frightened creature has disadvantage on ability checks and attack rolls while the source of its fear is within line of sight.' },
-      { id: 'grappled', name: 'Grappled', icon: '✋', description: 'A grappled creature\'s speed becomes 0, and it can\'t benefit from any bonus to its speed.' },
-      { id: 'incapacitated', name: 'Incapacitated', icon: '💫', description: 'An incapacitated creature can\'t take actions or reactions.' },
-      { id: 'invisible', name: 'Invisible', icon: '👻', description: 'An invisible creature is impossible to see without the aid of magic or a special sense.' },
-      { id: 'paralyzed', name: 'Paralyzed', icon: '⚡', description: 'A paralyzed creature is incapacitated and can\'t move or speak.' },
-      { id: 'petrified', name: 'Petrified', icon: '🗿', description: 'A petrified creature is transformed, along with any nonmagical object it is wearing or carrying, into a solid inanimate substance.' },
-      { id: 'poisoned', name: 'Poisoned', icon: '☠️', description: 'A poisoned creature has disadvantage on attack rolls and ability checks.' },
-      { id: 'prone', name: 'Prone', icon: '⬇️', description: 'A prone creature\'s only movement option is to crawl, unless it stands up and thereby ends the condition.' },
-      { id: 'restrained', name: 'Restrained', icon: '🔒', description: 'A restrained creature\'s speed becomes 0, and it can\'t benefit from any bonus to its speed.' },
-      { id: 'stunned', name: 'Stunned', icon: '💥', description: 'A stunned creature is incapacitated, can\'t move, and can speak only falteringly.' },
-      { id: 'unconscious', name: 'Unconscious', icon: '💤', description: 'An unconscious creature is incapacitated, can\'t move or speak, and is unaware of its surroundings.' },
-      { id: 'exhaustion', name: 'Exhaustion', icon: '😫', description: 'Exhaustion is measured in six levels. An effect can give a creature one or more levels of exhaustion.' },
-      { id: 'concentration', name: 'Concentration', icon: '🧠', description: 'Some spells require you to maintain concentration in order to keep their magic active.' }
-    ];
-    console.log("Conditions.js loaded successfully");
-  }
-  
-  /**
-   * Get all available conditions
-   * @returns {Array} - Array of condition objects
-   */
-  getAllConditions() {
-    return this.conditions;
-  }
-  
-  /**
-   * Get a condition by ID
-   * @param {string} id - The condition ID
-   * @returns {Object|null} - The condition object or null if not found
-   */
-  getConditionById(id) {
-    return this.conditions.find(condition => condition.id === id) || null;
-  }
-  
-  /**
-   * Get all conditions for a combatant
-   * @param {string} combatantId - The ID of the combatant
-   * @returns {Array} - Array of condition objects
-   */
-  getCombatantConditions(combatantId) {
-    const card = document.getElementById(combatantId);
-    if (!card) return [];
-    
-    const hiddenData = card.querySelector('.hidden-data');
-    if (!hiddenData) return [];
-    
-    try {
-      return JSON.parse(hiddenData.dataset.conditionsData || '[]');
-    } catch (e) {
-      console.error("Error parsing conditions data:", e);
-      return [];
-    }
-  }
-  
-  /**
-   * Add a condition to a combatant
-   * @param {string} combatantId - The ID of the combatant
-   * @param {string} conditionId - The ID of the condition to add
-   * @param {number} [duration=0] - The duration in rounds (0 = indefinite)
-   * @returns {boolean} - Whether the condition was successfully added
-   */
-  addConditionToCombatant(combatantId, conditionId, duration = 0) {
-    const card = document.getElementById(combatantId);
-    if (!card) return false;
-    
-    const condition = this.getConditionById(conditionId);
-    if (!condition) return false;
-    
-    const hiddenData = card.querySelector('.hidden-data');
-    if (!hiddenData) return false;
-    
-    // Get current conditions
-    let conditions = [];
-    try {
-      conditions = JSON.parse(hiddenData.dataset.conditionsData || '[]');
-    } catch (e) {
-      console.error("Error parsing conditions data:", e);
+    constructor(app) {
+        this.app = app;
+        this.conditions = [
+            { name: 'Blinded', description: 'A blinded creature can't see and automatically fails any ability check that requires sight. Attack rolls against the creature have advantage, and the creature's attack rolls have disadvantage.' },
+            { name: 'Charmed', description: 'A charmed creature can't attack the charmer or target the charmer with harmful abilities or magical effects. The charmer has advantage on any ability check to interact socially with the creature.' },
+            { name: 'Deafened', description: 'A deafened creature can't hear and automatically fails any ability check that requires hearing.' },
+            { name: 'Frightened', description: 'A frightened creature has disadvantage on ability checks and attack rolls while the source of its fear is within line of sight. The creature can't willingly move closer to the source of its fear.' },
+            { name: 'Grappled', description: 'A grappled creature's speed becomes 0, and it can't benefit from any bonus to its speed. The condition ends if the grappler is incapacitated. The condition also ends if an effect removes the grappled creature from the reach of the grappler or grappling effect.' },
+            { name: 'Incapacitated', description: 'An incapacitated creature can't take actions or reactions.' },
+            { name: 'Invisible', description: 'An invisible creature is impossible to see without the aid of magic or a special sense. For the purpose of hiding, the creature is heavily obscured. The creature's location can be detected by any noise it makes or any tracks it leaves. Attack rolls against the creature have disadvantage, and the creature's attack rolls have advantage.' },
+            { name: 'Paralyzed', description: 'A paralyzed creature is incapacitated and can't move or speak. The creature automatically fails Strength and Dexterity saving throws. Attack rolls against the creature have advantage. Any attack that hits the creature is a critical hit if the attacker is within 5 feet of the creature.' },
+            { name: 'Petrified', description: 'A petrified creature is transformed, along with any nonmagical object it is wearing or carrying, into a solid inanimate substance (usually stone). Its weight increases by a factor of ten, and it ceases aging. The creature is incapacitated, can't move or speak, and is unaware of its surroundings. Attack rolls against the creature have advantage. The creature automatically fails Strength and Dexterity saving throws. The creature has resistance to all damage. The creature is immune to poison and disease, although a poison or disease already in its system is suspended, not neutralized.' },
+            { name: 'Poisoned', description: 'A poisoned creature has disadvantage on attack rolls and ability checks.' },
+            { name: 'Prone', description: 'A prone creature's only movement option is to crawl, unless it stands up and thereby ends the condition. The creature has disadvantage on attack rolls. An attack roll against the creature has advantage if the attacker is within 5 feet of the creature. Otherwise, the attack roll has disadvantage.' },
+            { name: 'Restrained', description: 'A restrained creature's speed becomes 0, and it can't benefit from any bonus to its speed. Attack rolls against the creature have advantage, and the creature's attack rolls have disadvantage. The creature has disadvantage on Dexterity saving throws.' },
+            { name: 'Stunned', description: 'A stunned creature is incapacitated, can't move, and can speak only falteringly. The creature automatically fails Strength and Dexterity saving throws. Attack rolls against the creature have advantage.' },
+            { name: 'Unconscious', description: 'An unconscious creature is incapacitated, can't move or speak, and is unaware of its surroundings. The creature drops whatever it's holding and falls prone. The creature automatically fails Strength and Dexterity saving throws. Attack rolls against the creature have advantage. Any attack that hits the creature is a critical hit if the attacker is within 5 feet of the creature.' },
+            { name: 'Exhaustion', description: 'Exhaustion is measured in six levels. An effect can give a creature one or more levels of exhaustion, as specified in the effect\'s description. 1: Disadvantage on ability checks. 2: Speed halved. 3: Disadvantage on attack rolls and saving throws. 4: Hit point maximum halved. 5: Speed reduced to 0. 6: Death.' }
+        ];
+        console.log("Conditions Manager initialized");
     }
     
-    // Check if condition already exists
-    const existingIndex = conditions.findIndex(c => c.id === conditionId);
-    if (existingIndex !== -1) {
-      // Update duration if condition already exists
-      conditions[existingIndex].duration = duration;
-    } else {
-      // Add new condition
-      conditions.push({
-        id: condition.id,
-        name: condition.name,
-        icon: condition.icon,
-        startRound: this.app.state.roundNumber,
-        duration: duration
-      });
-    }
-    
-    // Update hidden data
-    hiddenData.dataset.conditionsData = JSON.stringify(conditions);
-    
-    // Update UI
-    this.updateConditionsDisplay(card);
-    
-    // Log the action
-    const name = card.querySelector('.combatant-name').textContent;
-    const durationText = duration > 0 ? ` for ${duration} rounds` : '';
-    this.app.logEvent(`${name} is now ${condition.name}${durationText}.`);
-    
-    return true;
-  }
-  
-  /**
-   * Remove a condition from a combatant
-   * @param {string} combatantId - The ID of the combatant
-   * @param {string} conditionId - The ID of the condition to remove
-   * @returns {boolean} - Whether the condition was successfully removed
-   */
-  removeConditionFromCombatant(combatantId, conditionId) {
-    const card = document.getElementById(combatantId);
-    if (!card) return false;
-    
-    const hiddenData = card.querySelector('.hidden-data');
-    if (!hiddenData) return false;
-    
-    // Get current conditions
-    let conditions = [];
-    try {
-      conditions = JSON.parse(hiddenData.dataset.conditionsData || '[]');
-    } catch (e) {
-      console.error("Error parsing conditions data:", e);
-      return false;
-    }
-    
-    // Find the condition
-    const conditionIndex = conditions.findIndex(c => c.id === conditionId);
-    if (conditionIndex === -1) return false;
-    
-    // Get condition name for logging
-    const conditionName = conditions[conditionIndex].name;
-    
-    // Remove the condition
-    conditions.splice(conditionIndex, 1);
-    
-    // Update hidden data
-    hiddenData.dataset.conditionsData = JSON.stringify(conditions);
-    
-    // Update UI
-    this.updateConditionsDisplay(card);
-    
-    // Log the action
-    const name = card.querySelector('.combatant-name').textContent;
-    this.app.logEvent(`${name} is no longer ${conditionName}.`);
-    
-    return true;
-  }
-  
-  /**
-   * Update the conditions display for a combatant
-   * @param {HTMLElement} card - The combatant card element
-   */
-  updateConditionsDisplay(card) {
-    if (!card) return;
-    
-    // Check if conditions display already exists
-    let conditionsDisplay = card.querySelector('.conditions-display');
-    if (!conditionsDisplay) {
-      // Create conditions display
-      conditionsDisplay = document.createElement('div');
-      conditionsDisplay.className = 'conditions-display flex flex-wrap gap-1 mt-2';
-      
-      // Insert after HP bar
-      const hpSection = card.querySelector('.hp-input').parentNode;
-      hpSection.parentNode.insertBefore(conditionsDisplay, hpSection.nextSibling);
-    }
-    
-    // Get conditions
-    const conditions = this.getCombatantConditions(card.id);
-    
-    // Clear the display
-    conditionsDisplay.innerHTML = '';
-    
-    // Add each condition
-    conditions.forEach(condition => {
-      const conditionTag = document.createElement('div');
-      conditionTag.className = 'condition-tag bg-yellow-600 text-black text-xs font-semibold px-2 py-0.5 rounded-full flex items-center';
-      
-      const durationText = condition.duration > 0 ? ` (${condition.duration})` : '';
-      conditionTag.innerHTML = `
-        <span class="mr-1">${condition.icon || ''}</span>
-        <span>${condition.name}${durationText}</span>
-        <button class="remove-condition-btn ml-1 text-black hover:text-red-800">×</button>
-      `;
-      
-      // Add event listener to remove button
-      conditionTag.querySelector('.remove-condition-btn').addEventListener('click', (e) => {
-        e.stopPropagation();
-        this.removeConditionFromCombatant(card.id, condition.id);
-      });
-      
-      conditionsDisplay.appendChild(conditionTag);
-    });
-    
-    // Hide the display if no conditions
-    if (conditions.length === 0) {
-      conditionsDisplay.classList.add('hidden');
-    } else {
-      conditionsDisplay.classList.remove('hidden');
-    }
-  }
-  
-  /**
-   * Check for expired conditions at the end of a turn
-   */
-  checkExpiredConditions() {
-    // Get all combatants
-    const allCombatants = [
-      ...Array.from(document.querySelectorAll('#heroes-list .combatant-card')),
-      ...Array.from(document.querySelectorAll('#monsters-list .combatant-card'))
-    ];
-    
-    allCombatants.forEach(card => {
-      const hiddenData = card.querySelector('.hidden-data');
-      if (!hiddenData) return;
-      
-      // Get current conditions
-      let conditions = [];
-      try {
-        conditions = JSON.parse(hiddenData.dataset.conditionsData || '[]');
-      } catch (e) {
-        console.error("Error parsing conditions data:", e);
-        return;
-      }
-      
-      // Check each condition
-      let updated = false;
-      conditions = conditions.filter(condition => {
-        if (condition.duration > 0) {
-          condition.duration--;
-          if (condition.duration === 0) {
-            // Condition has expired
-            const name = card.querySelector('.combatant-name').textContent;
-            this.app.logEvent(`${name} is no longer ${condition.name} (expired).`);
-            updated = true;
-            return false;
-          }
-        }
-        return true;
-      });
-      
-      if (updated) {
-        // Update hidden data
-        hiddenData.dataset.conditionsData = JSON.stringify(conditions);
-        
-        // Update UI
-        this.updateConditionsDisplay(card);
-      }
-    });
-  }
-  
-  /**
-   * Open the conditions modal for a combatant
-   * @param {string} combatantId - The ID of the combatant
-   */
-  openConditionsModal(combatantId) {
-    const card = document.getElementById(combatantId);
-    if (!card) return;
-    
-    const name = card.querySelector('.combatant-name').textContent;
-    const currentConditions = this.getCombatantConditions(combatantId);
-    
-    // Create modal
-    const modal = document.createElement('div');
-    modal.className = 'fixed inset-0 flex items-center justify-center z-50 p-4';
-    modal.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-    
-    modal.innerHTML = `
-      <div class="bg-gray-800 rounded-lg shadow-2xl p-6 max-w-lg w-full mx-auto">
-        <h3 class="text-xl font-bold text-yellow-400 mb-4">Manage Conditions: ${name}</h3>
-        
-        <div class="mb-4">
-          <h4 class="font-semibold text-gray-300 mb-2">Current Conditions:</h4>
-          <div id="current-conditions-list" class="space-y-2">
-            ${currentConditions.length === 0 ? 
-              '<p class="text-gray-500">No conditions applied.</p>' : 
-              currentConditions.map(condition => `
-                <div class="flex items-center justify-between bg-gray-700 p-2 rounded">
-                  <div class="flex items-center">
-                    <span class="mr-2">${condition.icon || ''}</span>
-                    <span>${condition.name}</span>
-                    ${condition.duration > 0 ? `<span class="text-xs text-gray-400 ml-2">(${condition.duration} rounds)</span>` : ''}
-                  </div>
-                  <button class="remove-condition-btn text-red-400 hover:text-red-300" data-condition-id="${condition.id}">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
-                </div>
-              `).join('')
+    /**
+     * Initialize the conditions manager
+     */
+    async init() {
+        // Load conditions from data file if available
+        try {
+            const response = await fetch('data/conditions.json');
+            if (response.ok) {
+                const data = await response.json();
+                this.conditions = data;
             }
-          </div>
-        </div>
-        
-        <div class="mb-4">
-          <h4 class="font-semibold text-gray-300 mb-2">Add Condition:</h4>
-          <div class="flex space-x-2">
-            <select id="condition-select" class="bg-gray-700 rounded px-2 py-1 text-white flex-grow">
-              <option value="">-- Select Condition --</option>
-              ${this.conditions.map(condition => `
-                <option value="${condition.id}">${condition.icon || ''} ${condition.name}</option>
-              `).join('')}
-            </select>
-            <input type="number" id="condition-duration" class="bg-gray-700 rounded px-2 py-1 text-white w-20" placeholder="Rounds" min="0">
-            <button id="add-condition-btn" class="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-1 px-3 rounded">
-              Add
-            </button>
-          </div>
-          <p id="condition-description" class="text-sm text-gray-400 mt-2"></p>
-        </div>
-        
-        <div class="flex justify-end mt-4">
-          <button id="conditions-close-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
-            Close
-          </button>
-        </div>
-      </div>
-    `;
-    
-    document.body.appendChild(modal);
-    
-    // Add event listeners
-    document.getElementById('conditions-close-btn').addEventListener('click', () => {
-      modal.remove();
-    });
-    
-    // Add condition button
-    document.getElementById('add-condition-btn').addEventListener('click', () => {
-      const conditionId = document.getElementById('condition-select').value;
-      if (!conditionId) return;
-      
-      const duration = parseInt(document.getElementById('condition-duration').value) || 0;
-      this.addConditionToCombatant(combatantId, conditionId, duration);
-      
-      // Update the current conditions list
-      this.updateCurrentConditionsList(combatantId);
-    });
-    
-    // Remove condition buttons
-    document.querySelectorAll('.remove-condition-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const conditionId = btn.dataset.conditionId;
-        this.removeConditionFromCombatant(combatantId, conditionId);
-        
-        // Update the current conditions list
-        this.updateCurrentConditionsList(combatantId);
-      });
-    });
-    
-    // Show condition description when selected
-    document.getElementById('condition-select').addEventListener('change', (e) => {
-      const conditionId = e.target.value;
-      const descriptionElement = document.getElementById('condition-description');
-      
-      if (conditionId) {
-        const condition = this.getConditionById(conditionId);
-        if (condition) {
-          descriptionElement.textContent = condition.description;
-        } else {
-          descriptionElement.textContent = '';
+        } catch (error) {
+            console.warn('Could not load conditions data file, using defaults:', error);
         }
-      } else {
-        descriptionElement.textContent = '';
-      }
-    });
-  }
-  
-  /**
-   * Update the current conditions list in the modal
-   * @param {string} combatantId - The ID of the combatant
-   */
-  updateCurrentConditionsList(combatantId) {
-    const listElement = document.getElementById('current-conditions-list');
-    if (!listElement) return;
-    
-    const currentConditions = this.getCombatantConditions(combatantId);
-    
-    if (currentConditions.length === 0) {
-      listElement.innerHTML = '<p class="text-gray-500">No conditions applied.</p>';
-      return;
     }
     
-    listElement.innerHTML = currentConditions.map(condition => `
-      <div class="flex items-center justify-between bg-gray-700 p-2 rounded">
-        <div class="flex items-center">
-          <span class="mr-2">${condition.icon || ''}</span>
-          <span>${condition.name}</span>
-          ${condition.duration > 0 ? `<span class="text-xs text-gray-400 ml-2">(${condition.duration} rounds)</span>` : ''}
-        </div>
-        <button class="remove-condition-btn text-red-400 hover:text-red-300" data-condition-id="${condition.id}">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-          </svg>
-        </button>
-      </div>
-    `).join('');
+    /**
+     * Get all conditions
+     * @returns {Array} - All conditions
+     */
+    getAllConditions() {
+        return this.conditions;
+    }
     
-    // Re-add event listeners
-    document.querySelectorAll('.remove-condition-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const conditionId = btn.dataset.conditionId;
-        this.removeConditionFromCombatant(combatantId, conditionId);
-        
-        // Update the current conditions list
-        this.updateCurrentConditionsList(combatantId);
-      });
-    });
-  }
-  
-  /**
-   * Add conditions button to a combatant card
-   * @param {HTMLElement} card - The combatant card element
-   */
-  addConditionsButtonToCombatantCard(card) {
-    if (!card) return;
+    /**
+     * Get a condition by name
+     * @param {string} name - The name of the condition
+     * @returns {Object|null} - The condition or null if not found
+     */
+    getCondition(name) {
+        return this.conditions.find(c => c.name.toLowerCase() === name.toLowerCase()) || null;
+    }
     
-    // Check if conditions button already exists
-    if (card.querySelector('.conditions-btn')) return;
-    
-    // Create the conditions button
-    const conditionsBtn = document.createElement('button');
-    conditionsBtn.className = 'conditions-btn text-gray-400 hover:text-yellow-400 ml-1';
-    conditionsBtn.innerHTML = `
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-    `;
-    
-    // Add event listener
-    conditionsBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      this.openConditionsModal(card.id);
-    });
-    
-    // Find the appropriate place to insert the button
-    const cardHeader = card.querySelector('.combatant-header') || card.querySelector('.combatant-name').parentNode;
-    cardHeader.appendChild(conditionsBtn);
-  }
-  
-  /**
-   * Open the group conditions modal
-   */
-  openGroupConditionsModal() {
-    // Create modal
-    const modal = document.createElement('div');
-    modal.className = 'fixed inset-0 flex items-center justify-center z-50 p-4';
-    modal.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-    
-    modal.innerHTML = `
-      <div class="bg-gray-800 rounded-lg shadow-2xl p-6 max-w-lg w-full mx-auto">
-        <h3 class="text-xl font-bold text-yellow-400 mb-4">Apply Group Condition</h3>
-        
-        <div class="mb-4">
-          <label class="block text-gray-300 mb-2">Condition:</label>
-          <select id="group-condition-select" class="bg-gray-700 w-full rounded px-2 py-1 text-white">
-            <option value="">-- Select Condition --</option>
-            ${this.conditions.map(condition => `
-              <option value="${condition.id}">${condition.icon || ''} ${condition.name}</option>
-            `).join('')}
-          </select>
-          <p id="group-condition-description" class="text-sm text-gray-400 mt-2"></p>
-        </div>
-        
-        <div class="mb-4">
-          <label class="block text-gray-300 mb-2">Duration (rounds):</label>
-          <input type="number" id="group-condition-duration" class="bg-gray-700 w-full rounded px-2 py-1 text-white" value="0" min="0">
-          <p class="text-sm text-gray-400 mt-1">0 = indefinite</p>
-        </div>
-        
-        <div class="mb-4">
-          <label class="block text-gray-300 mb-2">Apply to:</label>
-          <div class="flex space-x-4">
-            <label class="inline-flex items-center">
-              <input type="checkbox" id="apply-to-heroes" class="mr-2" checked>
-              <span class="text-blue-300">Heroes</span>
-            </label>
-            <label class="inline-flex items-center">
-              <input type="checkbox" id="apply-to-monsters" class="mr-2" checked>
-              <span class="text-red-300">Monsters</span>
-            </label>
-          </div>
-        </div>
-        
-        <div class="flex justify-end mt-4 space-x-2">
-          <button id="group-condition-cancel-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
-            Cancel
-          </button>
-          <button id="group-condition-apply-btn" class="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded">
-            Apply Condition
-          </button>
-        </div>
-      </div>
-    `;
-    
-    document.body.appendChild(modal);
-    
-    // Add event listeners
-    document.getElementById('group-condition-cancel-btn').addEventListener('click', () => {
-      modal.remove();
-    });
-    
-    // Show condition description when selected
-    document.getElementById('group-condition-select').addEventListener('change', (e) => {
-      const conditionId = e.target.value;
-      const descriptionElement = document.getElementById('group-condition-description');
-      
-      if (conditionId) {
-        const condition = this.getConditionById(conditionId);
-        if (condition) {
-          descriptionElement.textContent = condition.description;
-        } else {
-          descriptionElement.textContent = '';
+    /**
+     * Add a condition to a creature
+     * @param {string} creatureId - The ID of the creature
+     * @param {string} conditionName - The name of the condition
+     * @param {number} [rounds=null] - The number of rounds the condition lasts (null for indefinite)
+     */
+    addCondition(creatureId, conditionName, rounds = null) {
+        const condition = this.getCondition(conditionName);
+        if (!condition) {
+            console.error(`Condition "${conditionName}" not found`);
+            return;
         }
-      } else {
-        descriptionElement.textContent = '';
-      }
-    });
+        
+        this.app.combat.addCondition(creatureId, {
+            name: condition.name,
+            roundsLeft: rounds
+        });
+    }
     
-    // Apply group condition button
-    document.getElementById('group-condition-apply-btn').addEventListener('click', () => {
-      const conditionId = document.getElementById('group-condition-select').value;
-      if (!conditionId) {
-        this.app.showAlert('Please select a condition.', 'Error');
-        return;
-      }
-      
-      const duration = parseInt(document.getElementById('group-condition-duration').value) || 0;
-      const applyToHeroes = document.getElementById('apply-to-heroes').checked;
-      const applyToMonsters = document.getElementById('apply-to-monsters').checked;
-      
-      // Get all applicable combatants
-      const combatants = [];
-      
-      if (applyToHeroes) {
-        const heroes = Array.from(document.querySelectorAll('#heroes-list .combatant-card'));
-        combatants.push(...heroes);
-      }
-      
-      if (applyToMonsters) {
-        const monsters = Array.from(document.querySelectorAll('#monsters-list .combatant-card'));
-        combatants.push(...monsters);
-      }
-      
-      if (combatants.length === 0) {
-        this.app.showAlert('No combatants selected.', 'Error');
-        return;
-      }
-      
-      // Apply condition to all combatants
-      const condition = this.getConditionById(conditionId);
-      this.app.logEvent(`Applying ${condition.name} to multiple combatants...`);
-      
-      combatants.forEach(combatant => {
-        this.addConditionToCombatant(combatant.id, conditionId, duration);
-      });
-      
-      modal.remove();
-    });
-  }
-  
-  /**
-   * Add group conditions button to the combat controls
-   */
-  addGroupConditionsButton() {
-    // Add a button to the combat controls section
-    const combatControls = document.querySelector('.md\\:col-span-2.flex.flex-wrap.justify-center.gap-4');
-    if (!combatControls) return;
+    /**
+     * Remove a condition from a creature
+     * @param {string} creatureId - The ID of the creature
+     * @param {string} conditionName - The name of the condition
+     */
+    removeCondition(creatureId, conditionName) {
+        this.app.combat.removeCondition(creatureId, conditionName);
+    }
     
-    const groupConditionsBtn = document.createElement('button');
-    groupConditionsBtn.id = 'group-conditions-btn';
-    groupConditionsBtn.className = 'bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded-md transition-colors duration-300';
-    groupConditionsBtn.textContent = 'Group Conditions';
-    groupConditionsBtn.addEventListener('click', () => this.openGroupConditionsModal());
+    /**
+     * Open the add condition modal
+     * @param {string} creatureId - The ID of the creature
+     */
+    openAddConditionModal(creatureId) {
+        const creature = this.app.combat.getCreatureById(creatureId);
+        if (!creature) return;
+        
+        const modal = this.app.ui.createModal({
+            title: `Add Condition to ${creature.name}`,
+            content: `
+                <div class="space-y-4">
+                    <div class="grid grid-cols-2 gap-2">
+                        ${this.conditions.map(condition => `
+                            <label class="flex items-center space-x-2 p-2 bg-gray-700 rounded cursor-pointer hover:bg-gray-600">
+                                <input type="checkbox" class="condition-checkbox form-checkbox h-5 w-5 text-blue-600" value="${condition.name}">
+                                <span>${condition.name}</span>
+                            </label>
+                        `).join('')}
+                    </div>
+                    
+                    <div id="condition-description" class="p-3 bg-gray-700 rounded min-h-[100px] text-sm">
+                        <p class="text-gray-400 text-center">Select a condition to see its description</p>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-gray-300 mb-2">Duration (rounds):</label>
+                        <input type="number" id="condition-duration" class="w-full bg-gray-700 text-white px-3 py-2 rounded" min="1" placeholder="Leave empty for indefinite">
+                    </div>
+                    
+                    <div class="flex justify-end space-x-2">
+                        <button class="cancel-btn bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
+                            Cancel
+                        </button>
+                        <button class="apply-btn bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                            Apply Conditions
+                        </button>
+                    </div>
+                </div>
+            `,
+            width: 'max-w-2xl'
+        });
+        
+        // Add event listeners
+        const checkboxes = modal.querySelectorAll('.condition-checkbox');
+        const descriptionDiv = modal.querySelector('#condition-description');
+        const durationInput = modal.querySelector('#condition-duration');
+        const cancelBtn = modal.querySelector('.cancel-btn');
+        const applyBtn = modal.querySelector('.apply-btn');
+        
+        // Show description when hovering over a condition
+        checkboxes.forEach(checkbox => {
+            const conditionName = checkbox.value;
+            const condition = this.getCondition(conditionName);
+            
+            checkbox.parentElement.addEventListener('mouseenter', () => {
+                if (condition) {
+                    descriptionDiv.innerHTML = `
+                        <h4 class="font-semibold mb-1">${condition.name}</h4>
+                        <p>${condition.description}</p>
+                    `;
+                }
+            });
+        });
+        
+        // Reset description when not hovering over any condition
+        modal.querySelector('.grid').addEventListener('mouseleave', () => {
+            descriptionDiv.innerHTML = `<p class="text-gray-400 text-center">Select a condition to see its description</p>`;
+        });
+        
+        cancelBtn.addEventListener('click', () => {
+            this.app.ui.closeModal(modal);
+        });
+        
+        applyBtn.addEventListener('click', () => {
+            const selectedConditions = Array.from(checkboxes)
+                .filter(cb => cb.checked)
+                .map(cb => cb.value);
+            
+            if (selectedConditions.length === 0) {
+                this.app.showAlert('Please select at least one condition to apply.');
+                return;
+            }
+            
+            const duration = durationInput.value ? parseInt(durationInput.value) : null;
+            
+            // Apply each selected condition
+            selectedConditions.forEach(conditionName => {
+                this.addCondition(creatureId, conditionName, duration);
+            });
+            
+            this.app.ui.closeModal(modal);
+        });
+    }
     
-    combatControls.appendChild(groupConditionsBtn);
-  }
+    /**
+     * Open the manage conditions modal
+     * @param {string} creatureId - The ID of the creature
+     */
+    openManageConditionsModal(creatureId) {
+        const creature = this.app.combat.getCreatureById(creatureId);
+        if (!creature) return;
+        
+        const modal = this.app.ui.createModal({
+            title: `Manage Conditions for ${creature.name}`,
+            content: `
+                <div class="space-y-4">
+                    <div class="bg-gray-700 p-3 rounded">
+                        <h4 class="font-semibold mb-2">Current Conditions:</h4>
+                        <div id="current-conditions" class="flex flex-wrap gap-2">
+                            ${creature.conditions.length === 0 ? 
+                                '<p class="text-gray-400">No active conditions</p>' : 
+                                creature.conditions.map(cond => {
+                                    const condName = typeof cond === 'string' ? cond : cond.name;
+                                    const rounds = typeof cond === 'string' ? null : cond.roundsLeft;
+                                    return `
+                                        <div class="condition-tag bg-yellow-600 text-yellow-100 px-2 py-1 rounded-full flex items-center">
+                                            <span>${condName}${rounds !== null ? ` (${rounds})` : ''}</span>
+                                            <button class="remove-condition-btn ml-2 text-yellow-200 hover:text-white" data-condition="${condName}">✕</button>
+                                        </div>
+                                    `;
+                                }).join('')
+                            }
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h4 class="font-semibold mb-2">Add New Condition:</h4>
+                        <div class="flex space-x-2">
+                            <select id="new-condition" class="flex-1 bg-gray-700 text-white px-3 py-2 rounded">
+                                <option value="">-- Select Condition --</option>
+                                ${this.conditions.map(c => `<option value="${c.name}">${c.name}</option>`).join('')}
+                            </select>
+                            <input type="number" id="new-condition-duration" class="w-24 bg-gray-700 text-white px-3 py-2 rounded" min="1" placeholder="Rounds">
+                            <button id="add-new-condition-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
+                                Add
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div id="condition-description" class="p-3 bg-gray-700 rounded min-h-[100px] text-sm">
+                        <p class="text-gray-400 text-center">Select a condition to see its description</p>
+                    </div>
+                    
+                    <div class="flex justify-end">
+                        <button class="close-btn bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                            Close
+                        </button>
+                    </div>
+                </div>
+            `,
+            width: 'max-w-lg'
+        });
+        
+        // Add event listeners
+        const newConditionSelect = modal.querySelector('#new-condition');
+        const newConditionDuration = modal.querySelector('#new-condition-duration');
+        const addNewConditionBtn = modal.querySelector('#add-new-condition-btn');
+        const descriptionDiv = modal.querySelector('#condition-description');
+        const closeBtn = modal.querySelector('.close-btn');
+        
+        // Show description when selecting a condition
+        newConditionSelect.addEventListener('change', () => {
+            const conditionName = newConditionSelect.value;
+            const condition = this.getCondition(conditionName);
+            
+            if (condition) {
+                descriptionDiv.innerHTML = `
+                    <h4 class="font-semibold mb-1">${condition.name}</h4>
+                    <p>${condition.description}</p>
+                `;
+            } else {
+                descriptionDiv.innerHTML = `<p class="text-gray-400 text-center">Select a condition to see its description</p>`;
+            }
+        });
+        
+        // Add new condition
+        addNewConditionBtn.addEventListener('click', () => {
+            const conditionName = newConditionSelect.value;
+            if (!conditionName) {
+                this.app.showAlert('Please select a condition to add.');
+                return;
+            }
+            
+            const duration = newConditionDuration.value ? parseInt(newConditionDuration.value) : null;
+            this.addCondition(creatureId, conditionName, duration);
+            
+            // Refresh the modal
+            this.app.ui.closeModal(modal);
+            this.openManageConditionsModal(creatureId);
+        });
+        
+        // Remove condition
+        modal.querySelectorAll('.remove-condition-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const conditionName = btn.dataset.condition;
+                this.removeCondition(creatureId, conditionName);
+                
+                // Refresh the modal
+                this.app.ui.closeModal(modal);
+                this.openManageConditionsModal(creatureId);
+            });
+        });
+        
+        closeBtn.addEventListener('click', () => {
+            this.app.ui.closeModal(modal);
+        });
+    }
 }
