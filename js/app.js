@@ -74,7 +74,9 @@ class CombatTrackerApp {
         const logEntry = `[${timestamp}] ${message}`;
         
         this.state.combatLog.push(logEntry);
-        this.ui.renderCombatLog();
+        if (this.ui && typeof this.ui.renderCombatLog === 'function') {
+            this.ui.renderCombatLog();
+        }
     }
     
     /**
@@ -83,7 +85,11 @@ class CombatTrackerApp {
      * @param {string} [title='Alert'] - The title of the alert
      */
     showAlert(message, title = 'Alert') {
-        this.ui.showAlert(message, title);
+        if (this.ui && typeof this.ui.showAlert === 'function') {
+            this.ui.showAlert(message, title);
+        } else {
+            alert(`${title}: ${message}`);
+        }
     }
     
     /**
@@ -93,7 +99,13 @@ class CombatTrackerApp {
      * @param {string} [title='Confirm'] - The title of the confirmation
      */
     showConfirm(message, onConfirm, title = 'Confirm') {
-        this.ui.showConfirm(message, onConfirm, title);
+        if (this.ui && typeof this.ui.showConfirm === 'function') {
+            this.ui.showConfirm(message, onConfirm, title);
+        } else {
+            if (confirm(`${title}: ${message}`)) {
+                onConfirm();
+            }
+        }
     }
     
     /**
@@ -101,16 +113,12 @@ class CombatTrackerApp {
      */
     updatePlayerView() {
         if (this.state.playerViewWindow && !this.state.playerViewWindow.closed) {
-            const html = this.ui.generatePlayerViewHTML();
-            this.state.playerViewWindow.document.open();
-            this.state.playerViewWindow.document.write(html);
-            this.state.playerViewWindow.document.close();
+            if (this.ui && typeof this.ui.generatePlayerViewHTML === 'function') {
+                const html = this.ui.generatePlayerViewHTML();
+                this.state.playerViewWindow.document.open();
+                this.state.playerViewWindow.document.write(html);
+                this.state.playerViewWindow.document.close();
+            }
         }
     }
 }
-
-// Initialize the app when the DOM is loaded
-document.addEventListener('DOMContentLoaded', () => {
-    window.app = new CombatTrackerApp();
-    window.app.init();
-});
