@@ -843,107 +843,147 @@ class UIManager {
     }
     
     /**
-     * Open the D&D Beyond import modal
-     */
-    openDnDBeyondImportModal() {
-        const modal = this.createModal({
-            title: 'Import from D&D Beyond',
-            content: `
-                <div class="space-y-4">
-                    <div class="bg-gray-700 p-4 rounded">
-                        <h3 class="font-semibold mb-2">Instructions:</h3>
-                        <ol class="list-decimal list-inside space-y-2 text-sm">
-                            <li>Open your character sheet on D&D Beyond</li>
-                            <li>Open the browser console (F12 or right-click > Inspect > Console)</li>
-                            <li>Copy the script below and paste it into the console</li>
-                            <li>Copy the JSON output and paste it below</li>
-                        </ol>
-                    </div>
-                    
-                    <div>
-                        <label class="block text-gray-300 mb-2">Copy this script:</label>
-                        <div class="relative">
-                            <textarea id="import-script" class="w-full bg-gray-800 text-white px-3 py-2 rounded h-32 font-mono text-xs" readonly></textarea>
-                            <button id="copy-script-btn" class="absolute top-2 right-2 bg-gray-600 hover:bg-gray-500 text-white text-xs py-1 px-2 rounded">
-                                Copy
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <div>
-                        <label class="block text-gray-300 mb-2">Paste the JSON result here:</label>
-                        <textarea id="import-json" class="w-full bg-gray-700 text-white px-3 py-2 rounded h-32 font-mono text-xs" placeholder='{"name": "Character Name", ...}'></textarea>
-                    </div>
-                    
-                    <div class="flex justify-end space-x-2">
-                        <button id="cancel-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
-                            Cancel
-                        </button>
-                        <button id="import-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                            Import Character
+ * Open the D&D Beyond import modal
+ */
+openDnDBeyondImportModal() {
+    const modal = this.createModal({
+        title: 'Import from D&D Beyond',
+        content: `
+            <div class="space-y-4">
+                <div class="bg-gray-700 p-4 rounded">
+                    <h3 class="font-semibold mb-2">Instructions:</h3>
+                    <ol class="list-decimal list-inside space-y-2 text-sm">
+                        <li>Open your character sheet on D&D Beyond</li>
+                        <li>Open the browser console (F12 or right-click > Inspect > Console)</li>
+                        <li>Copy the script below and paste it into the console</li>
+                        <li>Copy the JSON output between the lines of equal signs (=====)</li>
+                        <li>Paste the JSON below (make sure it starts with { and ends with })</li>
+                    </ol>
+                </div>
+                
+                <div>
+                    <label class="block text-gray-300 mb-2">Copy this script:</label>
+                    <div class="relative">
+                        <textarea id="import-script" class="w-full bg-gray-800 text-white px-3 py-2 rounded h-32 font-mono text-xs" readonly></textarea>
+                        <button id="copy-script-btn" class="absolute top-2 right-2 bg-gray-600 hover:bg-gray-500 text-white text-xs py-1 px-2 rounded">
+                            Copy
                         </button>
                     </div>
                 </div>
-            `,
-            width: 'max-w-2xl'
-        });
+                
+                <div>
+                    <label class="block text-gray-300 mb-2">Paste the JSON result here:</label>
+                    <textarea id="import-json" class="w-full bg-gray-700 text-white px-3 py-2 rounded h-32 font-mono text-xs" placeholder='{"name": "Character Name", ...}'></textarea>
+                </div>
+                
+                <div class="flex justify-end space-x-2">
+                    <button id="cancel-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
+                        Cancel
+                    </button>
+                    <button id="import-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                        Import Character
+                    </button>
+                </div>
+            </div>
+        `,
+        width: 'max-w-2xl'
+    });
+    
+    // Add event listeners
+    const importScript = modal.querySelector('#import-script');
+    const copyScriptBtn = modal.querySelector('#copy-script-btn');
+    const importJson = modal.querySelector('#import-json');
+    const cancelBtn = modal.querySelector('#cancel-btn');
+    const importBtn = modal.querySelector('#import-btn');
+    
+    // Set the import script
+    importScript.value = this.app.api.getDnDBeyondImportScript();
+    
+    // Copy script button
+    copyScriptBtn.addEventListener('click', () => {
+        importScript.select();
+        document.execCommand('copy');
+        copyScriptBtn.textContent = 'Copied!';
+        setTimeout(() => {
+            copyScriptBtn.textContent = 'Copy';
+        }, 2000);
+    });
+    
+    cancelBtn.addEventListener('click', () => {
+        this.closeModal(modal.parentNode);
+    });
+    
+    importBtn.addEventListener('click', () => {
+        let jsonText = importJson.value.trim();
+        if (!jsonText) {
+            this.app.showAlert('Please paste the JSON data from D&D Beyond.');
+            return;
+        }
         
-        // Add event listeners
-        const importScript = modal.querySelector('#import-script');
-        const copyScriptBtn = modal.querySelector('#copy-script-btn');
-        const importJson = modal.querySelector('#import-json');
-        const cancelBtn = modal.querySelector('#cancel-btn');
-        const importBtn = modal.querySelector('#import-btn');
-        
-        // Set the import script
-        importScript.value = this.app.api.getDnDBeyondImportScript();
-        
-        // Copy script button
-        copyScriptBtn.addEventListener('click', () => {
-            importScript.select();
-            document.execCommand('copy');
-            copyScriptBtn.textContent = 'Copied!';
-            setTimeout(() => {
-                copyScriptBtn.textContent = 'Copy';
-            }, 2000);
-        });
-        
-        cancelBtn.addEventListener('click', () => {
-            this.closeModal(modal.parentNode);
-        });
-        
-        importBtn.addEventListener('click', () => {
-            const jsonText = importJson.value.trim();
-            if (!jsonText) {
-                this.app.showAlert('Please paste the JSON data from D&D Beyond.');
-                return;
+        try {
+            // Fix common JSON issues
+            
+            // Add missing braces if needed
+            if (!jsonText.startsWith('{')) {
+                jsonText = '{' + jsonText;
+            }
+            if (!jsonText.endsWith('}')) {
+                jsonText = jsonText + '}';
             }
             
-            try {
-                // Parse the JSON
-                const data = JSON.parse(jsonText);
+            // Clean up the JSON text - remove any console prefixes or extra text
+            if (jsonText.includes('\n')) {
+                // Try to extract just the JSON object from multiple lines
+                const lines = jsonText.split('\n');
+                let jsonLines = [];
+                let inJson = false;
                 
-                // Check for error
-                if (data.error) {
-                    throw new Error(data.error);
+                for (const line of lines) {
+                    const trimmedLine = line.trim();
+                    
+                    if (trimmedLine === '{') {
+                        inJson = true;
+                        jsonLines.push('{');
+                    } else if (trimmedLine === '}') {
+                        jsonLines.push('}');
+                        inJson = false;
+                    } else if (inJson) {
+                        jsonLines.push(trimmedLine);
+                    }
                 }
                 
-                // Parse the character
-                const character = this.app.api.parseDnDBeyondCharacter(data);
-                
-                // Add to combat
-                this.app.combat.addCreature(character);
-                
-                // Close the modal
-                this.closeModal(modal.parentNode);
-                
-                // Log the event
-                this.app.logEvent(`${character.name} imported from D&D Beyond.`);
-            } catch (error) {
-                this.app.showAlert(`Error importing character: ${error.message}`);
+                if (jsonLines.length > 0) {
+                    jsonText = jsonLines.join('\n');
+                }
             }
-        });
-    }
+            
+            // Parse the JSON
+            const data = JSON.parse(jsonText);
+            
+            // Check for error
+            if (data.error) {
+                throw new Error(data.error);
+            }
+            
+            // Parse the character
+            const character = this.app.api.parseDnDBeyondCharacter(data);
+            
+            // Add to combat
+            this.app.combat.addCreature(character);
+            
+            // Close the modal
+            this.closeModal(modal.parentNode);
+            
+            // Log the event
+            this.app.logEvent(`${character.name} imported from D&D Beyond.`);
+        } catch (error) {
+            this.app.showAlert(`Error importing character: ${error.message}\n\nMake sure you've copied the entire JSON output from the console and it starts with { and ends with }.`);
+            console.error('JSON parsing error:', error);
+            console.log('Attempted to parse:', jsonText);
+        }
+    });
+}
+
     
     /**
      * Create a modal
