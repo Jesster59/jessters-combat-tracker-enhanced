@@ -1,21 +1,14 @@
 /**
  * Storage Manager for Jesster's Combat Tracker
- * Handles data persistence using localStorage and IndexedDB
+ * Handles data persistence using IndexedDB
  */
 class StorageManager {
     constructor(app) {
         this.app = app;
-        this.db = null;
-        this.dbName = 'JesstersCombatTrackerDB';
+        this.dbName = 'JesstersCombatTracker';
         this.dbVersion = 1;
-        this.stores = {
-            characters: 'characters',
-            monsters: 'monsters',
-            encounters: 'encounters',
-            parties: 'parties',
-            settings: 'settings',
-            combatStates: 'combatStates'
-        };
+        this.db = null;
+        console.log("Storage Manager initialized");
     }
     
     /**
@@ -23,191 +16,332 @@ class StorageManager {
      */
     async init() {
         try {
-            // Check if IndexedDB is supported
-            if (!window.indexedDB) {
-                console.warn("Your browser doesn't support IndexedDB. Falling back to localStorage.");
+            this.db = await this.openDatabase();
+            console.log("Database initialized");
+        } catch (error) {
+            console.error("Error initializing database:", error);
+        }
+    }
+    
+    /**
+     * Open the database
+     * @returns {Promise<IDBDatabase>} - The database instance
+     */
+    openDatabase() {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open(this.dbName, this.dbVersion);
+            
+            request.onerror = (event) => {
+                reject(new Error(`Database error: ${event.target.error}`));
+            };
+            
+            request.onsuccess = (event) => {
+                resolve(event.target.result);
+            };
+            
+            request.onupgradeneeded = (event) => {
+                const db = event.target.result;
+                
+                // Create object stores if they don't exist
+                if (!db.objectStoreNames.contains('characters')) {
+                    db.createObjectStore('characters', { keyPath: 'id' });
+                }
+                
+                if (!db.objectStoreNames.contains('monsters')) {
+                    db.createObjectStore('monsters', { keyPath: 'id' });
+                }
+                
+                if (!db.objectStoreNames.contains('encounters')) {
+                    db.createObjectStore('encounters', { keyPath: 'id' });
+                }
+                
+                if (!db.objectStoreNames.contains('combatStates')) {
+                    db.createObjectStore('combatStates', { keyPath: 'id' });
+                }
+                
+                if (!db.objectStoreNames.contains('settings')) {
+                    db.createObjectStore('settings', { keyPath: 'id' });
+                }
+            };
+        });
+    }
+    
+    /**
+     * Get all characters
+     * @returns {Promise<Array>} - All characters
+     */
+    async getAllCharacters() {
+        return this.getAll('characters');
+    }
+    
+    /**
+     * Get a character by ID
+     * @param {string} id - The character ID
+     * @returns {Promise<Object|null>} - The character or null if not found
+     */
+    async getCharacter(id) {
+        return this.get('characters', id);
+    }
+    
+    /**
+     * Save a character
+     * @param {Object} character - The character to save
+     * @returns {Promise<Object>} - The saved character
+     */
+    async saveCharacter(character) {
+        return this.save('characters', character);
+    }
+    
+    /**
+     * Delete a character
+     * @param {string} id - The character ID
+     * @returns {Promise<boolean>} - Whether the character was deleted
+     */
+    async deleteCharacter(id) {
+        return this.delete('characters', id);
+    }
+    
+    /**
+     * Get all monsters
+     * @returns {Promise<Array>} - All monsters
+     */
+    async getAllMonsters() {
+        return this.getAll('monsters');
+    }
+    
+    /**
+     * Get a monster by ID
+     * @param {string} id - The monster ID
+     * @returns {Promise<Object|null>} - The monster or null if not found
+     */
+    async getMonster(id) {
+        return this.get('monsters', id);
+    }
+    
+    /**
+     * Save a monster
+     * @param {Object} monster - The monster to save
+     * @returns {Promise<Object>} - The saved monster
+     */
+    async saveMonster(monster) {
+        return this.save('monsters', monster);
+    }
+    
+    /**
+     * Delete a monster
+     * @param {string} id - The monster ID
+     * @returns {Promise<boolean>} - Whether the monster was deleted
+     */
+    async deleteMonster(id) {
+        return this.delete('monsters', id);
+    }
+    
+    /**
+     * Get all encounters
+     * @returns {Promise<Array>} - All encounters
+     */
+    async getAllEncounters() {
+        return this.getAll('encounters');
+    }
+    
+    /**
+     * Get an encounter by ID
+     * @param {string} id - The encounter ID
+     * @returns {Promise<Object|null>} - The encounter or null if not found
+     */
+    async getEncounter(id) {
+        return this.get('encounters', id);
+    }
+    
+    /**
+     * Save an encounter
+     * @param {Object} encounter - The encounter to save
+     * @returns {Promise<Object>} - The saved encounter
+     */
+    async saveEncounter(encounter) {
+        return this.save('encounters', encounter);
+    }
+    
+    /**
+     * Delete an encounter
+     * @param {string} id - The encounter ID
+     * @returns {Promise<boolean>} - Whether the encounter was deleted
+     */
+    async deleteEncounter(id) {
+        return this.delete('encounters', id);
+    }
+    
+    /**
+     * Get all combat states
+     * @returns {Promise<Array>} - All combat states
+     */
+    async getAllCombatStates() {
+        return this.getAll('combatStates');
+    }
+    
+    /**
+     * Get a combat state by ID
+     * @param {string} id - The combat state ID
+     * @returns {Promise<Object|null>} - The combat state or null if not found
+     */
+    async getCombatState(id) {
+        return this.get('combatStates', id);
+    }
+    
+    /**
+     * Save a combat state
+     * @param {Object} state - The combat state to save
+     * @returns {Promise<Object>} - The saved combat state
+     */
+    async saveCombatState(state) {
+        // Ensure the state has an ID
+        if (!state.id) {
+            state.id = this.app.utils.generateUUID();
+        }
+        
+        return this.save('combatStates', state);
+    }
+    
+    /**
+     * Delete a combat state
+     * @param {string} id - The combat state ID
+     * @returns {Promise<boolean>} - Whether the combat state was deleted
+     */
+    async deleteCombatState(id) {
+        return this.delete('combatStates', id);
+    }
+    
+    /**
+     * Get settings
+     * @returns {Promise<Object|null>} - The settings or null if not found
+     */
+    async getSettings() {
+        return this.get('settings', 'app-settings');
+    }
+    
+    /**
+     * Save settings
+     * @param {Object} settings - The settings to save
+     * @returns {Promise<Object>} - The saved settings
+     */
+    async saveSettings(settings) {
+        return this.save('settings', { id: 'app-settings', ...settings });
+    }
+    
+    /**
+     * Get all items from a store
+     * @param {string} storeName - The store name
+     * @returns {Promise<Array>} - All items in the store
+     */
+    async getAll(storeName) {
+        return new Promise((resolve, reject) => {
+            if (!this.db) {
+                reject(new Error('Database not initialized'));
                 return;
             }
             
-            // Open the database
-            const openRequest = indexedDB.open(this.dbName, this.dbVersion);
-            
-            // Create object stores if needed
-            openRequest.onupgradeneeded = (event) => {
-                const db = event.target.result;
+            try {
+                const transaction = this.db.transaction(storeName, 'readonly');
+                const store = transaction.objectStore(storeName);
+                const request = store.getAll();
                 
-                // Create object stores
-                if (!db.objectStoreNames.contains(this.stores.characters)) {
-                    db.createObjectStore(this.stores.characters, { keyPath: 'id' });
-                }
-                
-                if (!db.objectStoreNames.contains(this.stores.monsters)) {
-                    db.createObjectStore(this.stores.monsters, { keyPath: 'id' });
-                }
-                
-                if (!db.objectStoreNames.contains(this.stores.encounters)) {
-                    db.createObjectStore(this.stores.encounters, { keyPath: 'id' });
-                }
-                
-                if (!db.objectStoreNames.contains(this.stores.parties)) {
-                    db.createObjectStore(this.stores.parties, { keyPath: 'id' });
-                }
-                
-                if (!db.objectStoreNames.contains(this.stores.settings)) {
-                    db.createObjectStore(this.stores.settings, { keyPath: 'id' });
-                }
-                
-                if (!db.objectStoreNames.contains(this.stores.combatStates)) {
-                    db.createObjectStore(this.stores.combatStates, { keyPath: 'id' });
-                }
-            };
-            
-            // Handle success
-            return new Promise((resolve, reject) => {
-                openRequest.onsuccess = (event) => {
-                    this.db = event.target.result;
-                    console.log("IndexedDB initialized successfully");
-                    resolve();
+                request.onsuccess = () => {
+                    resolve(request.result);
                 };
                 
-                openRequest.onerror = (event) => {
-                    console.error("Error opening IndexedDB:", event.target.error);
-                    reject(event.target.error);
+                request.onerror = (event) => {
+                    reject(new Error(`Error getting all from ${storeName}: ${event.target.error}`));
                 };
-            });
-        } catch (error) {
-            console.error("Error initializing storage:", error);
-            throw error;
-        }
+            } catch (error) {
+                reject(new Error(`Error getting all from ${storeName}: ${error.message}`));
+            }
+        });
+    }
+    
+    /**
+     * Get an item from a store
+     * @param {string} storeName - The store name
+     * @param {string} id - The item ID
+     * @returns {Promise<Object|null>} - The item or null if not found
+     */
+    async get(storeName, id) {
+        return new Promise((resolve, reject) => {
+            if (!this.db) {
+                reject(new Error('Database not initialized'));
+                return;
+            }
+            
+            try {
+                const transaction = this.db.transaction(storeName, 'readonly');
+                const store = transaction.objectStore(storeName);
+                const request = store.get(id);
+                
+                request.onsuccess = () => {
+                    resolve(request.result || null);
+                };
+                
+                request.onerror = (event) => {
+                    reject(new Error(`Error getting from ${storeName}: ${event.target.error}`));
+                };
+            } catch (error) {
+                reject(new Error(`Error getting from ${storeName}: ${error.message}`));
+            }
+        });
+    }
+    
+    /**
+     * Save an item to a store
+     * @param {string} storeName - The store name
+     * @param {Object} item - The item to save
+     * @returns {Promise<Object>} - The saved item
+     */
+    async save(storeName, item) {
+        return new Promise((resolve, reject) => {
+            if (!this.db) {
+                reject(new Error('Database not initialized'));
+                return;
+            }
+            
+            try {
+                const transaction = this.db.transaction(storeName, 'readwrite');
+                const store = transaction.objectStore(storeName);
+                
+                // Update the updatedAt timestamp if it exists
+                if (item.updatedAt !== undefined) {
+                    item.updatedAt = Date.now();
+                }
+                
+                const request = store.put(item);
+                
+                request.onsuccess = () => {
+                    resolve(item);
+                };
+                
+                request.onerror = (event) => {
+                    reject(new Error(`Error saving to ${storeName}: ${event.target.error}`));
+                };
+            } catch (error) {
+                reject(new Error(`Error saving to ${storeName}: ${error.message}`));
+            }
+        });
     }
     
         /**
-     * Save data to IndexedDB
-     * @param {string} storeName - The name of the object store
-     * @param {Object} data - The data to save
-     * @returns {Promise<string>} - The ID of the saved data
+     * Delete an item from a store
+     * @param {string} storeName - The store name
+     * @param {string} id - The item ID
+     * @returns {Promise<boolean>} - Whether the item was deleted
      */
-    async saveToIndexedDB(storeName, data) {
-        if (!this.db) {
-            return this.saveToLocalStorage(storeName, data);
-        }
-        
-        try {
-            return new Promise((resolve, reject) => {
-                // Ensure data has an ID
-                if (!data.id) {
-                    data.id = this.app.utils.generateUUID();
-                }
-                
-                // Start a transaction
-                const transaction = this.db.transaction([storeName], 'readwrite');
+    async delete(storeName, id) {
+        return new Promise((resolve, reject) => {
+            if (!this.db) {
+                reject(new Error('Database not initialized'));
+                return;
+            }
+            
+            try {
+                const transaction = this.db.transaction(storeName, 'readwrite');
                 const store = transaction.objectStore(storeName);
-                
-                // Add or update the data
-                const request = store.put(data);
-                
-                request.onsuccess = () => {
-                    resolve(data.id);
-                };
-                
-                request.onerror = (event) => {
-                    console.error(`Error saving to ${storeName}:`, event.target.error);
-                    reject(event.target.error);
-                };
-            });
-        } catch (error) {
-            console.error(`Error saving to ${storeName}:`, error);
-            return this.saveToLocalStorage(storeName, data);
-        }
-    }
-    
-    /**
-     * Get data from IndexedDB
-     * @param {string} storeName - The name of the object store
-     * @param {string} id - The ID of the data to get
-     * @returns {Promise<Object>} - The retrieved data
-     */
-    async getFromIndexedDB(storeName, id) {
-        if (!this.db) {
-            return this.getFromLocalStorage(storeName, id);
-        }
-        
-        try {
-            return new Promise((resolve, reject) => {
-                // Start a transaction
-                const transaction = this.db.transaction([storeName], 'readonly');
-                const store = transaction.objectStore(storeName);
-                
-                // Get the data
-                const request = store.get(id);
-                
-                request.onsuccess = (event) => {
-                    resolve(event.target.result);
-                };
-                
-                request.onerror = (event) => {
-                    console.error(`Error getting from ${storeName}:`, event.target.error);
-                    reject(event.target.error);
-                };
-            });
-        } catch (error) {
-            console.error(`Error getting from ${storeName}:`, error);
-            return this.getFromLocalStorage(storeName, id);
-        }
-    }
-    
-    /**
-     * Get all data from IndexedDB
-     * @param {string} storeName - The name of the object store
-     * @returns {Promise<Array>} - The retrieved data
-     */
-    async getAllFromIndexedDB(storeName) {
-        if (!this.db) {
-            return this.getAllFromLocalStorage(storeName);
-        }
-        
-        try {
-            return new Promise((resolve, reject) => {
-                // Start a transaction
-                const transaction = this.db.transaction([storeName], 'readonly');
-                const store = transaction.objectStore(storeName);
-                
-                // Get all data
-                const request = store.getAll();
-                
-                request.onsuccess = (event) => {
-                    resolve(event.target.result);
-                };
-                
-                request.onerror = (event) => {
-                    console.error(`Error getting all from ${storeName}:`, event.target.error);
-                    reject(event.target.error);
-                };
-            });
-        } catch (error) {
-            console.error(`Error getting all from ${storeName}:`, error);
-            return this.getAllFromLocalStorage(storeName);
-        }
-    }
-    
-    /**
-     * Delete data from IndexedDB
-     * @param {string} storeName - The name of the object store
-     * @param {string} id - The ID of the data to delete
-     * @returns {Promise<boolean>} - Whether the deletion was successful
-     */
-    async deleteFromIndexedDB(storeName, id) {
-        if (!this.db) {
-            return this.deleteFromLocalStorage(storeName, id);
-        }
-        
-        try {
-            return new Promise((resolve, reject) => {
-                // Start a transaction
-                const transaction = this.db.transaction([storeName], 'readwrite');
-                const store = transaction.objectStore(storeName);
-                
-                // Delete the data
                 const request = store.delete(id);
                 
                 request.onsuccess = () => {
@@ -215,301 +349,144 @@ class StorageManager {
                 };
                 
                 request.onerror = (event) => {
-                    console.error(`Error deleting from ${storeName}:`, event.target.error);
-                    reject(event.target.error);
+                    reject(new Error(`Error deleting from ${storeName}: ${event.target.error}`));
                 };
-            });
-        } catch (error) {
-            console.error(`Error deleting from ${storeName}:`, error);
-            return this.deleteFromLocalStorage(storeName, id);
-        }
+            } catch (error) {
+                reject(new Error(`Error deleting from ${storeName}: ${error.message}`));
+            }
+        });
     }
     
     /**
-     * Save data to localStorage
-     * @param {string} storeName - The name of the store
-     * @param {Object} data - The data to save
-     * @returns {string} - The ID of the saved data
+     * Clear a store
+     * @param {string} storeName - The store name
+     * @returns {Promise<boolean>} - Whether the store was cleared
      */
-    saveToLocalStorage(storeName, data) {
-        try {
-            // Ensure data has an ID
-            if (!data.id) {
-                data.id = this.app.utils.generateUUID();
+    async clear(storeName) {
+        return new Promise((resolve, reject) => {
+            if (!this.db) {
+                reject(new Error('Database not initialized'));
+                return;
             }
             
-            // Get existing data
-            const existingData = this.getAllFromLocalStorage(storeName);
+            try {
+                const transaction = this.db.transaction(storeName, 'readwrite');
+                const store = transaction.objectStore(storeName);
+                const request = store.clear();
+                
+                request.onsuccess = () => {
+                    resolve(true);
+                };
+                
+                request.onerror = (event) => {
+                    reject(new Error(`Error clearing ${storeName}: ${event.target.error}`));
+                };
+            } catch (error) {
+                reject(new Error(`Error clearing ${storeName}: ${error.message}`));
+            }
+        });
+    }
+    
+    /**
+     * Export all data
+     * @returns {Promise<Object>} - All data
+     */
+    async exportAllData() {
+        try {
+            const characters = await this.getAllCharacters();
+            const monsters = await this.getAllMonsters();
+            const encounters = await this.getAllEncounters();
+            const combatStates = await this.getAllCombatStates();
+            const settings = await this.getSettings();
             
-            // Find and update or add new data
-            const index = existingData.findIndex(item => item.id === data.id);
-            if (index !== -1) {
-                existingData[index] = data;
-            } else {
-                existingData.push(data);
+            return {
+                version: this.app.state.version,
+                exportDate: new Date().toISOString(),
+                data: {
+                    characters,
+                    monsters,
+                    encounters,
+                    combatStates,
+                    settings
+                }
+            };
+        } catch (error) {
+            console.error('Error exporting data:', error);
+            throw new Error(`Error exporting data: ${error.message}`);
+        }
+    }
+    
+    /**
+     * Import data
+     * @param {Object} data - The data to import
+     * @returns {Promise<Object>} - Import results
+     */
+    async importData(data) {
+        try {
+            // Validate data
+            if (!data || !data.version || !data.data) {
+                throw new Error('Invalid data format');
             }
             
-            // Save back to localStorage
-            localStorage.setItem(`jesstersCombatTracker_${storeName}`, JSON.stringify(existingData));
+            // Check version compatibility
+            const currentVersion = this.app.state.version.split('.');
+            const importVersion = data.version.split('.');
             
-            return data.id;
-        } catch (error) {
-            console.error(`Error saving to localStorage (${storeName}):`, error);
-            throw error;
-        }
-    }
-    
-    /**
-     * Get data from localStorage
-     * @param {string} storeName - The name of the store
-     * @param {string} id - The ID of the data to get
-     * @returns {Object|null} - The retrieved data
-     */
-    getFromLocalStorage(storeName, id) {
-        try {
-            const allData = this.getAllFromLocalStorage(storeName);
-            return allData.find(item => item.id === id) || null;
-        } catch (error) {
-            console.error(`Error getting from localStorage (${storeName}):`, error);
-            return null;
-        }
-    }
-    
-    /**
-     * Get all data from localStorage
-     * @param {string} storeName - The name of the store
-     * @returns {Array} - The retrieved data
-     */
-    getAllFromLocalStorage(storeName) {
-        try {
-            const data = localStorage.getItem(`jesstersCombatTracker_${storeName}`);
-            return data ? JSON.parse(data) : [];
-        } catch (error) {
-            console.error(`Error getting all from localStorage (${storeName}):`, error);
-            return [];
-        }
-    }
-    
-    /**
-     * Delete data from localStorage
-     * @param {string} storeName - The name of the store
-     * @param {string} id - The ID of the data to delete
-     * @returns {boolean} - Whether the deletion was successful
-     */
-    deleteFromLocalStorage(storeName, id) {
-        try {
-            // Get existing data
-            const existingData = this.getAllFromLocalStorage(storeName);
+            // Major version must match
+            if (currentVersion[0] !== importVersion[0]) {
+                throw new Error(`Version mismatch: Import data is from version ${data.version}, current version is ${this.app.state.version}`);
+            }
             
-            // Filter out the data to delete
-            const newData = existingData.filter(item => item.id !== id);
+            const results = {
+                characters: 0,
+                monsters: 0,
+                encounters: 0,
+                combatStates: 0,
+                settings: false
+            };
             
-            // Save back to localStorage
-            localStorage.setItem(`jesstersCombatTracker_${storeName}`, JSON.stringify(newData));
+            // Import characters
+            if (data.data.characters && Array.isArray(data.data.characters)) {
+                for (const character of data.data.characters) {
+                    await this.saveCharacter(character);
+                    results.characters++;
+                }
+            }
             
-            return true;
+            // Import monsters
+            if (data.data.monsters && Array.isArray(data.data.monsters)) {
+                for (const monster of data.data.monsters) {
+                    await this.saveMonster(monster);
+                    results.monsters++;
+                }
+            }
+            
+            // Import encounters
+            if (data.data.encounters && Array.isArray(data.data.encounters)) {
+                for (const encounter of data.data.encounters) {
+                    await this.saveEncounter(encounter);
+                    results.encounters++;
+                }
+            }
+            
+            // Import combat states
+            if (data.data.combatStates && Array.isArray(data.data.combatStates)) {
+                for (const state of data.data.combatStates) {
+                    await this.saveCombatState(state);
+                    results.combatStates++;
+                }
+            }
+            
+            // Import settings
+            if (data.data.settings) {
+                await this.saveSettings(data.data.settings);
+                results.settings = true;
+            }
+            
+            return results;
         } catch (error) {
-            console.error(`Error deleting from localStorage (${storeName}):`, error);
-            return false;
+            console.error('Error importing data:', error);
+            throw new Error(`Error importing data: ${error.message}`);
         }
-    }
-    
-    /**
-     * Save a character
-     * @param {Object} character - The character to save
-     * @returns {Promise<string>} - The ID of the saved character
-     */
-    async saveCharacter(character) {
-        return this.saveToIndexedDB(this.stores.characters, character);
-    }
-    
-    /**
-     * Get a character
-     * @param {string} id - The ID of the character to get
-     * @returns {Promise<Object>} - The retrieved character
-     */
-    async getCharacter(id) {
-        return this.getFromIndexedDB(this.stores.characters, id);
-    }
-    
-    /**
-     * Get all characters
-     * @returns {Promise<Array>} - The retrieved characters
-     */
-    async getAllCharacters() {
-        return this.getAllFromIndexedDB(this.stores.characters);
-    }
-    
-    /**
-     * Delete a character
-     * @param {string} id - The ID of the character to delete
-     * @returns {Promise<boolean>} - Whether the deletion was successful
-     */
-    async deleteCharacter(id) {
-        return this.deleteFromIndexedDB(this.stores.characters, id);
-    }
-    
-    /**
-     * Save a monster
-     * @param {Object} monster - The monster to save
-     * @returns {Promise<string>} - The ID of the saved monster
-     */
-    async saveMonster(monster) {
-        return this.saveToIndexedDB(this.stores.monsters, monster);
-    }
-    
-    /**
-     * Get a monster
-     * @param {string} id - The ID of the monster to get
-     * @returns {Promise<Object>} - The retrieved monster
-     */
-    async getMonster(id) {
-        return this.getFromIndexedDB(this.stores.monsters, id);
-    }
-    
-    /**
-     * Get all monsters
-     * @returns {Promise<Array>} - The retrieved monsters
-     */
-    async getAllMonsters() {
-        return this.getAllFromIndexedDB(this.stores.monsters);
-    }
-    
-    /**
-     * Delete a monster
-     * @param {string} id - The ID of the monster to delete
-     * @returns {Promise<boolean>} - Whether the deletion was successful
-     */
-    async deleteMonster(id) {
-        return this.deleteFromIndexedDB(this.stores.monsters, id);
-    }
-    
-    /**
-     * Save an encounter
-     * @param {Object} encounter - The encounter to save
-     * @returns {Promise<string>} - The ID of the saved encounter
-     */
-    async saveEncounter(encounter) {
-        return this.saveToIndexedDB(this.stores.encounters, encounter);
-    }
-    
-    /**
-     * Get an encounter
-     * @param {string} id - The ID of the encounter to get
-     * @returns {Promise<Object>} - The retrieved encounter
-     */
-    async getEncounter(id) {
-        return this.getFromIndexedDB(this.stores.encounters, id);
-    }
-    
-    /**
-     * Get all encounters
-     * @returns {Promise<Array>} - The retrieved encounters
-     */
-    async getAllEncounters() {
-        return this.getAllFromIndexedDB(this.stores.encounters);
-    }
-    
-    /**
-     * Delete an encounter
-     * @param {string} id - The ID of the encounter to delete
-     * @returns {Promise<boolean>} - Whether the deletion was successful
-     */
-    async deleteEncounter(id) {
-        return this.deleteFromIndexedDB(this.stores.encounters, id);
-    }
-    
-    /**
-     * Save a party
-     * @param {Object} party - The party to save
-     * @returns {Promise<string>} - The ID of the saved party
-     */
-    async saveParty(party) {
-        return this.saveToIndexedDB(this.stores.parties, party);
-    }
-    
-    /**
-     * Get a party
-     * @param {string} id - The ID of the party to get
-     * @returns {Promise<Object>} - The retrieved party
-     */
-    async getParty(id) {
-        return this.getFromIndexedDB(this.stores.parties, id);
-    }
-    
-    /**
-     * Get all parties
-     * @returns {Promise<Array>} - The retrieved parties
-     */
-    async getAllParties() {
-        return this.getAllFromIndexedDB(this.stores.parties);
-    }
-    
-    /**
-     * Delete a party
-     * @param {string} id - The ID of the party to delete
-     * @returns {Promise<boolean>} - Whether the deletion was successful
-     */
-    async deleteParty(id) {
-        return this.deleteFromIndexedDB(this.stores.parties, id);
-    }
-    
-    /**
-     * Save a combat state
-     * @param {Object} state - The combat state to save
-     * @returns {Promise<string>} - The ID of the saved combat state
-     */
-    async saveCombatState(state) {
-        // Add timestamp if not present
-        if (!state.timestamp) {
-            state.timestamp = Date.now();
-        }
-        
-        return this.saveToIndexedDB(this.stores.combatStates, state);
-    }
-    
-    /**
-     * Get a combat state
-     * @param {string} id - The ID of the combat state to get
-     * @returns {Promise<Object>} - The retrieved combat state
-     */
-    async getCombatState(id) {
-        return this.getFromIndexedDB(this.stores.combatStates, id);
-    }
-    
-    /**
-     * Get all combat states
-     * @returns {Promise<Array>} - The retrieved combat states
-     */
-    async getAllCombatStates() {
-        return this.getAllFromIndexedDB(this.stores.combatStates);
-    }
-    
-    /**
-     * Delete a combat state
-     * @param {string} id - The ID of the combat state to delete
-     * @returns {Promise<boolean>} - Whether the deletion was successful
-     */
-    async deleteCombatState(id) {
-        return this.deleteFromIndexedDB(this.stores.combatStates, id);
-    }
-    
-    /**
-     * Save settings
-     * @param {Object} settings - The settings to save
-     * @returns {Promise<string>} - The ID of the saved settings
-     */
-    async saveSettings(settings) {
-        // Always use the same ID for settings
-        settings.id = 'app-settings';
-        return this.saveToIndexedDB(this.stores.settings, settings);
-    }
-    
-    /**
-     * Get settings
-     * @returns {Promise<Object>} - The retrieved settings
-     */
-    async getSettings() {
-        return this.getFromIndexedDB(this.stores.settings, 'app-settings');
     }
 }
