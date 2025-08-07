@@ -87,7 +87,6 @@ class APIManager {
             imageUrl: null,
             // Additional data from Open5e
             size: monsterData.size,
-            type: 'monster',
             alignment: monsterData.alignment,
             cr: monsterData.challenge_rating,
             source: 'Open5e SRD',
