@@ -3,119 +3,83 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Jesster's Combat Tracker Enhanced</title>
-    <link rel="icon" href="favicon.ico" type="image/x-icon">
+    <title>Jesster's Combat Tracker</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #1a202c;
-            color: #e2e8f0;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
+        .dice-roll {
+            display: inline-block;
+            padding: 2px 6px;
+            margin: 0 2px;
+            background-color: #374151;
+            border-radius: 4px;
+            font-weight: bold;
         }
         
-        /* Add some basic styles for the tracker */
+        .creature-card {
+            transition: all 0.3s ease;
+        }
+        
+        .creature-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+        
         .active-turn {
-            border-color: #ecc94b !important; /* Yellow border for active turn */
+            border: 2px solid #3b82f6;
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
         }
         
-        .tracker-column {
-            max-height: 60vh;
+        .condition-tag {
+            display: inline-block;
+            padding: 2px 8px;
+            margin: 2px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: bold;
         }
         
-        /* Combat timeline */
-        .combat-timeline {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0.5rem;
-            background-color: #2d3748;
-            border-radius: 0.5rem;
+        .modal-backdrop {
+            backdrop-filter: blur(4px);
         }
         
-        /* Footer styles */
-        .footer {
-            margin-top: auto;
-            font-size: 9px;
-            padding: 0.5rem;
-            text-align: center;
-            color: #718096;
+        .fade-in {
+            animation: fadeIn 0.3s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        
+        .slide-in {
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateX(-100%); }
+            to { transform: translateX(0); }
         }
     </style>
-    
-    <!-- Firebase Libraries -->
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-    
-    <!-- Firebase Configuration -->
-    <script>
-        // Firebase configuration
-        const firebaseConfig = {
-            apiKey: "AIzaSyCAqbS6H2CmhiaZ9StE4zgLHOK5hX9yyVg",
-            authDomain: "jesster-s-combat-tracker-4ebcc.firebaseapp.com",
-            projectId: "jesster-s-combat-tracker-4ebcc",
-            storageBucket: "jesster-s-combat-tracker-4ebcc.firebasestorage.app",
-            messagingSenderId: "448854426426",
-            appId: "1:448854426426:web:17a681109f13702beb8603",
-            measurementId: "G-YBLPW8B7YX"
-        };
-        
-        // Initialize Firebase globally
-        firebase.initializeApp(firebaseConfig);
-    </script>
 </head>
-<body class="p-4">
-    <header class="text-center mb-6">
-        <h1 class="text-3xl font-bold text-gray-100">Jesster's Combat Tracker Enhanced</h1>
-        <p id="turn-indicator" class="text-2xl font-bold text-yellow-400 mt-2">Waiting to Start</p>
-        <div class="flex justify-center items-center mt-2">
-            <span class="text-gray-400 mr-2">Round:</span>
-            <span id="round-counter" class="text-xl font-bold">1</span>
-        </div>
-    </header>
-
-    <!-- Main Application Container -->
-    <div id="app-container" class="container mx-auto">
-        <p class="text-center text-xl">Loading application...</p>
-    </div>
+<body class="bg-gray-900 text-white">
+    <div id="app"></div>
     
-    <!-- Lair Actions Controls (Hidden) -->
-    <div class="hidden">
-        <input type="text" id="lair-action-text" placeholder="Describe lair action...">
-        <input type="checkbox" id="lair-action-enable">
-    </div>
-    
-    <!-- Attribution Notice moved to footer -->
-    <footer class="footer mt-8">
-        <div class="bg-gray-800 p-2 rounded-lg mx-auto max-w-4xl">
-            <p><strong>Attribution Notice:</strong> This application uses content from the 5e SRD (System Reference Document), which is licensed under the Open Gaming License (OGL) Version 1.0a.</p>
-            <p>The SRD content is copyright of Wizards of the Coast LLC. Wizards of the Coast, Dungeons & Dragons, D&D, and their logos are trademarks of Wizards of the Coast LLC in the United States and other countries.</p>
-            <p>This application is not affiliated with, endorsed, sponsored, or specifically approved by Wizards of the Coast LLC.</p>
-        </div>
-    </footer>
-
-    <!-- Application Scripts - Using traditional script tags instead of modules -->
     <!-- Load modules first -->
-<script src="js/modules/ui.js"></script>
-<script src="js/modules/dice.js"></script>
-<script src="js/modules/combat.js"></script>
-<script src="js/modules/conditions.js"></script>
-<script src="js/modules/damage.js"></script>
-<script src="js/modules/saves.js"></script>
-<script src="js/modules/actions.js"></script>
-<script src="js/modules/legendary.js"></script>
-<script src="js/modules/lair.js"></script>
-<script src="js/modules/notes.js"></script>
-<script src="js/modules/stats.js"></script>
-<script src="js/modules/spells.js"></script>
-<script src="js/modules/audio.js"></script>
-
-<!-- Load main app last -->
-<script src="js/app.js"></script>
+    <script src="js/modules/ui.js"></script>
+    <script src="js/modules/dice.js"></script>
+    <script src="js/modules/combat.js"></script>
+    <script src="js/modules/conditions.js"></script>
+    <script src="js/modules/damage.js"></script>
+    <script src="js/modules/saves.js"></script>
+    <script src="js/modules/actions.js"></script>
+    <script src="js/modules/legendary.js"></script>
+    <script src="js/modules/lair.js"></script>
+    <script src="js/modules/notes.js"></script>
+    <script src="js/modules/stats.js"></script>
+    <script src="js/modules/spells.js"></script>
+    <script src="js/modules/audio.js"></script>
+    
+    <!-- Load main app last -->
+    <script src="js/app.js"></script>
 </body>
 </html>
-
