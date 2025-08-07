@@ -15,11 +15,10 @@ class JessterCombatTracker {
       combatStartTime: null
     };
     
-    // Initialize modules
+    // Initialize modules (only the ones that actually exist)
     this.ui = new UIManager(this);
     this.dice = new DiceRoller(this);
     this.combat = new CombatManager(this);
-    // this.initiative = new InitiativeTracker(this); // Removed - functionality is in CombatManager
     this.conditions = new ConditionsManager(this);
     this.damage = new DamageTypeManager(this);
     this.saves = new SavingThrowManager(this);
@@ -56,7 +55,6 @@ class JessterCombatTracker {
     this.ui.setupEventListeners();
     
     // Initialize modules that need initialization
-    // this.initiative.init(); // Removed - functionality is in CombatManager
     this.conditions.addGroupConditionsButton();
     this.actions.addActionReferenceButton();
     this.notes.init();
