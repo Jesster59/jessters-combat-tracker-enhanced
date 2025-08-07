@@ -108,7 +108,7 @@ class APIManager {
                     document.querySelectorAll('.ddbc-saving-throws-summary__ability').forEach(element => {
                         const ability = element.querySelector('.ddbc-saving-throws-summary__ability-name').textContent.trim();
                         const bonus = element.querySelector('.ddbc-saving-throws-summary__ability-modifier').textContent.trim();
-                        character.saves += `${ability} ${bonus}, `;
+                        character.saves += ability + ' ' + bonus + ', ';
                     });
                     character.saves = character.saves.replace(/,\\s*$/, '');
                     
