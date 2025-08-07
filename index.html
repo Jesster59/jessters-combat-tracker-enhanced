@@ -318,8 +318,21 @@
     <script src="js/app.js"></script>
 
     <script>
-        // Initialize event listeners after DOM is loaded
-        document.addEventListener('DOMContentLoaded', () => {
+        // Wait for all scripts to load before initializing the app
+        window.addEventListener('load', function() {
+            // Create global app instance
+            window.app = new CombatTrackerApp();
+            window.app.init().then(() => {
+                console.log("App fully initialized and ready");
+                
+                // Initialize event listeners
+                initEventListeners();
+            }).catch(error => {
+                console.error("Error initializing app:", error);
+            });
+        });
+        
+        function initEventListeners() {
             // Quick dice buttons
             document.querySelectorAll('.quick-dice-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
@@ -430,7 +443,7 @@
                     }
                 });
             });
-        });
+        }
     </script>
 </body>
 </html>
