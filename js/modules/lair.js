@@ -45,54 +45,7 @@ class LairActionsTracker {
     return true;
   }
   
-  /**
- * Lair Actions Tracker for Jesster's Combat Tracker
- * Handles tracking and triggering of lair actions at initiative count 20
- */
-class LairActionsTracker {
-  constructor(app) {
-    this.app = app;
-    this.lairActions = [];
-    this.currentLairActionIndex = 0;
-    console.log("Lair.js loaded successfully");
-  }
-  
-  initializeLairActions() {
-    // Check if lair actions are enabled in the UI
-    const lairActionEnabled = document.getElementById('lair-action-enable')?.checked || false;
-    if (!lairActionEnabled) return;
-    
-    // Get lair action text from the UI
-    const lairActionText = document.getElementById('lair-action-text')?.value || '';
-    if (!lairActionText.trim()) return;
-    
-    // Parse lair actions (split by semicolons or newlines)
-    this.lairActions = lairActionText
-      .split(/[;\n]/)
-      .map(action => action.trim())
-      .filter(action => action.length > 0);
-    
-    this.currentLairActionIndex = 0;
-    
-    if (this.lairActions.length > 0) {
-      this.app.logEvent(`Initialized ${this.lairActions.length} lair actions.`);
-    }
-  }
-  
-  triggerLairAction() {
-    if (!this.lairActions.length) return false;
-    
-    const action = this.lairActions[this.currentLairActionIndex];
-    this.app.showAlert(action, 'Lair Action (Initiative 20)');
-    this.app.logEvent(`Lair Action: ${action}`);
-    
-    // Advance to the next lair action for the next round
-    this.currentLairActionIndex = (this.currentLairActionIndex + 1) % this.lairActions.length;
-    
-    return true;
-  }
-  
-    openLairActionsModal() {
+  openLairActionsModal() {
     // Create modal for managing lair actions
     const modal = document.createElement('div');
     modal.className = 'fixed inset-0 modal-backdrop flex items-center justify-center z-50 p-4';
