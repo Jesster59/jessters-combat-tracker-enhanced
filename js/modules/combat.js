@@ -40,11 +40,28 @@ class CombatManager {
     const initiativeInput = card.querySelector('.initiative-input');
     if (!initiativeInput) return;
     
+    // Get the DEX modifier or initiative modifier
+    const hiddenData = card.querySelector('.hidden-data');
+    let modifier = 0;
+    
+    if (card.dataset.type === 'hero') {
+      // For heroes, use DEX modifier
+      if (hiddenData && hiddenData.dataset.dex) {
+        const dex = parseInt(hiddenData.dataset.dex) || 10;
+        modifier = Math.floor((dex - 10) / 2);
+      }
+    } else {
+      // For monsters, use initiative modifier if available, otherwise DEX modifier
+      if (hiddenData && hiddenData.dataset.initMod && !isNaN(parseInt(hiddenData.dataset.initMod))) {
+        modifier = parseInt(hiddenData.dataset.initMod);
+      } else if (hiddenData && hiddenData.dataset.dex) {
+        const dex = parseInt(hiddenData.dataset.dex) || 10;
+        modifier = Math.floor((dex - 10) / 2);
+      }
+    }
+    
     // Roll 1d20
     const roll = Math.floor(Math.random() * 20) + 1;
-    
-    // Add a small modifier based on card type (just for demonstration)
-    const modifier = card.dataset.type === 'hero' ? 2 : 1;
     const totalInit = roll + modifier;
     
     // Set the initiative value
@@ -83,6 +100,7 @@ class CombatManager {
     // Start combat
     this.app.state.combatStarted = true;
     this.app.state.roundNumber = 1;
+    this.app.state.combatStartTime = new Date();
     
     // Update UI
     document.getElementById('round-counter').textContent = '1';
@@ -100,8 +118,14 @@ class CombatManager {
       this.app.lair.initializeLairActions();
     }
     
+    // Start tracking combat statistics
+    if (this.app.stats) {
+      this.app.stats.startCombatTracking();
+    }
+    
     this.updateTurnIndicator();
     this.app.logEvent("Combat Started!");
+    this.app.audio.play('combatStart');
   }
   
   determineNormalInitiative() {
@@ -111,12 +135,31 @@ class CombatManager {
       ...Array.from(document.querySelectorAll('#monsters-list .combatant-card'))
     ];
     
-    // Sort by initiative
+    // Sort by initiative, then by DEX modifier for ties
     const sortedCombatants = allCombatants.sort((a, b) => {
       const aInit = parseInt(a.querySelector('.initiative-input').value) || 0;
       const bInit = parseInt(b.querySelector('.initiative-input').value) || 0;
+      
+      // If initiatives are tied, check DEX modifier
+      if (aInit === bInit) {
+        const aHiddenData = a.querySelector('.hidden-data');
+        const bHiddenData = b.querySelector('.hidden-data');
+        
+        const aDex = aHiddenData ? parseInt(aHiddenData.dataset.dex) || 10 : 10;
+        const bDex = bHiddenData ? parseInt(bHiddenData.dataset.dex) || 10 : 10;
+        
+        const aDexMod = Math.floor((aDex - 10) / 2);
+        const bDexMod = Math.floor((bDex - 10) / 2);
+        
+        return bDexMod - aDexMod;
+      }
+      
       return bInit - aInit;
     });
+    
+    // Store the initiative order
+    this.app.state.normalInitiativeOrder = sortedCombatants.map(card => card.id);
+    this.app.state.currentNormalInitiativeIndex = 0;
     
     // Set the current turn to the first combatant
     if (sortedCombatants.length > 0) {
@@ -153,10 +196,14 @@ class CombatManager {
   }
   
   determineTeamInitiative() {
-    // Similar to dynamic, but roll a single initiative for each team
-    // This would be implemented in a real application
-    this.app.state.currentTurn = 'heroes'; // Default for now
-    this.app.logEvent("Team Initiative: Heroes go first.");
+    // Roll a single initiative for each team
+    const heroRoll = Math.floor(Math.random() * 20) + 1;
+    const monsterRoll = Math.floor(Math.random() * 20) + 1;
+    
+    // Set current turn to the side with highest roll
+    this.app.state.currentTurn = heroRoll >= monsterRoll ? 'heroes' : 'monsters';
+    
+    this.app.logEvent(`Team Initiative: Heroes (${heroRoll}) vs Monsters (${monsterRoll}). ${this.app.state.currentTurn === 'heroes' ? 'Heroes' : 'Monsters'} go first.`);
   }
   
   endTurn() {
@@ -192,71 +239,53 @@ class CombatManager {
   }
   
   endNormalInitiativeTurn() {
-    // Get all combatants in initiative order
-    const allCombatants = [
-      ...Array.from(document.querySelectorAll('#heroes-list .combatant-card')),
-      ...Array.from(document.querySelectorAll('#monsters-list .combatant-card'))
-    ];
+    // Get the current combatant
+    const currentCombatantId = this.app.state.currentTurn;
+    const currentCombatant = document.getElementById(currentCombatantId);
     
-    // Sort by initiative
-    const sortedCombatants = allCombatants.sort((a, b) => {
-      const aInit = parseInt(a.querySelector('.initiative-input').value) || 0;
-      const bInit = parseInt(b.querySelector('.initiative-input').value) || 0;
-      return bInit - aInit;
-    });
-    
-    // Find current combatant index
-    const currentIndex = sortedCombatants.findIndex(card => card.id === this.app.state.currentTurn);
-    
-    if (currentIndex === -1) {
-      // Current combatant not found, start from beginning
-      if (sortedCombatants.length > 0) {
-        this.app.state.currentTurn = sortedCombatants[0].id;
-      }
+    if (!currentCombatant) {
+      console.error("Current combatant not found:", currentCombatantId);
       return;
     }
     
     // Get current combatant name for logging
-    const currentName = sortedCombatants[currentIndex].querySelector('.combatant-name').textContent;
+    const currentName = currentCombatant.querySelector('.combatant-name').textContent;
     this.app.logEvent(`${currentName}'s turn ends.`);
     
     // Process end of turn effects
-    this.processEndOfTurnEffects(sortedCombatants[currentIndex]);
+    this.processEndOfTurnEffects(currentCombatant);
+    
+    // Get the initiative order
+    const initiativeOrder = this.app.state.normalInitiativeOrder;
+    
+    // Find current index
+    const currentIndex = this.app.state.currentNormalInitiativeIndex;
     
     // Move to next combatant
-    const nextIndex = (currentIndex + 1) % sortedCombatants.length;
+    const nextIndex = (currentIndex + 1) % initiativeOrder.length;
     
     // If we're looping back to the first combatant, it's a new round
     if (nextIndex === 0) {
-      this.app.state.roundNumber++;
-      document.getElementById('round-counter').textContent = this.app.state.roundNumber;
-      this.app.logEvent(`Round ${this.app.state.roundNumber} begins.`);
-      this.app.audio.play('roundStart');
-      
-      // Reset action economy for all combatants
-      this.resetActionEconomy();
-      
-      // Reset legendary actions for all monsters
-      if (this.app.legendary) {
-        this.app.legendary.resetLegendaryActionsAtRoundStart();
-      }
-      
-      // Trigger lair actions at initiative count 20
-      if (this.app.lair) {
-        this.app.lair.triggerLairAction();
-      }
+      this.startNewRound();
     }
     
     // Set new current turn
-    this.app.state.currentTurn = sortedCombatants[nextIndex].id;
+    this.app.state.currentTurn = initiativeOrder[nextIndex];
+    this.app.state.currentNormalInitiativeIndex = nextIndex;
     
     // Reset action economy for the next combatant
     if (this.app.actions) {
-      this.app.actions.resetActionEconomy(sortedCombatants[nextIndex].id);
+      this.app.actions.resetActionEconomy(initiativeOrder[nextIndex]);
+    }
+    
+    // Reset legendary actions if it's a monster's turn
+    const nextCombatant = document.getElementById(initiativeOrder[nextIndex]);
+    if (nextCombatant && nextCombatant.dataset.type === 'monster' && this.app.legendary) {
+      this.app.legendary.resetLegendaryActions(initiativeOrder[nextIndex]);
     }
     
     // Log new turn
-    const nextName = sortedCombatants[nextIndex].querySelector('.combatant-name').textContent;
+    const nextName = nextCombatant ? nextCombatant.querySelector('.combatant-name').textContent : "Unknown";
     this.app.logEvent(`${nextName}'s turn begins.`);
   }
   
@@ -277,23 +306,7 @@ class CombatManager {
     
     // Check if this completes a round - only if we're going from monsters back to heroes
     if (nextTurn === 'heroes') {
-      this.app.state.roundNumber++;
-      document.getElementById('round-counter').textContent = this.app.state.roundNumber;
-      this.app.logEvent(`Round ${this.app.state.roundNumber} begins.`);
-      this.app.audio.play('roundStart');
-      
-      // Reset action economy for all combatants
-      this.resetActionEconomy();
-      
-      // Reset legendary actions for all monsters
-      if (this.app.legendary) {
-        this.app.legendary.resetLegendaryActionsAtRoundStart();
-      }
-      
-      // Trigger lair actions at initiative count 20
-      if (this.app.lair) {
-        this.app.lair.triggerLairAction();
-      }
+      this.startNewRound();
     }
     
     // Set new current turn
@@ -305,6 +318,14 @@ class CombatManager {
       const nextTeamCards = Array.from(document.querySelectorAll(nextTeamSelector));
       nextTeamCards.forEach(card => {
         this.app.actions.resetActionEconomy(card.id);
+      });
+    }
+    
+    // Reset legendary actions if it's monsters' turn
+    if (nextTurn === 'monsters' && this.app.legendary) {
+      const monsterCards = Array.from(document.querySelectorAll('#monsters-list .combatant-card'));
+      monsterCards.forEach(card => {
+        this.app.legendary.resetLegendaryActions(card.id);
       });
     }
     
@@ -329,23 +350,7 @@ class CombatManager {
     
     // Check if this completes a round - only if we're going from monsters back to heroes
     if (nextTurn === 'heroes') {
-      this.app.state.roundNumber++;
-      document.getElementById('round-counter').textContent = this.app.state.roundNumber;
-      this.app.logEvent(`Round ${this.app.state.roundNumber} begins.`);
-      this.app.audio.play('roundStart');
-      
-      // Reset action economy for all combatants
-      this.resetActionEconomy();
-      
-      // Reset legendary actions for all monsters
-      if (this.app.legendary) {
-        this.app.legendary.resetLegendaryActionsAtRoundStart();
-      }
-      
-      // Trigger lair actions at initiative count 20
-      if (this.app.lair) {
-        this.app.lair.triggerLairAction();
-      }
+      this.startNewRound();
     }
     
     // Set new current turn
@@ -360,8 +365,36 @@ class CombatManager {
       });
     }
     
+    // Reset legendary actions if it's monsters' turn
+    if (nextTurn === 'monsters' && this.app.legendary) {
+      const monsterCards = Array.from(document.querySelectorAll('#monsters-list .combatant-card'));
+      monsterCards.forEach(card => {
+        this.app.legendary.resetLegendaryActions(card.id);
+      });
+    }
+    
     // Log new turn
     this.app.logEvent(`${nextTurn === 'heroes' ? 'Heroes' : 'Monsters'} turn begins.`);
+  }
+  
+  startNewRound() {
+    this.app.state.roundNumber++;
+    document.getElementById('round-counter').textContent = this.app.state.roundNumber;
+    this.app.logEvent(`Round ${this.app.state.roundNumber} begins.`);
+    this.app.audio.play('roundStart');
+    
+    // Reset action economy for all combatants
+    this.resetActionEconomy();
+    
+    // Reset legendary actions for all monsters
+    if (this.app.legendary) {
+      this.app.legendary.resetLegendaryActionsAtRoundStart();
+    }
+    
+    // Trigger lair actions at initiative count 20
+    if (this.app.lair) {
+      this.app.lair.triggerLairAction();
+    }
   }
   
   processEndOfTurnEffects(card) {
@@ -393,6 +426,11 @@ class CombatManager {
     this.app.state.combatStarted = false;
     this.app.state.roundNumber = 1;
     this.app.state.currentTurn = null;
+    
+    // End combat statistics tracking
+    if (this.app.stats) {
+      this.app.stats.endCombatTracking();
+    }
     
     // Update UI
     document.getElementById('round-counter').textContent = '1';
@@ -568,7 +606,7 @@ class CombatManager {
     }
   }
   
-   generatePlayerViewCombatants(type) {
+  generatePlayerViewCombatants(type) {
     // Generate HTML for combatants in player view
     // This would be more detailed in a real implementation
     const selector = type === 'heroes' ? '#heroes-list .combatant-card' : '#monsters-list .combatant-card';
@@ -639,5 +677,32 @@ class CombatManager {
         </div>
       `;
     }).join('');
+  }
+  
+  /**
+   * Set the initiative order manually
+   * @param {Array} order - Array of combatant IDs in order
+   */
+  setInitiativeOrder(order) {
+    if (!order || !Array.isArray(order) || order.length === 0) return;
+    
+    // Store the order
+    this.app.state.normalInitiativeOrder = order;
+    
+    // If combat has started and we're using normal initiative, update the current turn
+    if (this.app.state.combatStarted && document.getElementById('initiative-type')?.value === 'normal') {
+      // Find the current index in the new order
+      const currentIndex = order.indexOf(this.app.state.currentTurn);
+      if (currentIndex !== -1) {
+        this.app.state.currentNormalInitiativeIndex = currentIndex;
+      } else {
+        // If the current turn is not in the new order, set to the first combatant
+        this.app.state.currentTurn = order[0];
+        this.app.state.currentNormalInitiativeIndex = 0;
+      }
+      
+      // Update the UI
+      this.updateTurnIndicator();
+    }
   }
 }
