@@ -47,6 +47,13 @@ class UIManager {
     addDynamicEventListeners() {
         // Use event delegation for dynamically created elements
         document.addEventListener('click', (event) => {
+            // Edit button
+            if (event.target.closest('.edit-btn')) {
+                const btn = event.target.closest('.edit-btn');
+                const creatureId = btn.dataset.creatureId;
+                this.openEditCreatureModal(creatureId);
+            }
+            
             // Damage button
             if (event.target.closest('.damage-btn')) {
                 const btn = event.target.closest('.damage-btn');
@@ -78,7 +85,8 @@ class UIManager {
             if (event.target.closest('.creature-card')) {
                 const card = event.target.closest('.creature-card');
                 // Only handle right-click in a separate handler
-                if (!event.target.closest('.damage-btn') && 
+                if (!event.target.closest('.edit-btn') && 
+                    !event.target.closest('.damage-btn') && 
                     !event.target.closest('.heal-btn') && 
                     !event.target.closest('.remove-btn')) {
                     // Handle left-click on creature card
@@ -170,6 +178,9 @@ class UIManager {
                         ${sourceHtml}
                     </div>
                     <div class="flex space-x-1">
+                        <button class="edit-btn bg-blue-600 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded text-xs" data-creature-id="${creature.id}">
+                            Edit
+                        </button>
                         <button class="damage-btn bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-2 rounded text-xs" data-creature-id="${creature.id}">
                             Damage
                         </button>
@@ -318,11 +329,11 @@ class UIManager {
         
         // Menu items
         const items = [
+            { text: 'Edit Character', icon: '✏️', action: () => this.openEditCreatureModal(creatureId) },
             { text: 'Apply Damage', icon: '🗡️', action: () => this.app.damage.openDamageModal(creatureId) },
             { text: 'Apply Healing', icon: '❤️', action: () => this.app.damage.openHealModal(creatureId) },
             { text: 'Add Condition', icon: '⚠️', action: () => this.app.conditions.openAddConditionModal(creatureId) },
             { text: 'Manage Conditions', icon: '📋', action: () => this.app.conditions.openManageConditionsModal(creatureId) },
-            { text: 'Edit Character', icon: '✏️', action: () => this.openEditCreatureModal(creatureId) },
             { text: 'Set Image URL', icon: '🖼️', action: () => this.openSetImageModal(creatureId) },
             { text: 'Remove from Combat', icon: '❌', action: () => {
                 this.app.showConfirm(`Are you sure you want to remove ${creature.name} from combat?`, () => {
@@ -361,6 +372,148 @@ class UIManager {
             menu.remove();
             document.removeEventListener('click', this.closeContextMenu);
         }
+    }
+    
+    /**
+     * Open the edit creature modal
+     * @param {string} creatureId - The ID of the creature to edit
+     */
+    openEditCreatureModal(creatureId) {
+        const creature = this.app.combat.getCreatureById(creatureId);
+        if (!creature) return;
+        
+        const modal = this.createModal({
+            title: `Edit ${creature.type === 'hero' ? 'Hero' : 'Monster'}: ${creature.name}`,
+            content: `
+                <div class="space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-gray-300 mb-2">Name:</label>
+                            <input type="text" id="edit-name" class="w-full bg-gray-700 text-white px-3 py-2 rounded" value="${creature.name || ''}">
+                        </div>
+                        <div>
+                            <label class="block text-gray-300 mb-2">Initiative Bonus:</label>
+                            <input type="number" id="edit-initiative" class="w-full bg-gray-700 text-white px-3 py-2 rounded" value="${creature.initiativeBonus || 0}">
+                        </div>
+                        <div>
+                            <label class="block text-gray-300 mb-2">Max HP:</label>
+                            <input type="number" id="edit-max-hp" class="w-full bg-gray-700 text-white px-3 py-2 rounded" min="1" value="${creature.maxHp || 10}">
+                        </div>
+                        <div>
+                            <label class="block text-gray-300 mb-2">Current HP:</label>
+                            <input type="number" id="edit-current-hp" class="w-full bg-gray-700 text-white px-3 py-2 rounded" min="0" value="${creature.currentHp || 0}">
+                        </div>
+                        <div>
+                            <label class="block text-gray-300 mb-2">AC:</label>
+                            <input type="number" id="edit-ac" class="w-full bg-gray-700 text-white px-3 py-2 rounded" min="1" value="${creature.ac || 10}">
+                        </div>
+                        <div>
+                            <label class="block text-gray-300 mb-2">Image URL:</label>
+                            <input type="text" id="edit-image-url" class="w-full bg-gray-700 text-white px-3 py-2 rounded" value="${creature.imageUrl || ''}">
+                        </div>
+                    </div>
+                    
+                    <div id="image-preview" class="${creature.imageUrl ? '' : 'hidden'} flex justify-center items-center">
+                        <img src="${creature.imageUrl || ''}" alt="Preview" class="max-h-40 rounded">
+                    </div>
+                    
+                    <div class="flex justify-end space-x-2">
+                        <button id="cancel-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
+                            Cancel
+                        </button>
+                        <button id="save-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                            Save Changes
+                        </button>
+                    </div>
+                </div>
+            `,
+            width: 'max-w-2xl'
+        });
+        
+        // Add event listeners
+        const nameInput = modal.querySelector('#edit-name');
+        const initiativeInput = modal.querySelector('#edit-initiative');
+        const maxHpInput = modal.querySelector('#edit-max-hp');
+        const currentHpInput = modal.querySelector('#edit-current-hp');
+        const acInput = modal.querySelector('#edit-ac');
+        const imageUrlInput = modal.querySelector('#edit-image-url');
+        const imagePreview = modal.querySelector('#image-preview');
+        const cancelBtn = modal.querySelector('#cancel-btn');
+        const saveBtn = modal.querySelector('#save-btn');
+        
+        // Preview image when URL changes
+        imageUrlInput.addEventListener('input', () => {
+            const url = imageUrlInput.value.trim();
+            if (url) {
+                const img = imagePreview.querySelector('img');
+                img.src = url;
+                imagePreview.classList.remove('hidden');
+                
+                // Handle image load error
+                img.onerror = () => {
+                    img.src = 'data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2232%22%20height%3D%2232%22%20viewBox%3D%220%200%2032%2032%22%3E%3Cpath%20fill%3D%22%23D32F2F%22%20d%3D%22M16%202C8.268%202%202%208.268%202%2016s6.268%2014%2014%2014%2014-6.268%2014-14S23.732%202%2016%202zm0%2025.6c-6.408%200-11.6-5.192-11.6-11.6S9.592%204.4%2016%204.4%2027.6%209.592%2027.6%2016%2022.408%2027.6%2016%2027.6z%22%2F%3E%3Cpath%20fill%3D%22%23D32F2F%22%20d%3D%22M14.8%2010.4h2.4v8h-2.4v-8zm0%2010.4h2.4v2.4h-2.4v-2.4z%22%2F%3E%3C%2Fsvg%3E';
+                };
+                
+                // Reset error handler when image loads successfully
+                img.onload = () => {
+                    img.onerror = null;
+                };
+            } else {
+                imagePreview.classList.add('hidden');
+            }
+        });
+        
+        cancelBtn.addEventListener('click', () => {
+            this.closeModal(modal.parentNode);
+        });
+        
+        saveBtn.addEventListener('click', () => {
+            // Validate inputs
+            const name = nameInput.value.trim();
+            const initiativeBonus = parseInt(initiativeInput.value) || 0;
+            const maxHp = parseInt(maxHpInput.value) || 10;
+            const currentHp = parseInt(currentHpInput.value) || 0;
+            const ac = parseInt(acInput.value) || 10;
+            const imageUrl = imageUrlInput.value.trim() || null;
+            
+            if (!name) {
+                this.app.showAlert('Please enter a name.');
+                return;
+            }
+            
+            if (maxHp < 1) {
+                this.app.showAlert('Max HP must be at least 1.');
+                return;
+            }
+            
+            if (currentHp < 0) {
+                this.app.showAlert('Current HP cannot be negative.');
+                return;
+            }
+            
+            if (ac < 1) {
+                this.app.showAlert('AC must be at least 1.');
+                return;
+            }
+            
+            // Update the creature
+            const updates = {
+                name,
+                initiativeBonus,
+                maxHp,
+                currentHp,
+                ac,
+                imageUrl
+            };
+            
+            this.app.combat.updateCreature(creatureId, updates);
+            
+            // Close the modal
+            this.closeModal(modal.parentNode);
+            
+            // Log the event
+            this.app.logEvent(`${name} has been updated.`);
+        });
     }
     
     /**
@@ -445,7 +598,7 @@ class UIManager {
             this.app.combat.updateCreature(creatureId, { imageUrl: url || null });
             
             // Close the modal
-            this.closeModal(modal);
+            this.closeModal(modal.parentNode);
             
             // Log the event
             this.app.logEvent(`Image updated for ${creature.name}.`);
@@ -500,7 +653,7 @@ class UIManager {
             width: 'max-w-2xl'
         });
         
-        // Add event listeners
+                // Add event listeners
         const nameInput = modal.querySelector('#hero-name');
         const initiativeInput = modal.querySelector('#hero-initiative');
         const maxHpInput = modal.querySelector('#hero-max-hp');
@@ -533,7 +686,7 @@ class UIManager {
         });
         
         cancelBtn.addEventListener('click', () => {
-            this.closeModal(modal);
+            this.closeModal(modal.parentNode);
         });
         
         addBtn.addEventListener('click', () => {
@@ -578,7 +731,7 @@ class UIManager {
             this.app.combat.addCreature(hero);
             
             // Close the modal
-            this.closeModal(modal);
+            this.closeModal(modal.parentNode);
             
             // Log the event
             this.app.logEvent(`${name} added to combat.`);
@@ -650,7 +803,7 @@ class UIManager {
                 img.src = url;
                 imagePreview.classList.remove('hidden');
                 
-                                // Handle image load error
+                // Handle image load error
                 img.onerror = () => {
                     img.src = 'data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2232%22%20height%3D%2232%22%20viewBox%3D%220%200%2032%2032%22%3E%3Cpath%20fill%3D%22%23D32F2F%22%20d%3D%22M16%202C8.268%202%202%208.268%202%2016s6.268%2014%2014%2014%2014-6.268%2014-14S23.732%202%2016%202zm0%2025.6c-6.408%200-11.6-5.192-11.6-11.6S9.592%204.4%2016%204.4%2027.6%209.592%2027.6%2016%2022.408%2027.6%2016%2027.6z%22%2F%3E%3Cpath%20fill%3D%22%23D32F2F%22%20d%3D%22M14.8%2010.4h2.4v8h-2.4v-8zm0%2010.4h2.4v2.4h-2.4v-2.4z%22%2F%3E%3C%2Fsvg%3E';
                 };
@@ -665,7 +818,7 @@ class UIManager {
         });
         
         cancelBtn.addEventListener('click', () => {
-            this.closeModal(modal);
+            this.closeModal(modal.parentNode);
         });
         
         addBtn.addEventListener('click', () => {
@@ -710,7 +863,7 @@ class UIManager {
             this.app.combat.addCreature(monster);
             
             // Close the modal
-            this.closeModal(modal);
+            this.closeModal(modal.parentNode);
             
             // Log the event
             this.app.logEvent(`${name} added to combat.`);
@@ -843,147 +996,146 @@ class UIManager {
     }
     
     /**
- * Open the D&D Beyond import modal
- */
-openDnDBeyondImportModal() {
-    const modal = this.createModal({
-        title: 'Import from D&D Beyond',
-        content: `
-            <div class="space-y-4">
-                <div class="bg-gray-700 p-4 rounded">
-                    <h3 class="font-semibold mb-2">Instructions:</h3>
-                    <ol class="list-decimal list-inside space-y-2 text-sm">
-                        <li>Open your character sheet on D&D Beyond</li>
-                        <li>Open the browser console (F12 or right-click > Inspect > Console)</li>
-                        <li>Copy the script below and paste it into the console</li>
-                        <li>Copy the JSON output between the lines of equal signs (=====)</li>
-                        <li>Paste the JSON below (make sure it starts with { and ends with })</li>
-                    </ol>
-                </div>
-                
-                <div>
-                    <label class="block text-gray-300 mb-2">Copy this script:</label>
-                    <div class="relative">
-                        <textarea id="import-script" class="w-full bg-gray-800 text-white px-3 py-2 rounded h-32 font-mono text-xs" readonly></textarea>
-                        <button id="copy-script-btn" class="absolute top-2 right-2 bg-gray-600 hover:bg-gray-500 text-white text-xs py-1 px-2 rounded">
-                            Copy
+     * Open the D&D Beyond import modal
+     */
+    openDnDBeyondImportModal() {
+        const modal = this.createModal({
+            title: 'Import from D&D Beyond',
+            content: `
+                <div class="space-y-4">
+                    <div class="bg-gray-700 p-4 rounded">
+                        <h3 class="font-semibold mb-2">Instructions:</h3>
+                        <ol class="list-decimal list-inside space-y-2 text-sm">
+                            <li>Open your character sheet on D&D Beyond</li>
+                            <li>Open the browser console (F12 or right-click > Inspect > Console)</li>
+                            <li>Copy the script below and paste it into the console</li>
+                            <li>Copy the JSON output between the lines of equal signs (=====)</li>
+                            <li>Paste the JSON below (make sure it starts with { and ends with })</li>
+                        </ol>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-gray-300 mb-2">Copy this script:</label>
+                        <div class="relative">
+                            <textarea id="import-script" class="w-full bg-gray-800 text-white px-3 py-2 rounded h-32 font-mono text-xs" readonly></textarea>
+                            <button id="copy-script-btn" class="absolute top-2 right-2 bg-gray-600 hover:bg-gray-500 text-white text-xs py-1 px-2 rounded">
+                                Copy
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-gray-300 mb-2">Paste the JSON result here:</label>
+                        <textarea id="import-json" class="w-full bg-gray-700 text-white px-3 py-2 rounded h-32 font-mono text-xs" placeholder='{"name": "Character Name", ...}'></textarea>
+                    </div>
+                    
+                    <div class="flex justify-end space-x-2">
+                        <button id="cancel-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
+                            Cancel
+                        </button>
+                        <button id="import-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                            Import Character
                         </button>
                     </div>
                 </div>
-                
-                <div>
-                    <label class="block text-gray-300 mb-2">Paste the JSON result here:</label>
-                    <textarea id="import-json" class="w-full bg-gray-700 text-white px-3 py-2 rounded h-32 font-mono text-xs" placeholder='{"name": "Character Name", ...}'></textarea>
-                </div>
-                
-                <div class="flex justify-end space-x-2">
-                    <button id="cancel-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
-                        Cancel
-                    </button>
-                    <button id="import-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                        Import Character
-                    </button>
-                </div>
-            </div>
-        `,
-        width: 'max-w-2xl'
-    });
-    
-    // Add event listeners
-    const importScript = modal.querySelector('#import-script');
-    const copyScriptBtn = modal.querySelector('#copy-script-btn');
-    const importJson = modal.querySelector('#import-json');
-    const cancelBtn = modal.querySelector('#cancel-btn');
-    const importBtn = modal.querySelector('#import-btn');
-    
-    // Set the import script
-    importScript.value = this.app.api.getDnDBeyondImportScript();
-    
-    // Copy script button
-    copyScriptBtn.addEventListener('click', () => {
-        importScript.select();
-        document.execCommand('copy');
-        copyScriptBtn.textContent = 'Copied!';
-        setTimeout(() => {
-            copyScriptBtn.textContent = 'Copy';
-        }, 2000);
-    });
-    
-    cancelBtn.addEventListener('click', () => {
-        this.closeModal(modal.parentNode);
-    });
-    
-    importBtn.addEventListener('click', () => {
-        let jsonText = importJson.value.trim();
-        if (!jsonText) {
-            this.app.showAlert('Please paste the JSON data from D&D Beyond.');
-            return;
-        }
+            `,
+            width: 'max-w-2xl'
+        });
         
-        try {
-            // Fix common JSON issues
-            
-            // Add missing braces if needed
-            if (!jsonText.startsWith('{')) {
-                jsonText = '{' + jsonText;
+        // Add event listeners
+        const importScript = modal.querySelector('#import-script');
+        const copyScriptBtn = modal.querySelector('#copy-script-btn');
+        const importJson = modal.querySelector('#import-json');
+        const cancelBtn = modal.querySelector('#cancel-btn');
+        const importBtn = modal.querySelector('#import-btn');
+        
+        // Set the import script
+        importScript.value = this.app.api.getDnDBeyondImportScript();
+        
+        // Copy script button
+        copyScriptBtn.addEventListener('click', () => {
+            importScript.select();
+            document.execCommand('copy');
+            copyScriptBtn.textContent = 'Copied!';
+            setTimeout(() => {
+                copyScriptBtn.textContent = 'Copy';
+            }, 2000);
+        });
+        
+        cancelBtn.addEventListener('click', () => {
+            this.closeModal(modal.parentNode);
+        });
+        
+        importBtn.addEventListener('click', () => {
+            let jsonText = importJson.value.trim();
+            if (!jsonText) {
+                this.app.showAlert('Please paste the JSON data from D&D Beyond.');
+                return;
             }
-            if (!jsonText.endsWith('}')) {
-                jsonText = jsonText + '}';
-            }
             
-            // Clean up the JSON text - remove any console prefixes or extra text
-            if (jsonText.includes('\n')) {
-                // Try to extract just the JSON object from multiple lines
-                const lines = jsonText.split('\n');
-                let jsonLines = [];
-                let inJson = false;
+            try {
+                // Fix common JSON issues
                 
-                for (const line of lines) {
-                    const trimmedLine = line.trim();
+                // Add missing braces if needed
+                if (!jsonText.startsWith('{')) {
+                    jsonText = '{' + jsonText;
+                }
+                if (!jsonText.endsWith('}')) {
+                    jsonText = jsonText + '}';
+                }
+                
+                // Clean up the JSON text - remove any console prefixes or extra text
+                if (jsonText.includes('\n')) {
+                    // Try to extract just the JSON object from multiple lines
+                    const lines = jsonText.split('\n');
+                    let jsonLines = [];
+                    let inJson = false;
                     
-                    if (trimmedLine === '{') {
-                        inJson = true;
-                        jsonLines.push('{');
-                    } else if (trimmedLine === '}') {
-                        jsonLines.push('}');
-                        inJson = false;
-                    } else if (inJson) {
-                        jsonLines.push(trimmedLine);
+                    for (const line of lines) {
+                        const trimmedLine = line.trim();
+                        
+                        if (trimmedLine === '{') {
+                            inJson = true;
+                            jsonLines.push('{');
+                        } else if (trimmedLine === '}') {
+                            jsonLines.push('}');
+                            inJson = false;
+                        } else if (inJson) {
+                            jsonLines.push(trimmedLine);
+                        }
+                    }
+                    
+                    if (jsonLines.length > 0) {
+                        jsonText = jsonLines.join('\n');
                     }
                 }
                 
-                if (jsonLines.length > 0) {
-                    jsonText = jsonLines.join('\n');
+                // Parse the JSON
+                const data = JSON.parse(jsonText);
+                
+                // Check for error
+                if (data.error) {
+                    throw new Error(data.error);
                 }
+                
+                // Parse the character
+                const character = this.app.api.parseDnDBeyondCharacter(data);
+                
+                // Add to combat
+                this.app.combat.addCreature(character);
+                
+                // Close the modal
+                this.closeModal(modal.parentNode);
+                
+                // Log the event
+                this.app.logEvent(`${character.name} imported from D&D Beyond.`);
+            } catch (error) {
+                this.app.showAlert(`Error importing character: ${error.message}\n\nMake sure you've copied the entire JSON output from the console and it starts with { and ends with }.`);
+                console.error('JSON parsing error:', error);
+                console.log('Attempted to parse:', jsonText);
             }
-            
-            // Parse the JSON
-            const data = JSON.parse(jsonText);
-            
-            // Check for error
-            if (data.error) {
-                throw new Error(data.error);
-            }
-            
-            // Parse the character
-            const character = this.app.api.parseDnDBeyondCharacter(data);
-            
-            // Add to combat
-            this.app.combat.addCreature(character);
-            
-            // Close the modal
-            this.closeModal(modal.parentNode);
-            
-            // Log the event
-            this.app.logEvent(`${character.name} imported from D&D Beyond.`);
-        } catch (error) {
-            this.app.showAlert(`Error importing character: ${error.message}\n\nMake sure you've copied the entire JSON output from the console and it starts with { and ends with }.`);
-            console.error('JSON parsing error:', error);
-            console.log('Attempted to parse:', jsonText);
-        }
-    });
-}
-
+        });
+    }
     
     /**
      * Create a modal
@@ -1212,7 +1364,7 @@ openDnDBeyondImportModal() {
                     } else {
                         hpDisplay = 'Healthy';
                     }
-                } else {
+                                } else {
                     hpDisplay = '—';
                 }
                 
