@@ -1,455 +1,609 @@
 /**
- * Storage Manager for Jesster's Combat Tracker
- * Handles saving and loading data from localStorage
+ * Storage module for Jesster's Combat Tracker
+ * Handles data persistence using localStorage, IndexedDB, and optional cloud storage
  */
-class StorageManager {
-    constructor(app) {
-        this.app = app;
-        this.storagePrefix = 'jesstersCombatTracker_';
-        console.log("Storage Manager initialized");
+class Storage {
+    constructor() {
+        this.dbName = 'JesstersCombatTracker';
+        this.dbVersion = 1;
+        this.db = null;
+        this.isIndexedDBSupported = 'indexedDB' in window;
+        this.isLocalStorageSupported = this._checkLocalStorage();
+        this.cloudEnabled = false;
+        this.cloudConfig = null;
+        this.userId = null;
+        
+        // Initialize IndexedDB if supported
+        if (this.isIndexedDBSupported) {
+            this._initIndexedDB();
+        }
+        
+        console.log("Storage module initialized");
     }
-    
+
     /**
-     * Save data to localStorage
-     * @param {string} key - The key to save under
-     * @param {any} data - The data to save
-     * @returns {boolean} - Whether the save was successful
+     * Check if localStorage is available
+     * @private
+     * @returns {boolean} True if localStorage is available
      */
-    saveData(key, data) {
+    _checkLocalStorage() {
         try {
-            const serializedData = JSON.stringify(data);
-            localStorage.setItem(this.storagePrefix + key, serializedData);
+            localStorage.setItem('test', 'test');
+            localStorage.removeItem('test');
             return true;
-        } catch (error) {
-            console.error(`Error saving data for key ${key}:`, error);
+        } catch (e) {
+            console.warn('localStorage not available:', e);
             return false;
         }
     }
-    
+
     /**
-     * Load data from localStorage
-     * @param {string} key - The key to load
-     * @param {any} defaultValue - The default value if the key doesn't exist
-     * @returns {any} - The loaded data or defaultValue if not found
+     * Initialize IndexedDB
+     * @private
      */
-    loadData(key, defaultValue = null) {
+    async _initIndexedDB() {
+        if (!this.isIndexedDBSupported) return;
+
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open(this.dbName, this.dbVersion);
+            
+            request.onerror = (event) => {
+                console.error('IndexedDB error:', event.target.error);
+                this.isIndexedDBSupported = false;
+                reject(event.target.error);
+            };
+            
+            request.onsuccess = (event) => {
+                this.db = event.target.result;
+                console.log('IndexedDB connection established');
+                resolve(this.db);
+            };
+            
+            request.onupgradeneeded = (event) => {
+                const db = event.target.result;
+                
+                // Create object stores if they don't exist
+                if (!db.objectStoreNames.contains('roster')) {
+                    db.createObjectStore('roster', { keyPath: 'id' });
+                }
+                
+                if (!db.objectStoreNames.contains('monsters')) {
+                    db.createObjectStore('monsters', { keyPath: 'id' });
+                }
+                
+                if (!db.objectStoreNames.contains('parties')) {
+                    db.createObjectStore('parties', { keyPath: 'id' });
+                }
+                
+                if (!db.objectStoreNames.contains('encounters')) {
+                    db.createObjectStore('encounters', { keyPath: 'id' });
+                }
+                
+                if (!db.objectStoreNames.contains('combats')) {
+                    db.createObjectStore('combats', { keyPath: 'id' });
+                }
+                
+                if (!db.objectStoreNames.contains('settings')) {
+                    db.createObjectStore('settings', { keyPath: 'id' });
+                }
+                
+                if (!db.objectStoreNames.contains('cache')) {
+                    const cacheStore = db.createObjectStore('cache', { keyPath: 'id' });
+                    cacheStore.createIndex('timestamp', 'timestamp', { unique: false });
+                }
+            };
+        });
+    }
+
+    /**
+     * Configure cloud storage
+     * @param {Object} config - Firebase configuration
+     * @param {string} userId - User ID for cloud storage
+     */
+    configureCloudStorage(config, userId) {
+        this.cloudConfig = config;
+        this.userId = userId;
+        this.cloudEnabled = true;
+    }
+
+    /**
+     * Disable cloud storage
+     */
+    disableCloudStorage() {
+        this.cloudEnabled = false;
+    }
+
+    /**
+     * Save data to storage
+     * @param {string} key - Storage key
+     * @param {any} data - Data to store
+     * @param {Object} options - Storage options
+     * @param {boolean} options.useLocalStorage - Use localStorage instead of IndexedDB
+     * @param {boolean} options.useCloud - Use cloud storage
+     * @param {string} options.collection - Collection name for cloud storage
+     * @returns {Promise<boolean>} Success status
+     */
+    async save(key, data, options = {}) {
+        const { useLocalStorage = false, useCloud = this.cloudEnabled, collection = null } = options;
+        
         try {
-            const serializedData = localStorage.getItem(this.storagePrefix + key);
-            if (serializedData === null) {
-                return defaultValue;
+            // Use localStorage if specified or if IndexedDB is not supported
+            if (useLocalStorage || !this.isIndexedDBSupported) {
+                if (!this.isLocalStorageSupported) {
+                    throw new Error('localStorage is not supported');
+                }
+                localStorage.setItem(key, JSON.stringify(data));
+            } 
+            // Use IndexedDB
+            else {
+                await this._saveToIndexedDB(key, data);
             }
-            return JSON.parse(serializedData);
-        } catch (error) {
-            console.error(`Error loading data for key ${key}:`, error);
-            return defaultValue;
-        }
-    }
-    
-    /**
-     * Remove data from localStorage
-     * @param {string} key - The key to remove
-     * @returns {boolean} - Whether the removal was successful
-     */
-    removeData(key) {
-        try {
-            localStorage.removeItem(this.storagePrefix + key);
+            
+            // Save to cloud if enabled and configured
+            if (useCloud && this.cloudEnabled && collection) {
+                await this._saveToCloud(collection, key, data);
+            }
+            
             return true;
         } catch (error) {
-            console.error(`Error removing data for key ${key}:`, error);
+            console.error('Error saving data:', error);
             return false;
         }
     }
-    
+
     /**
-     * Check if a key exists in localStorage
-     * @param {string} key - The key to check
-     * @returns {boolean} - Whether the key exists
+     * Load data from storage
+     * @param {string} key - Storage key
+     * @param {Object} options - Storage options
+     * @param {boolean} options.useLocalStorage - Use localStorage instead of IndexedDB
+     * @param {boolean} options.useCloud - Use cloud storage
+     * @param {string} options.collection - Collection name for cloud storage
+     * @param {boolean} options.preferCloud - Prefer cloud data over local data
+     * @returns {Promise<any>} Loaded data
      */
-    hasData(key) {
-        return localStorage.getItem(this.storagePrefix + key) !== null;
-    }
-    
-    /**
-     * Save the current combat state
-     * @param {string} name - The name to save the state under
-     * @returns {boolean} - Whether the save was successful
-     */
-    saveCombatState(name = null) {
-        // Generate a name if not provided
-        if (!name) {
-            const date = new Date();
-            name = `Combat ${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
-        }
+    async load(key, options = {}) {
+        const { 
+            useLocalStorage = false, 
+            useCloud = this.cloudEnabled, 
+            collection = null,
+            preferCloud = false
+        } = options;
         
-        // Get the current state
-        const state = {
-            name: name,
-            creatures: this.app.combat.getAllCreatures(),
-            roundNumber: this.app.state.roundNumber,
-            currentTurn: this.app.state.currentTurn,
-            combatStarted: this.app.state.combatStarted,
-            savedAt: new Date().toISOString()
-        };
-        
-        // Get existing saved states
-        let savedStates = this.loadData('savedCombatStates', []);
-        
-        // Add the new state
-        savedStates.push(state);
-        
-        // Save back to localStorage
-        const success = this.saveData('savedCombatStates', savedStates);
-        
-        if (success) {
-            this.app.logEvent(`Combat state saved as "${name}".`);
-        } else {
-            this.app.showAlert('Failed to save combat state.');
-        }
-        
-        return success;
-    }
-    
-    /**
-     * Load a saved combat state
-     * @param {number} index - The index of the state to load
-     * @returns {boolean} - Whether the load was successful
-     */
-    loadCombatState(index) {
-        // Get saved states
-        const savedStates = this.loadData('savedCombatStates', []);
-        
-        // Check if the index is valid
-        if (index < 0 || index >= savedStates.length) {
-            this.app.showAlert('Invalid saved state index.');
-            return false;
-        }
-        
-        // Get the state to load
-        const state = savedStates[index];
-        
-        // Confirm if combat is in progress
-        if (this.app.state.combatStarted) {
-            this.app.showConfirm('Combat is in progress. Loading a saved state will end the current combat. Continue?', () => {
-                this.app.combat.endCombat();
-                this.loadCombatStateData(state);
-            });
-        } else {
-            this.loadCombatStateData(state);
-        }
-        
-        return true;
-    }
-    
-        /**
-     * Load combat state data
-     * @param {Object} state - The state to load
-     */
-    loadCombatStateData(state) {
-        // Clear existing creatures
-        this.app.combat.clearCombatants();
-        
-        // Add creatures from the state
-        state.creatures.forEach(creature => {
-            this.app.combat.addCreature(creature);
-        });
-        
-        // Set combat state
-        this.app.state.roundNumber = state.roundNumber;
-        this.app.state.currentTurn = state.currentTurn;
-        this.app.state.combatStarted = state.combatStarted;
-        
-        // Update UI
-        this.app.ui.renderCreatures();
-        this.app.ui.renderInitiativeOrder();
-        this.app.updatePlayerView();
-        
-        this.app.logEvent(`Combat state "${state.name}" loaded.`);
-    }
-    
-    /**
-     * Delete a saved combat state
-     * @param {number} index - The index of the state to delete
-     * @returns {boolean} - Whether the deletion was successful
-     */
-    deleteCombatState(index) {
-        // Get saved states
-        let savedStates = this.loadData('savedCombatStates', []);
-        
-        // Check if the index is valid
-        if (index < 0 || index >= savedStates.length) {
-            this.app.showAlert('Invalid saved state index.');
-            return false;
-        }
-        
-        // Get the name of the state for logging
-        const stateName = savedStates[index].name;
-        
-        // Remove the state
-        savedStates.splice(index, 1);
-        
-        // Save back to localStorage
-        const success = this.saveData('savedCombatStates', savedStates);
-        
-        if (success) {
-            this.app.logEvent(`Combat state "${stateName}" deleted.`);
-        } else {
-            this.app.showAlert('Failed to delete combat state.');
-        }
-        
-        return success;
-    }
-    
-    /**
-     * Save an encounter
-     * @param {string} name - The name of the encounter
-     * @param {string} description - The description of the encounter
-     * @returns {string|null} - The ID of the saved encounter or null if failed
-     */
-    saveEncounter(name, description = '') {
-        const creatures = this.app.combat.getAllCreatures();
-        if (creatures.length === 0) {
-            this.app.showAlert('No creatures to save.');
-            return null;
-        }
-        
-        const encounter = {
-            id: this.app.utils.generateUUID(),
-            name: name,
-            description: description,
-            creatures: creatures,
-            savedAt: new Date().toISOString()
-        };
-        
-        // Get existing encounters
-        let encounters = this.loadData('encounters', []);
-        
-        // Add new encounter
-        encounters.push(encounter);
-        
-        // Save back to localStorage
-        const success = this.saveData('encounters', encounters);
-        
-        if (success) {
-            this.app.logEvent(`Encounter "${name}" saved.`);
-            return encounter.id;
-        } else {
-            this.app.showAlert('Failed to save encounter.');
+        try {
+            let data = null;
+            
+            // Try to load from cloud first if preferCloud is true
+            if (preferCloud && useCloud && this.cloudEnabled && collection) {
+                data = await this._loadFromCloud(collection, key);
+                if (data) return data;
+            }
+            
+            // Load from localStorage if specified or if IndexedDB is not supported
+            if (useLocalStorage || !this.isIndexedDBSupported) {
+                if (!this.isLocalStorageSupported) {
+                    throw new Error('localStorage is not supported');
+                }
+                const item = localStorage.getItem(key);
+                data = item ? JSON.parse(item) : null;
+            } 
+            // Load from IndexedDB
+            else {
+                data = await this._loadFromIndexedDB(key);
+            }
+            
+            // If data is not found locally and cloud is enabled, try to load from cloud
+            if (data === null && useCloud && this.cloudEnabled && collection && !preferCloud) {
+                data = await this._loadFromCloud(collection, key);
+            }
+            
+            return data;
+        } catch (error) {
+            console.error('Error loading data:', error);
             return null;
         }
     }
-    
+
     /**
-     * Load an encounter
-     * @param {string} encounterId - The ID of the encounter to load
-     * @returns {boolean} - Whether the load was successful
+     * Delete data from storage
+     * @param {string} key - Storage key
+     * @param {Object} options - Storage options
+     * @param {boolean} options.useLocalStorage - Use localStorage instead of IndexedDB
+     * @param {boolean} options.useCloud - Use cloud storage
+     * @param {string} options.collection - Collection name for cloud storage
+     * @returns {Promise<boolean>} Success status
      */
-    loadEncounter(encounterId) {
-        // Get existing encounters
-        const encounters = this.loadData('encounters', []);
+    async delete(key, options = {}) {
+        const { useLocalStorage = false, useCloud = this.cloudEnabled, collection = null } = options;
         
-        // Find the encounter
-        const encounter = encounters.find(e => e.id === encounterId);
-        if (!encounter) {
-            this.app.showAlert('Encounter not found.');
+        try {
+            // Delete from localStorage if specified or if IndexedDB is not supported
+            if (useLocalStorage || !this.isIndexedDBSupported) {
+                if (!this.isLocalStorageSupported) {
+                    throw new Error('localStorage is not supported');
+                }
+                localStorage.removeItem(key);
+            } 
+            // Delete from IndexedDB
+            else {
+                await this._deleteFromIndexedDB(key);
+            }
+            
+            // Delete from cloud if enabled and configured
+            if (useCloud && this.cloudEnabled && collection) {
+                await this._deleteFromCloud(collection, key);
+            }
+            
+            return true;
+        } catch (error) {
+            console.error('Error deleting data:', error);
             return false;
         }
-        
-        // Confirm if combat is in progress
-        if (this.app.state.combatStarted) {
-            this.app.showConfirm('Combat is in progress. Loading an encounter will end the current combat. Continue?', () => {
-                this.app.combat.endCombat();
-                this.loadEncounterData(encounter);
-            });
-        } else {
-            this.loadEncounterData(encounter);
+    }
+
+    /**
+     * Save data to IndexedDB
+     * @private
+     * @param {string} storeName - Object store name
+     * @param {any} data - Data to store
+     * @returns {Promise<void>}
+     */
+    async _saveToIndexedDB(storeName, data) {
+        if (!this.db) {
+            await this._initIndexedDB();
         }
         
-        return true;
-    }
-    
-    /**
-     * Load encounter data
-     * @param {Object} encounter - The encounter to load
-     */
-    loadEncounterData(encounter) {
-        // Clear existing creatures
-        this.app.combat.clearCombatants();
-        
-        // Add creatures from the encounter
-        encounter.creatures.forEach(creature => {
-            // Generate new IDs to avoid conflicts
-            creature.id = this.app.utils.generateUUID();
-            this.app.combat.addCreature(creature);
+        return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction([storeName], 'readwrite');
+            const store = transaction.objectStore(storeName);
+            const request = store.put(data);
+            
+            request.onsuccess = () => resolve();
+            request.onerror = (event) => reject(event.target.error);
         });
-        
-        this.app.logEvent(`Encounter "${encounter.name}" loaded.`);
     }
-    
+
     /**
-     * Delete an encounter
-     * @param {string} encounterId - The ID of the encounter to delete
-     * @returns {boolean} - Whether the deletion was successful
+     * Load data from IndexedDB
+     * @private
+     * @param {string} storeName - Object store name
+     * @param {string} key - Key to load
+     * @returns {Promise<any>}
      */
-    deleteEncounter(encounterId) {
-        // Get existing encounters
-        let encounters = this.loadData('encounters', []);
+    async _loadFromIndexedDB(storeName, key = null) {
+        if (!this.db) {
+            await this._initIndexedDB();
+        }
         
-        // Find the encounter
-        const encounterIndex = encounters.findIndex(e => e.id === encounterId);
-        if (encounterIndex === -1) {
-            this.app.showAlert('Encounter not found.');
+        return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction([storeName], 'readonly');
+            const store = transaction.objectStore(storeName);
+            const request = key ? store.get(key) : store.getAll();
+            
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = (event) => reject(event.target.error);
+        });
+    }
+
+    /**
+     * Delete data from IndexedDB
+     * @private
+     * @param {string} storeName - Object store name
+     * @param {string} key - Key to delete
+     * @returns {Promise<void>}
+     */
+    async _deleteFromIndexedDB(storeName, key) {
+        if (!this.db) {
+            await this._initIndexedDB();
+        }
+        
+        return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction([storeName], 'readwrite');
+            const store = transaction.objectStore(storeName);
+            const request = store.delete(key);
+            
+            request.onsuccess = () => resolve();
+            request.onerror = (event) => reject(event.target.error);
+        });
+    }
+
+    /**
+     * Save data to cloud storage
+     * @private
+     * @param {string} collection - Collection name
+     * @param {string} docId - Document ID
+     * @param {any} data - Data to store
+     * @returns {Promise<void>}
+     */
+    async _saveToCloud(collection, docId, data) {
+        // This is a placeholder for Firebase integration
+        // Will be implemented when Firebase is configured
+        console.log(`Cloud save: ${collection}/${docId}`);
+        return Promise.resolve();
+    }
+
+    /**
+     * Load data from cloud storage
+     * @private
+     * @param {string} collection - Collection name
+     * @param {string} docId - Document ID
+     * @returns {Promise<any>}
+     */
+    async _loadFromCloud(collection, docId) {
+        // This is a placeholder for Firebase integration
+        // Will be implemented when Firebase is configured
+        console.log(`Cloud load: ${collection}/${docId}`);
+        return Promise.resolve(null);
+    }
+
+    /**
+     * Delete data from cloud storage
+     * @private
+     * @param {string} collection - Collection name
+     * @param {string} docId - Document ID
+     * @returns {Promise<void>}
+     */
+    async _deleteFromCloud(collection, docId) {
+        // This is a placeholder for Firebase integration
+        // Will be implemented when Firebase is configured
+        console.log(`Cloud delete: ${collection}/${docId}`);
+        return Promise.resolve();
+    }
+
+    /**
+     * Get all items from a store
+     * @param {string} storeName - Object store name
+     * @param {Object} options - Options
+     * @param {boolean} options.useLocalStorage - Use localStorage instead of IndexedDB
+     * @returns {Promise<Array>} Array of items
+     */
+    async getAll(storeName, options = {}) {
+        const { useLocalStorage = false } = options;
+        
+        try {
+            // Use localStorage if specified or if IndexedDB is not supported
+            if (useLocalStorage || !this.isIndexedDBSupported) {
+                if (!this.isLocalStorageSupported) {
+                    throw new Error('localStorage is not supported');
+                }
+                
+                // Get all items with the prefix
+                const prefix = `${storeName}_`;
+                const items = [];
+                
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key.startsWith(prefix)) {
+                        const item = JSON.parse(localStorage.getItem(key));
+                        items.push(item);
+                    }
+                }
+                
+                return items;
+            } 
+            // Use IndexedDB
+            else {
+                return await this._loadFromIndexedDB(storeName);
+            }
+        } catch (error) {
+            console.error('Error getting all items:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Clear all data from a store
+     * @param {string} storeName - Object store name
+     * @param {Object} options - Options
+     * @param {boolean} options.useLocalStorage - Use localStorage instead of IndexedDB
+     * @param {boolean} options.useCloud - Use cloud storage
+     * @param {string} options.collection - Collection name for cloud storage
+     * @returns {Promise<boolean>} Success status
+     */
+    async clearStore(storeName, options = {}) {
+        const { useLocalStorage = false, useCloud = this.cloudEnabled, collection = null } = options;
+        
+        try {
+            // Clear localStorage if specified or if IndexedDB is not supported
+            if (useLocalStorage || !this.isIndexedDBSupported) {
+                if (!this.isLocalStorageSupported) {
+                    throw new Error('localStorage is not supported');
+                }
+                
+                // Remove all items with the prefix
+                const prefix = `${storeName}_`;
+                const keysToRemove = [];
+                
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key.startsWith(prefix)) {
+                        keysToRemove.push(key);
+                    }
+                }
+                
+                keysToRemove.forEach(key => localStorage.removeItem(key));
+            } 
+            // Clear IndexedDB
+            else {
+                if (!this.db) {
+                    await this._initIndexedDB();
+                }
+                
+                await new Promise((resolve, reject) => {
+                    const transaction = this.db.transaction([storeName], 'readwrite');
+                    const store = transaction.objectStore(storeName);
+                    const request = store.clear();
+                    
+                    request.onsuccess = () => resolve();
+                    request.onerror = (event) => reject(event.target.error);
+                });
+            }
+            
+            // Clear cloud if enabled and configured
+            if (useCloud && this.cloudEnabled && collection) {
+                // This is a placeholder for Firebase integration
+                // Will be implemented when Firebase is configured
+                console.log(`Cloud clear: ${collection}`);
+            }
+            
+            return true;
+        } catch (error) {
+            console.error('Error clearing store:', error);
             return false;
         }
-        
-        // Get the name for logging
-        const encounterName = encounters[encounterIndex].name;
-        
-        // Remove the encounter
-        encounters.splice(encounterIndex, 1);
-        
-        // Save back to localStorage
-        const success = this.saveData('encounters', encounters);
-        
-        if (success) {
-            this.app.logEvent(`Encounter "${encounterName}" deleted.`);
-        } else {
-            this.app.showAlert('Failed to delete encounter.');
-        }
-        
-        return success;
     }
-    
+
     /**
-     * Export all data to a JSON object
-     * @returns {Object} - All data as a JSON object
+     * Export all data to a JSON file
+     * @returns {Promise<Blob>} JSON blob
      */
-    async exportAllData() {
-        const data = {
-            version: this.app.version,
-            exportDate: new Date().toISOString(),
-            settings: this.app.settings.getAllSettings(),
-            savedCombatStates: this.loadData('savedCombatStates', []),
-            encounters: this.loadData('encounters', []),
-            customMonsters: this.loadData('customMonsters', []),
-            customHeroes: this.loadData('customHeroes', [])
-        };
-        
-        return data;
+    async exportData() {
+        try {
+            const data = {};
+            
+            // Export data from all stores
+            const stores = ['roster', 'monsters', 'parties', 'encounters', 'combats', 'settings'];
+            
+            for (const store of stores) {
+                data[store] = await this.getAll(store);
+            }
+            
+            // Create a JSON blob
+            const json = JSON.stringify(data, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            
+            return blob;
+        } catch (error) {
+            console.error('Error exporting data:', error);
+            return null;
+        }
     }
-    
+
     /**
-     * Import data from a JSON object
-     * @param {Object} data - The data to import
-     * @returns {Object} - Results of the import
+     * Import data from a JSON file
+     * @param {Object} data - Imported data
+     * @returns {Promise<boolean>} Success status
      */
     async importData(data) {
-        const results = {
-            settings: false,
-            combatStates: 0,
-            encounters: 0,
-            monsters: 0,
-            heroes: 0
-        };
-        
         try {
-            // Import settings
-            if (data.settings) {
-                this.app.settings.importSettings(data.settings);
-                results.settings = true;
+            // Import data to all stores
+            const stores = ['roster', 'monsters', 'parties', 'encounters', 'combats', 'settings'];
+            
+            for (const store of stores) {
+                if (data[store] && Array.isArray(data[store])) {
+                    // Clear existing data
+                    await this.clearStore(store);
+                    
+                    // Import new data
+                    for (const item of data[store]) {
+                        await this.save(store, item);
+                    }
+                }
             }
             
-            // Import saved combat states
-            if (data.savedCombatStates && Array.isArray(data.savedCombatStates)) {
-                const existingStates = this.loadData('savedCombatStates', []);
-                const newStates = [...existingStates, ...data.savedCombatStates];
-                this.saveData('savedCombatStates', newStates);
-                results.combatStates = data.savedCombatStates.length;
-            }
-            
-            // Import encounters
-            if (data.encounters && Array.isArray(data.encounters)) {
-                const existingEncounters = this.loadData('encounters', []);
-                const newEncounters = [...existingEncounters, ...data.encounters];
-                this.saveData('encounters', newEncounters);
-                results.encounters = data.encounters.length;
-            }
-            
-            // Import custom monsters
-            if (data.customMonsters && Array.isArray(data.customMonsters)) {
-                const existingMonsters = this.loadData('customMonsters', []);
-                const newMonsters = [...existingMonsters, ...data.customMonsters];
-                this.saveData('customMonsters', newMonsters);
-                results.monsters = data.customMonsters.length;
-            }
-            
-            // Import custom heroes
-            if (data.customHeroes && Array.isArray(data.customHeroes)) {
-                const existingHeroes = this.loadData('customHeroes', []);
-                const newHeroes = [...existingHeroes, ...data.customHeroes];
-                this.saveData('customHeroes', newHeroes);
-                results.heroes = data.customHeroes.length;
-            }
-            
-            return results;
+            return true;
         } catch (error) {
             console.error('Error importing data:', error);
-            throw new Error('Failed to import data: ' + error.message);
+            return false;
         }
     }
-    
+
     /**
-     * Save a custom monster
-     * @param {Object} monster - The monster to save
-     * @returns {boolean} - Whether the save was successful
+     * Cache data with expiration
+     * @param {string} key - Cache key
+     * @param {any} data - Data to cache
+     * @param {number} ttl - Time to live in milliseconds
+     * @returns {Promise<boolean>} Success status
      */
-    saveCustomMonster(monster) {
-        // Ensure the monster has an ID
-        if (!monster.id) {
-            monster.id = this.app.utils.generateUUID();
+    async cacheData(key, data, ttl = 3600000) { // Default: 1 hour
+        try {
+            const cacheItem = {
+                id: key,
+                data,
+                timestamp: Date.now(),
+                expiry: Date.now() + ttl
+            };
+            
+            await this._saveToIndexedDB('cache', cacheItem);
+            return true;
+        } catch (error) {
+            console.error('Error caching data:', error);
+            return false;
         }
-        
-        // Get existing custom monsters
-        let customMonsters = this.loadData('customMonsters', []);
-        
-        // Check if the monster already exists
-        const existingIndex = customMonsters.findIndex(m => m.id === monster.id);
-        if (existingIndex !== -1) {
-            // Update existing monster
-            customMonsters[existingIndex] = monster;
-        } else {
-            // Add new monster
-            customMonsters.push(monster);
-        }
-        
-        // Save back to localStorage
-        return this.saveData('customMonsters', customMonsters);
     }
-    
+
     /**
-     * Save a custom hero
-     * @param {Object} hero - The hero to save
-     * @returns {boolean} - Whether the save was successful
+     * Get cached data
+     * @param {string} key - Cache key
+     * @returns {Promise<any>} Cached data or null if expired/not found
      */
-    saveCustomHero(hero) {
-        // Ensure the hero has an ID
-        if (!hero.id) {
-            hero.id = this.app.utils.generateUUID();
+    async getCachedData(key) {
+        try {
+            const cacheItem = await this._loadFromIndexedDB('cache', key);
+            
+            if (!cacheItem) return null;
+            
+            // Check if cache has expired
+            if (cacheItem.expiry < Date.now()) {
+                await this._deleteFromIndexedDB('cache', key);
+                return null;
+            }
+            
+            return cacheItem.data;
+        } catch (error) {
+            console.error('Error getting cached data:', error);
+            return null;
         }
-        
-        // Get existing custom heroes
-        let customHeroes = this.loadData('customHeroes', []);
-        
-        // Check if the hero already exists
-        const existingIndex = customHeroes.findIndex(h => h.id === hero.id);
-        if (existingIndex !== -1) {
-            // Update existing hero
-            customHeroes[existingIndex] = hero;
-        } else {
-            // Add new hero
-            customHeroes.push(hero);
+    }
+
+    /**
+     * Clear expired cache items
+     * @returns {Promise<number>} Number of items cleared
+     */
+    async clearExpiredCache() {
+        try {
+            if (!this.db) {
+                await this._initIndexedDB();
+            }
+            
+            const transaction = this.db.transaction(['cache'], 'readwrite');
+            const store = transaction.objectStore('cache');
+            const index = store.index('timestamp');
+            const now = Date.now();
+            
+            // Get all cache items
+            const cacheItems = await new Promise((resolve, reject) => {
+                const request = index.openCursor();
+                const items = [];
+                
+                request.onsuccess = (event) => {
+                    const cursor = event.target.result;
+                    if (cursor) {
+                        items.push(cursor.value);
+                        cursor.continue();
+                    } else {
+                        resolve(items);
+                    }
+                };
+                
+                request.onerror = (event) => reject(event.target.error);
+            });
+            
+            // Delete expired items
+            let deletedCount = 0;
+            for (const item of cacheItems) {
+                if (item.expiry < now) {
+                    await this._deleteFromIndexedDB('cache', item.id);
+                    deletedCount++;
+                }
+            }
+            
+            return deletedCount;
+        } catch (error) {
+            console.error('Error clearing expired cache:', error);
+            return 0;
         }
-        
-        // Save back to localStorage
-        return this.saveData('customHeroes', customHeroes);
     }
 }
+
+// Export the Storage class
+export default Storage;
