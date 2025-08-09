@@ -127,33 +127,6 @@ class CombatManager {
         // Log the event
         this.app.logEvent('Initiative rolled for all creatures.');
     }
-
-/**
- * Reorder creatures based on an array of IDs
- * @param {Array} idOrder - Array of creature IDs in the desired order
- */
-reorderCreatures(idOrder) {
-    // Create a new array with creatures in the specified order
-    const newOrder = [];
-    
-    // Add creatures in the specified order
-    idOrder.forEach(id => {
-        const creature = this.creatures.find(c => c.id === id);
-        if (creature) {
-            newOrder.push(creature);
-        }
-    });
-    
-    // Add any creatures that weren't in the idOrder array
-    this.creatures.forEach(creature => {
-        if (!idOrder.includes(creature.id)) {
-            newOrder.push(creature);
-        }
-    });
-    
-    // Replace the creatures array with the new order
-    this.creatures = newOrder;
-}
     
     /**
      * Sort creatures by initiative
@@ -488,5 +461,32 @@ reorderCreatures(idOrder) {
         this.app.updatePlayerView();
         
         return true;
+    }
+    
+    /**
+     * Reorder creatures based on an array of IDs
+     * @param {Array} idOrder - Array of creature IDs in the desired order
+     */
+    reorderCreatures(idOrder) {
+        // Create a new array with creatures in the specified order
+        const newOrder = [];
+        
+        // Add creatures in the specified order
+        idOrder.forEach(id => {
+            const creature = this.creatures.find(c => c.id === id);
+            if (creature) {
+                newOrder.push(creature);
+            }
+        });
+        
+        // Add any creatures that weren't in the idOrder array
+        this.creatures.forEach(creature => {
+            if (!idOrder.includes(creature.id)) {
+                newOrder.push(creature);
+            }
+        });
+        
+        // Replace the creatures array with the new order
+        this.creatures = newOrder;
     }
 }
