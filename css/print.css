@@ -1,73 +1,845 @@
-/* Print-friendly styles */
+/**
+ * Print CSS for Jesster's Combat Tracker
+ * Version 2.3.1
+ * 
+ * This stylesheet is specifically for print formatting
+ * It will be loaded with media="print" to override main styles when printing
+ */
+
+/* Reset and base styles for printing */
+@page {
+    size: letter portrait;
+    margin: 0.5in;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html, body {
+    font-family: 'Roboto', Arial, sans-serif;
+    font-size: 12pt;
+    line-height: 1.4;
+    color: #000;
+    background-color: #fff;
+    margin: 0;
+    padding: 0;
+    width: 100%;
+}
+
+/* Hide non-printable elements */
+.app-header,
+.app-nav,
+.combat-controls,
+.dice-roller,
+.toast-container,
+.modal-backdrop,
+.no-print,
+button:not(.print-button),
+.settings-view,
+.edit-button,
+.delete-button,
+.add-button,
+.remove-button,
+.initiative-action {
+    display: none !important;
+}
+
+/* Show print-only elements */
+.print-only {
+    display: block !important;
+}
+
+/* General typography */
+h1, h2, h3, h4, h5, h6 {
+    margin-top: 0.5cm;
+    margin-bottom: 0.3cm;
+    page-break-after: avoid;
+    page-break-inside: avoid;
+}
+
+h1 {
+    font-size: 18pt;
+    border-bottom: 1pt solid #000;
+    padding-bottom: 0.2cm;
+}
+
+h2 {
+    font-size: 16pt;
+}
+
+h3 {
+    font-size: 14pt;
+}
+
+h4, h5, h6 {
+    font-size: 12pt;
+}
+
+p {
+    margin-bottom: 0.3cm;
+    orphans: 3;
+    widows: 3;
+}
+
+a {
+    color: #000;
+    text-decoration: underline;
+}
+
+/* Remove shadows, backgrounds, and fancy borders */
+.card,
+.initiative-item,
+.monster-card,
+.player-card,
+.encounter-item,
+.note-item {
+    box-shadow: none !important;
+    border: 1pt solid #000 !important;
+    background-color: #fff !important;
+    break-inside: avoid;
+    margin-bottom: 0.5cm;
+}
+
+/* Header for printed pages */
+.print-header {
+    text-align: center;
+    margin-bottom: 1cm;
+    padding-bottom: 0.3cm;
+    border-bottom: 1pt solid #000;
+}
+
+.print-title {
+    font-size: 18pt;
+    font-weight: bold;
+    margin: 0;
+}
+
+.print-subtitle {
+    font-size: 12pt;
+    font-style: italic;
+    margin: 0.2cm 0 0;
+}
+
+.print-date {
+    font-size: 10pt;
+    margin: 0.2cm 0 0;
+}
+
+/* Footer for printed pages */
+.print-footer {
+    text-align: center;
+    font-size: 9pt;
+    margin-top: 1cm;
+    padding-top: 0.3cm;
+    border-top: 1pt solid #000;
+    position: fixed;
+    bottom: 0.5cm;
+    width: 100%;
+}
+
+.print-page-number:after {
+    content: counter(page);
+}
+
+/* Combat View Print Styles */
+.combat-view {
+    height: auto !important;
+}
+
+.combat-header {
+    border-bottom: 1pt solid #000;
+    padding-bottom: 0.3cm;
+    margin-bottom: 0.5cm;
+}
+
+.initiative-list {
+    border: none !important;
+    overflow: visible !important;
+}
+
+.initiative-item {
+    page-break-inside: avoid;
+    border-left: none !important;
+    border-right: none !important;
+    border-top: none !important;
+    padding: 0.3cm 0;
+}
+
+.initiative-item.active {
+    border-left: 3pt solid #000 !important;
+    padding-left: 0.3cm;
+}
+
+.initiative-number {
+    border: 1pt solid #000;
+    background-color: #fff !important;
+    color: #000 !important;
+}
+
+.initiative-stats {
+    margin-top: 0.2cm;
+}
+
+.health-bar-container {
+    border: 1pt solid #000;
+    height: 0.3cm;
+}
+
+.health-bar {
+    background-color: #000 !important;
+}
+
+.condition-badge {
+    border: 1pt solid #000;
+    background-color: #fff !important;
+    color: #000 !important;
+}
+
+/* Encounter Print Styles */
+.encounter-view {
+    display: block !important;
+    height: auto !important;
+}
+
+.encounter-list {
+    display: none !important; /* Hide the sidebar list when printing */
+}
+
+.encounter-details {
+    width: 100% !important;
+}
+
+.encounter-header {
+    border-bottom: 1pt solid #000;
+    padding-bottom: 0.3cm;
+    margin-bottom: 0.5cm;
+}
+
+.difficulty-badge {
+    border: 1pt solid #000;
+    background-color: #fff !important;
+    color: #000 !important;
+}
+
+.encounter-section {
+    margin-bottom: 0.5cm;
+}
+
+.monsters-list, .players-list {
+    border: 1pt solid #000;
+}
+
+.monster-item, .player-item {
+    padding: 0.2cm;
+    border-bottom: 1pt solid #000;
+}
+
+/* Monster Card Print Styles */
+.monster-card-header {
+    background-color: #fff !important;
+    color: #000 !important;
+    border-bottom: 1pt solid #000;
+}
+
+.monster-card-stats {
+    border-bottom: 1pt solid #000;
+}
+
+.monster-card-abilities {
+    border-bottom: 1pt solid #000;
+}
+
+.monster-card-section-title {
+    border-bottom: 1pt solid #000;
+}
+
+/* Player Card Print Styles */
+.player-card-header {
+    background-color: #fff !important;
+    color: #000 !important;
+    border-bottom: 1pt solid #000;
+}
+
+/* Notes Print Styles */
+.notes-view {
+    display: block !important;
+    height: auto !important;
+}
+
+.notes-list {
+    display: none !important; /* Hide the sidebar list when printing */
+}
+
+.notes-content {
+    width: 100% !important;
+}
+
+.note-header {
+    border-bottom: 1pt solid #000;
+    padding-bottom: 0.3cm;
+    margin-bottom: 0.5cm;
+}
+
+.note-metadata {
+    font-style: italic;
+    margin-bottom: 0.5cm;
+}
+
+.category-badge {
+    border: 1pt solid #000;
+    background-color: #fff !important;
+    color: #000 !important;
+}
+
+.tag-badge {
+    border: 1pt solid #000;
+    background-color: #fff !important;
+    color: #000 !important;
+}
+
+/* Table Styles for Printing */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 0.5cm;
+    page-break-inside: avoid;
+}
+
+th, td {
+    border: 1pt solid #000;
+    padding: 0.2cm;
+    text-align: left;
+}
+
+th {
+    background-color: #f0f0f0 !important;
+    font-weight: bold;
+}
+
+/* Initiative Table for Printing */
+.initiative-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 0.5cm;
+}
+
+.initiative-table th,
+.initiative-table td {
+    border: 1pt solid #000;
+    padding: 0.2cm;
+    text-align: left;
+}
+
+.initiative-table th {
+    background-color: #f0f0f0 !important;
+    font-weight: bold;
+}
+
+/* Character Sheet Print Layout */
+.character-sheet {
+    page-break-after: always;
+}
+
+.character-sheet:last-child {
+    page-break-after: avoid;
+}
+
+.character-header {
+    text-align: center;
+    border-bottom: 1pt solid #000;
+    padding-bottom: 0.3cm;
+    margin-bottom: 0.5cm;
+}
+
+.character-name {
+    font-size: 18pt;
+    font-weight: bold;
+    margin: 0;
+}
+
+.character-subtitle {
+    font-size: 12pt;
+    font-style: italic;
+    margin: 0.2cm 0 0;
+}
+
+.character-info {
+    display: flex;
+    flex-wrap: wrap;
+    margin-bottom: 0.5cm;
+}
+
+.character-info-item {
+    width: 33.333%;
+    padding: 0.2cm;
+}
+
+.character-info-label {
+    font-weight: bold;
+    font-size: 10pt;
+}
+
+.character-abilities {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5cm;
+}
+
+.ability-score {
+    text-align: center;
+    width: 16.666%;
+    border: 1pt solid #000;
+    padding: 0.2cm;
+}
+
+.ability-name {
+    font-weight: bold;
+    font-size: 10pt;
+}
+
+.ability-value {
+    font-size: 16pt;
+    font-weight: bold;
+}
+
+.ability-modifier {
+    font-size: 12pt;
+}
+
+.character-combat {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5cm;
+}
+
+.combat-stat {
+    text-align: center;
+    width: 25%;
+    border: 1pt solid #000;
+    padding: 0.2cm;
+}
+
+.combat-stat-label {
+    font-weight: bold;
+    font-size: 10pt;
+}
+
+.combat-stat-value {
+    font-size: 16pt;
+    font-weight: bold;
+}
+
+/* Encounter Summary Sheet */
+.encounter-summary {
+    page-break-after: always;
+}
+
+.encounter-summary:last-child {
+    page-break-after: avoid;
+}
+
+.encounter-summary-header {
+    text-align: center;
+    border-bottom: 1pt solid #000;
+    padding-bottom: 0.3cm;
+    margin-bottom: 0.5cm;
+}
+
+.encounter-summary-name {
+    font-size: 18pt;
+    font-weight: bold;
+    margin: 0;
+}
+
+.encounter-summary-meta {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5cm;
+    font-size: 10pt;
+}
+
+.encounter-difficulty {
+    font-weight: bold;
+}
+
+.encounter-xp {
+    font-style: italic;
+}
+
+.encounter-summary-section {
+    margin-bottom: 0.5cm;
+}
+
+.encounter-summary-section-title {
+    font-size: 14pt;
+    font-weight: bold;
+    border-bottom: 1pt solid #000;
+    padding-bottom: 0.1cm;
+    margin-bottom: 0.3cm;
+}
+
+/* Initiative Cards for Printing */
+.initiative-cards {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3cm;
+}
+
+.initiative-card {
+    width: 8cm;
+    height: 5cm;
+    border: 1pt solid #000;
+    padding: 0.3cm;
+    page-break-inside: avoid;
+}
+
+.initiative-card-header {
+    display: flex;
+    justify-content: space-between;
+    border-bottom: 1pt solid #000;
+    padding-bottom: 0.2cm;
+    margin-bottom: 0.2cm;
+}
+
+.initiative-card-name {
+    font-weight: bold;
+    font-size: 12pt;
+}
+
+.initiative-card-initiative {
+    font-weight: bold;
+    font-size: 14pt;
+    border: 1pt solid #000;
+    width: 1.5cm;
+    height: 1.5cm;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+}
+
+.initiative-card-stats {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.2cm;
+}
+
+.initiative-card-stat {
+    text-align: center;
+}
+
+.initiative-card-stat-label {
+    font-size: 8pt;
+    font-weight: bold;
+}
+
+.initiative-card-stat-value {
+    font-size: 12pt;
+}
+
+.initiative-card-notes {
+    font-size: 9pt;
+    font-style: italic;
+    border-top: 1pt solid #000;
+    padding-top: 0.2cm;
+}
+
+/* Combat Log Print Styles */
+.combat-log {
+    border: 1pt solid #000;
+    padding: 0.3cm;
+    margin-bottom: 0.5cm;
+}
+
+.log-entry {
+    border-bottom: 1pt solid #000;
+    padding: 0.1cm 0;
+}
+
+.log-entry:last-child {
+    border-bottom: none;
+}
+
+.log-entry-time {
+    font-weight: bold;
+}
+
+/* Print-specific classes */
+.page-break-before {
+    page-break-before: always;
+}
+
+.page-break-after {
+    page-break-after: always;
+}
+
+.no-page-break {
+    page-break-inside: avoid;
+}
+
+/* Print optimization for lists */
+ul, ol {
+    padding-left: 0.5cm;
+}
+
+li {
+    margin-bottom: 0.1cm;
+}
+
+/* QR Code for sharing */
+.print-qr-code {
+    text-align: center;
+    margin: 0.5cm 0;
+}
+
+.print-qr-code img {
+    width: 3cm;
+    height: 3cm;
+}
+
+.print-qr-code-label {
+    font-size: 9pt;
+    margin-top: 0.2cm;
+}
+
+/* Print Grid for Tokens */
+.print-token-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 0.3cm;
+    margin-bottom: 0.5cm;
+}
+
+.print-token {
+    border: 1pt solid #000;
+    aspect-ratio: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 0.2cm;
+}
+
+.print-token-name {
+    font-weight: bold;
+    font-size: 10pt;
+}
+
+.print-token-initiative {
+    font-size: 14pt;
+    font-weight: bold;
+}
+
+/* Print version of the health bar */
+.print-health-bar {
+    width: 100%;
+    height: 0.3cm;
+    border: 1pt solid #000;
+    position: relative;
+    margin-top: 0.1cm;
+}
+
+.print-health-bar-fill {
+    height: 100%;
+    background-color: #000;
+}
+
+/* Stat block for monsters (5e style) */
+.stat-block {
+    border: 1pt solid #000;
+    padding: 0.3cm;
+    margin-bottom: 0.5cm;
+    page-break-inside: avoid;
+}
+
+.stat-block-header {
+    border-bottom: 1pt solid #000;
+    padding-bottom: 0.2cm;
+    margin-bottom: 0.2cm;
+}
+
+.stat-block-title {
+    font-size: 14pt;
+    font-weight: bold;
+    margin: 0;
+}
+
+.stat-block-subtitle {
+    font-style: italic;
+    font-size: 10pt;
+}
+
+.stat-block-attributes {
+    border-bottom: 1pt solid #000;
+    padding-bottom: 0.2cm;
+    margin-bottom: 0.2cm;
+}
+
+.stat-block-attribute {
+    margin-bottom: 0.1cm;
+}
+
+.stat-block-attribute-name {
+    font-weight: bold;
+}
+
+.stat-block-abilities {
+    display: flex;
+    justify-content: space-between;
+    border-bottom: 1pt solid #000;
+    padding-bottom: 0.2cm;
+    margin-bottom: 0.2cm;
+}
+
+.stat-block-ability {
+    text-align: center;
+}
+
+.stat-block-ability-name {
+    font-weight: bold;
+    font-size: 10pt;
+}
+
+.stat-block-ability-score {
+    font-size: 12pt;
+}
+
+.stat-block-ability-mod {
+    font-size: 10pt;
+}
+
+.stat-block-section {
+    margin-bottom: 0.2cm;
+}
+
+.stat-block-section-title {
+    font-weight: bold;
+    font-size: 11pt;
+}
+
+.stat-block-property {
+    margin-bottom: 0.1cm;
+}
+
+.stat-block-property-name {
+    font-weight: bold;
+    font-style: italic;
+}
+
+/* Markdown content in print */
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3,
+.markdown-content h4,
+.markdown-content h5,
+.markdown-content h6 {
+    margin-top: 0.5cm;
+    margin-bottom: 0.2cm;
+}
+
+.markdown-content p {
+    margin-bottom: 0.3cm;
+}
+
+.markdown-content ul,
+.markdown-content ol {
+    margin-bottom: 0.3cm;
+    padding-left: 0.5cm;
+}
+
+.markdown-content blockquote {
+    border-left: 2pt solid #000;
+    padding-left: 0.3cm;
+    margin-left: 0;
+    margin-right: 0;
+    font-style: italic;
+}
+
+.markdown-content code {
+    font-family: monospace;
+}
+
+.markdown-content pre {
+    border: 1pt solid #000;
+    padding: 0.2cm;
+    margin-bottom: 0.3cm;
+    white-space: pre-wrap;
+}
+
+.markdown-content table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 0.3cm;
+}
+
+.markdown-content th,
+.markdown-content td {
+    border: 1pt solid #000;
+    padding: 0.2cm;
+}
+
+/* Utility classes for print */
+.text-center {
+    text-align: center;
+}
+
+.text-right {
+    text-align: right;
+}
+
+.text-left {
+    text-align: left;
+}
+
+.font-bold {
+    font-weight: bold;
+}
+
+.font-italic {
+    font-style: italic;
+}
+
+.border-bottom {
+    border-bottom: 1pt solid #000;
+}
+
+.border-top {
+    border-top: 1pt solid #000;
+}
+
+.small-text {
+    font-size: 9pt;
+}
+
+/* Print-specific layout adjustments */
 @media print {
-    body {
-        background-color: white;
-        color: black;
-        font-family: 'Inter', sans-serif;
-        font-size: 12pt;
+    /* Ensure page breaks don't happen in the middle of important elements */
+    tr, td, th, li, h1, h2, h3, h4, h5, h6 {
+        page-break-inside: avoid;
     }
     
-    .no-print {
-        display: none !important;
-    }
-    
-    .print-only {
-        display: block !important;
-    }
-    
-    .combat-log-container {
-        max-height: none;
-        overflow: visible;
-        border: 1px solid #ccc;
-    }
-    
-    .creature-card {
-        break-inside: avoid;
-        border: 1px solid #ccc;
-        margin-bottom: 10px;
-        padding: 10px;
-    }
-    
-    .active-turn {
-        box-shadow: none;
-        border: 2px solid #000;
-    }
-    
+    /* Ensure headers stay with their content */
     h1, h2, h3, h4, h5, h6 {
-        color: black;
+        page-break-after: avoid;
     }
     
-    a {
-        color: black;
-        text-decoration: underline;
+    /* Ensure links display their URL */
+    a[href]:after {
+        content: " (" attr(href) ")";
+        font-size: 90%;
     }
     
-    /* Print layout adjustments */
-    .grid {
-        display: block;
+    /* But not for internal links or javascript */
+    a[href^="#"]:after,
+    a[href^="javascript:"]:after {
+        content: "";
     }
     
-    .print-columns-2 {
-        column-count: 2;
-        column-gap: 20px;
-    }
-    
-    /* Print header and footer */
-    @page {
-        margin: 0.5in;
-    }
-    
-    .print-header {
-        display: block;
-        text-align: center;
-        margin-bottom: 20px;
-    }
-    
-    .print-footer {
-        display: block;
-        text-align: center;
-        margin-top: 20px;
-        font-size: 10pt;
-        color: #666;
+    /* Expand all content to be visible */
+    .tab-pane,
+    .accordion-content {
+        display: block !important;
     }
 }
