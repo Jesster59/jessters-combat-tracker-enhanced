@@ -1,1 +1,1850 @@
-
+{
+  "version": "2.3.1",
+  "environments": [
+    {
+      "id": "arctic",
+      "name": "Arctic",
+      "description": "Frozen landscapes of ice and snow, including tundra and glaciers.",
+      "terrainFeatures": [
+        "Ice sheets",
+        "Snow drifts",
+        "Frozen lakes",
+        "Glaciers",
+        "Tundra",
+        "Ice caves"
+      ],
+      "hazards": [
+        {
+          "name": "Extreme Cold",
+          "description": "Extreme cold (below 0° Fahrenheit) deals 1d6 cold damage per hour to creatures without cold resistance or immunity.",
+          "effect": {
+            "type": "damage",
+            "damageType": "cold",
+            "value": "1d6",
+            "frequency": "hourly"
+          }
+        },
+        {
+          "name": "Thin Ice",
+          "description": "Creatures might fall through thin ice into freezing water. A creature that falls into freezing water must make a DC 10 Constitution saving throw or gain one level of exhaustion.",
+          "effect": {
+            "type": "savingThrow",
+            "ability": "con",
+            "dc": 10,
+            "failEffect": {
+              "type": "condition",
+              "condition": "exhaustion",
+              "level": 1
+            }
+          }
+        },
+        {
+          "name": "Avalanche",
+          "description": "A creature in the path of an avalanche must make a DC 15 Dexterity saving throw or take 8d10 bludgeoning damage and be buried. A buried creature is restrained and begins to suffocate.",
+          "effect": {
+            "type": "savingThrow",
+            "ability": "dex",
+            "dc": 15,
+            "failEffect": {
+              "type": "damage",
+              "damageType": "bludgeoning",
+              "value": "8d10",
+              "additionalEffect": {
+                "type": "condition",
+                "condition": "restrained"
+              }
+            }
+          }
+        }
+      ],
+      "commonEncounters": [
+        "Polar bears",
+        "Winter wolves",
+        "Frost giants",
+        "Yetis",
+        "White dragons",
+        "Ice mephits"
+      ],
+      "weatherTypes": [
+        {
+          "name": "Blizzard",
+          "description": "Heavy snowfall and strong winds reduce visibility to 5 feet and impose disadvantage on Perception checks that rely on sight or hearing.",
+          "effect": {
+            "type": "visibility",
+            "value": 5,
+            "additionalEffect": {
+              "type": "check",
+              "ability": ["perception"],
+              "value": "disadvantage"
+            }
+          }
+        },
+        {
+          "name": "Clear and Cold",
+          "description": "Clear skies but extremely cold temperatures. Creatures must make a DC 10 Constitution saving throw every hour or gain one level of exhaustion.",
+          "effect": {
+            "type": "savingThrow",
+            "ability": "con",
+            "dc": 10,
+            "frequency": "hourly",
+            "failEffect": {
+              "type": "condition",
+              "condition": "exhaustion",
+              "level": 1
+            }
+          }
+        },
+        {
+          "name": "Snowfall",
+          "description": "Light to moderate snowfall reduces visibility to 30 feet and creates difficult terrain.",
+          "effect": {
+            "type": "visibility",
+            "value": 30,
+            "additionalEffect": {
+              "type": "terrain",
+              "value": "difficult"
+            }
+          }
+        }
+      ],
+      "timeOfDayEffects": {
+        "day": {
+          "description": "Bright sunlight reflecting off snow can cause snow blindness.",
+          "effect": {
+            "type": "savingThrow",
+            "ability": "con",
+            "dc": 10,
+            "failEffect": {
+              "type": "condition",
+              "condition": "blinded",
+              "duration": "1d4"
+            }
+          }
+        },
+        "night": {
+          "description": "Temperatures drop severely at night, increasing the DC for Constitution saving throws against extreme cold by 5.",
+          "effect": {
+            "type": "savingThrow",
+            "ability": "con",
+            "dcModifier": 5
+          }
+        }
+      },
+      "foraging": {
+        "difficulty": "very hard",
+        "dcModifier": 5,
+        "foodTypes": [
+          "Arctic hares",
+          "Fish (through ice fishing)",
+          "Lichens",
+          "Seals"
+        ]
+      },
+      "navigationDifficulty": "hard",
+      "restDifficulty": "very hard",
+      "commonLanguages": ["Giant", "Draconic", "Common", "Dwarvish"],
+      "recommendedLevels": [5, 20]
+    },
+    {
+      "id": "coastal",
+      "name": "Coastal",
+      "description": "Shorelines, beaches, cliffs, and areas where land meets sea.",
+      "terrainFeatures": [
+        "Sandy beaches",
+        "Rocky shores",
+        "Sea cliffs",
+        "Coastal caves",
+        "Tidal pools",
+        "Salt marshes"
+      ],
+      "hazards": [
+        {
+          "name": "High Tide",
+          "description": "Rising tides can trap creatures against cliffs or in caves. Creatures caught in rising water must make a DC 10 Strength (Athletics) check to swim to safety or be swept out to sea.",
+          "effect": {
+            "type": "check",
+            "ability": "str",
+            "skill": "athletics",
+            "dc": 10,
+            "failEffect": {
+              "type": "displacement",
+              "distance": "2d6 × 5",
+              "direction": "seaward"
+            }
+          }
+        },
+        {
+          "name": "Quicksand",
+          "description": "Coastal quicksand appears as normal sand but can trap creatures. A creature that steps in quicksand sinks 1d4+1 feet and becomes restrained.",
+          "effect": {
+            "type": "condition",
+            "condition": "restrained",
+            "additionalEffect": {
+              "type": "sinking",
+              "value": "1d4+1"
+            }
+          }
+        },
+        {
+          "name": "Rip Current",
+          "description": "Strong currents that can pull swimmers away from shore. A creature caught in a rip current must make a DC 15 Strength (Athletics) check or be pulled 30 feet out to sea.",
+          "effect": {
+            "type": "check",
+            "ability": "str",
+            "skill": "athletics",
+            "dc": 15,
+            "failEffect": {
+              "type": "displacement",
+              "distance": 30,
+              "direction": "seaward"
+            }
+          }
+        }
+      ],
+      "commonEncounters": [
+        "Sahuagin",
+        "Merfolk",
+        "Pirates",
+        "Giant crabs",
+        "Sea hags",
+        "Bronze dragons"
+      ],
+      "weatherTypes": [
+        {
+          "name": "Coastal Storm",
+          "description": "Heavy rain and strong winds reduce visibility to 30 feet and impose disadvantage on ranged attack rolls.",
+          "effect": {
+            "type": "visibility",
+            "value": 30,
+            "additionalEffect": {
+              "type": "attackRoll",
+              "attackType": "ranged",
+              "value": "disadvantage"
+            }
+          }
+        },
+        {
+          "name": "Sea Fog",
+          "description": "Dense fog reduces visibility to 20 feet and imposes disadvantage on Wisdom (Perception) checks that rely on sight.",
+          "effect": {
+            "type": "visibility",
+            "value": 20,
+            "additionalEffect": {
+              "type": "check",
+              "ability": "wis",
+              "skill": "perception",
+              "value": "disadvantage"
+            }
+          }
+        },
+        {
+          "name": "Clear and Breezy",
+          "description": "Clear skies with a steady sea breeze. No adverse effects.",
+          "effect": {
+            "type": "none"
+          }
+        }
+      ],
+      "timeOfDayEffects": {
+        "day": {
+          "description": "Bright sunlight reflecting off water can cause glare.",
+          "effect": {
+            "type": "check",
+            "ability": "wis",
+            "skill": "perception",
+            "value": "disadvantage",
+            "condition": "looking toward water"
+          }
+        },
+        "night": {
+          "description": "Coastal areas are often well-lit by moonlight reflecting off water, reducing penalties for darkness.",
+          "effect": {
+            "type": "visibility",
+            "condition": "dim light",
+            "value": "normal light"
+          }
+        }
+      },
+      "foraging": {
+        "difficulty": "easy",
+        "dcModifier": -2,
+        "foodTypes": [
+          "Fish",
+          "Shellfish",
+          "Seaweed",
+          "Coastal berries",
+          "Seabirds and eggs"
+        ]
+      },
+      "navigationDifficulty": "easy",
+      "restDifficulty": "normal",
+      "commonLanguages": ["Aquan", "Common", "Elvish", "Orc"],
+      "recommendedLevels": [1, 10]
+    },
+    {
+      "id": "desert",
+      "name": "Desert",
+      "description": "Arid regions with little rainfall, including both hot and cold deserts.",
+      "terrainFeatures": [
+        "Sand dunes",
+        "Rocky outcroppings",
+        "Oases",
+        "Dry riverbeds",
+        "Mesas",
+        "Salt flats"
+      ],
+      "hazards": [
+        {
+          "name": "Extreme Heat",
+          "description": "Extreme heat (above 100° Fahrenheit) deals 1d4 fire damage per hour to creatures without heat resistance or immunity.",
+          "effect": {
+            "type": "damage",
+            "damageType": "fire",
+            "value": "1d4",
+            "frequency": "hourly"
+          }
+        },
+        {
+          "name": "Sandstorm",
+          "description": "Blowing sand reduces visibility to 5 feet and deals 1d6 slashing damage per hour to unprotected creatures.",
+          "effect": {
+            "type": "visibility",
+            "value": 5,
+            "additionalEffect": {
+              "type": "damage",
+              "damageType": "slashing",
+              "value": "1d6",
+              "frequency": "hourly"
+            }
+          }
+        },
+        {
+          "name": "Dehydration",
+          "description": "Creatures need twice as much water in desert environments. A creature that doesn't drink enough water must make a DC 15 Constitution saving throw or gain one level of exhaustion.",
+          "effect": {
+            "type": "savingThrow",
+            "ability": "con",
+            "dc": 15,
+            "frequency": "daily",
+            "failEffect": {
+              "type": "condition",
+              "condition": "exhaustion",
+              "level": 1
+            }
+          }
+        }
+      ],
+      "commonEncounters": [
+        "Mummies",
+        "Lamias",
+        "Brass dragons",
+        "Blue dragons",
+        "Dust mephits",
+        "Giant scorpions"
+      ],
+      "weatherTypes": [
+        {
+          "name": "Scorching Heat",
+          "description": "Extreme temperatures during the day cause creatures to make Constitution saving throws every hour or gain exhaustion.",
+          "effect": {
+            "type": "savingThrow",
+            "ability": "con",
+            "dc": 15,
+            "frequency": "hourly",
+            "failEffect": {
+              "type": "condition",
+              "condition": "exhaustion",
+              "level": 1
+            }
+          }
+        },
+        {
+          "name": "Sandstorm",
+          "description": "Blowing sand reduces visibility to 5 feet and deals 1d6 slashing damage per hour to unprotected creatures.",
+          "effect": {
+            "type": "visibility",
+            "value": 5,
+            "additionalEffect": {
+              "type": "damage",
+              "damageType": "slashing",
+              "value": "1d6",
+              "frequency": "hourly"
+            }
+          }
+        },
+        {
+          "name": "Clear Skies",
+          "description": "Clear skies with intense sun. Creatures without proper protection must make a DC 10 Constitution saving throw every hour or gain one level of exhaustion.",
+          "effect": {
+            "type": "savingThrow",
+            "ability": "con",
+            "dc": 10,
+            "frequency": "hourly",
+            "failEffect": {
+              "type": "condition",
+              "condition": "exhaustion",
+              "level": 1
+            }
+          }
+        }
+      ],
+      "timeOfDayEffects": {
+        "day": {
+          "description": "Intense heat during the day increases the DC for Constitution saving throws against extreme heat by 5.",
+          "effect": {
+            "type": "savingThrow",
+            "ability": "con",
+            "dcModifier": 5
+          }
+        },
+        "night": {
+          "description": "Temperatures drop significantly at night, potentially causing cold damage instead of heat damage.",
+          "effect": {
+            "type": "damage",
+            "damageType": "cold",
+            "value": "1d4",
+            "frequency": "hourly"
+          }
+        }
+      },
+      "foraging": {
+        "difficulty": "very hard",
+        "dcModifier": 5,
+        "foodTypes": [
+          "Cactus fruit",
+          "Desert lizards",
+          "Scorpions",
+          "Roots",
+          "Desert hares"
+        ]
+      },
+      "navigationDifficulty": "hard",
+      "restDifficulty": "hard",
+      "commonLanguages": ["Common", "Draconic", "Giant", "Primordial"],
+      "recommendedLevels": [3, 15]
+    },
+    {
+      "id": "forest",
+      "name": "Forest",
+      "description": "Wooded areas ranging from light woodlands to dense, ancient forests.",
+      "terrainFeatures": [
+        "Dense trees",
+        "Undergrowth",
+        "Forest clearings",
+        "Fallen logs",
+        "Forest streams",
+        "Tree canopy"
+      ],
+      "hazards": [
+        {
+          "name": "Poisonous Plants",
+          "description": "Contact with certain forest plants can cause irritation or poisoning. A creature that touches poisonous plants must make a DC 12 Constitution saving throw or take 1d10 poison damage.",
+          "effect": {
+            "type": "savingThrow",
+            "ability": "con",
+            "dc": 12,
+            "failEffect": {
+              "type": "damage",
+              "damageType": "poison",
+              "value": "1d10"
+            }
+          }
+        },
+        {
+          "name": "Falling Branches",
+          "description": "Strong winds or decaying trees can cause branches to fall. A creature in the area must make a DC 12 Dexterity saving throw or take 2d6 bludgeoning damage.",
+          "effect": {
+            "type": "savingThrow",
+            "ability": "dex",
+            "dc": 12,
+            "failEffect": {
+              "type": "damage",
+              "damageType": "bludgeoning",
+              "value": "2d6"
+            }
+          }
+        },
+        {
+          "name": "Entangling Vines",
+          "description": "Thick vines can entangle creatures moving through the forest. A creature that fails a DC 13 Dexterity saving throw becomes restrained.",
+          "effect": {
+            "type": "savingThrow",
+            "ability": "dex",
+            "dc": 13,
+            "failEffect": {
+              "type": "condition",
+              "condition": "restrained"
+            }
+          }
+        }
+      ],
+      "commonEncounters": [
+        "Wolves",
+        "Fey creatures",
+        "Druids",
+        "Giant spiders",
+        "Treants",
+        "Green dragons"
+      ],
+      "weatherTypes": [
+        {
+          "name": "Heavy Rain",
+          "description": "Heavy rainfall reduces visibility to 60 feet and creates difficult terrain in areas without tree cover.",
+          "effect": {
+            "type": "visibility",
+            "value": 60,
+            "additionalEffect": {
+              "type": "terrain",
+              "value": "difficult"
+            }
+          }
+        },
+        {
+          "name": "Forest Mist",
+          "description": "Mist among the trees reduces visibility to 30 feet and muffles sound.",
+          "effect": {
+            "type": "visibility",
+            "value": 30,
+            "additionalEffect": {
+              "type": "check",
+              "ability": "wis",
+              "skill": "perception",
+              "senses": ["hearing"],
+              "value": "disadvantage"
+            }
+          }
+        },
+        {
+          "name": "Clear and Pleasant",
+          "description": "Clear skies with dappled sunlight filtering through the trees. No adverse effects.",
+          "effect": {
+            "type": "none"
+          }
+        }
+      ],
+      "timeOfDayEffects": {
+        "day": {
+          "description": "Sunlight filters through the canopy, creating areas of bright light and dim light.",
+          "effect": {
+            "type": "lighting",
+            "value": "mixed"
+          }
+        },
+        "night": {
+          "description": "Dense forest canopy blocks moonlight, making the forest darker than other environments at night.",
+          "effect": {
+            "type": "lighting",
+            "value": "darkness"
+          }
+        }
+      },
+      "foraging": {
+        "difficulty": "easy",
+        "dcModifier": -2,
+        "foodTypes": [
+          "Berries",
+          "Nuts",
+          "Mushrooms",
+          "Small game",
+          "Edible plants"
+        ]
+      },
+      "navigationDifficulty": "moderate",
+      "restDifficulty": "normal",
+      "commonLanguages": ["Elvish", "Sylvan", "Common", "Gnomish"],
+      "recommendedLevels": [1, 12]
+    },
+    {
+      "id": "grassland",
+      "name": "Grassland",
+      "description": "Open plains, savannas, and meadows covered primarily with grasses.",
+      "terrainFeatures": [
+        "Rolling hills",
+        "Tall grass",
+        "Scattered trees",
+        "Wildflower meadows",
+        "Grazing lands",
+        "Seasonal streams"
+      ],
+      "hazards": [
+        {
+          "name": "Wildfire",
+          "description": "Dry grasslands are susceptible to wildfires. A creature caught in a wildfire takes 2d6 fire damage at the start of each turn.",
+          "effect": {
+            "type": "damage",
+            "damageType": "fire",
+            "value": "2d6",
+            "frequency": "turn"
+          }
+        },
+        {
+          "name": "Hidden Sinkholes",
+          "description": "Sinkholes can be hidden by tall grass. A creature that steps on a sinkhole must make a DC 12 Dexterity saving throw or fall 10 feet and take 1d6 bludgeoning damage.",
+          "effect": {
+            "type": "savingThrow",
+            "ability": "dex",
+            "dc": 12,
+            "failEffect": {
+              "type": "damage",
+              "damageType": "bludgeoning",
+              "value": "1d6",
+              "additionalEffect": {
+                "type": "falling",
+                "distance": 10
+              }
+            }
+          }
+        },
+        {
+          "name": "Stampede",
+          "description": "Herds of animals can stampede when frightened. A creature in the path of a stampede must make a DC 15 Dexterity saving throw or take 3d6 bludgeoning damage and be knocked prone.",
+          "effect": {
+            "type": "savingThrow",
+            "ability": "dex",
+            "dc": 15,
+            "failEffect": {
+              "type": "damage",
+              "damageType": "bludgeoning",
+              "value": "3d6",
+              "additionalEffect": {
+                "type": "condition",
+                "condition": "prone"
+              }
+            }
+          }
+        }
+      ],
+      "commonEncounters": [
+        "Centaurs",
+        "Gnolls",
+        "Lions",
+        "Griffons",
+        "Chimeras",
+        "Ankheg"
+      ],
+      "weatherTypes": [
+        {
+          "name": "Thunderstorm",
+          "description": "Lightning strikes are common in open grasslands. Each hour, there is a 10% chance a creature is targeted by a lightning strike, requiring a DC 15 Dexterity saving throw or taking 8d6 lightning damage.",
+          "effect": {
+            "type": "savingThrow",
+            "ability": "dex",
+            "dc": 15,
+            "chance": 10,
+            "frequency": "hourly",
+            "failEffect": {
+              "type": "damage",
+              "damageType": "lightning",
+              "value": "8d6"
+            }
+          }
+        },
+        {
+          "name": "High Winds",
+          "description": "Strong winds in open grasslands impose disadvantage on ranged attack rolls and Wisdom (Perception) checks that rely on hearing.",
+          "effect": {
+            "type": "attackRoll",
+            "attackType": "ranged",
+            "value": "disadvantage",
+            "additionalEffect": {
+              "type": "check",
+              "ability": "wis",
+              "skill": "perception",
+              "senses": ["hearing"],
+              "value": "disadvantage"
+            }
+          }
+        },
+        {
+          "name": "Clear Skies",
+          "description": "Clear skies with good visibility. No adverse effects.",
+          "effect": {
+            "type": "none"
+          }
+        }
+      ],
+      "timeOfDayEffects": {
+        "day": {
+          "description": "Open grasslands provide little shade during the day, potentially causing heat exhaustion.",
+          "effect": {
+            "type": "savingThrow",
+            "ability": "con",
+            "dc": 10,
+            "frequency": "hourly",
+            "failEffect": {
+              "type": "condition",
+              "condition": "exhaustion",
+              "level": 1
+            }
+          }
+        },
+        "night": {
+          "description": "Open grasslands allow for excellent visibility under moonlight, reducing penalties for darkness.",
+          "effect": {
+            "type": "visibility",
+            "condition": "dim light",
+            "value": "normal light"
+          }
+        }
+      },
+      "foraging": {
+        "difficulty": "moderate",
+        "dcModifier": 0,
+        "foodTypes": [
+          "Edible grasses",
+          "Roots",
+          "Small game",
+          "Ground-nesting bird eggs",
+          "Wild grains"
+        ]
+      },
+      "navigationDifficulty": "easy",
+      "restDifficulty": "normal",
+      "commonLanguages": ["Common", "Elvish", "Gnoll", "Sylvan"],
+      "recommendedLevels": [1, 10]
+    },
+    {
+      "id": "mountain",
+      "name": "Mountain",
+      "description": "Elevated terrain including foothills, mountain passes, and peaks.",
+      "terrainFeatures": [
+        "Steep slopes",
+        "Rocky cliffs",
+        "Mountain passes",
+        "Alpine meadows",
+        "Caves",
+        "Snowy peaks"
+      ],
+      "hazards": [
+        {
+          "name": "Rockslide",
+          "description": "Loose rocks can create dangerous slides. A creature in the path of a rockslide must make a DC 15 Dexterity saving throw or take 4d10 bludgeoning damage and be knocked prone.",
+          "effect": {
+            "type": "savingThrow",
+            "ability": "dex",
+            "dc": 15,
+            "failEffect": {
+              "type": "damage",
+              "damageType": "bludgeoning",
+              "value": "4d10",
+              "additionalEffect": {
+                "type": "condition",
+                "condition": "prone"
+              }
+            }
+          }
+        },
+        {
+          "name": "Altitude Sickness",
+          "description": "At high altitudes (above 10,000 feet), creatures must make a DC 10 Constitution saving throw or gain one level of exhaustion. The DC increases by 1 for every additional 1,000 feet.",
+          "effect": {
+            "type": "savingThrow",
+            "ability": "con",
+            "dc": 10,
+            "dcModifier": "altitude",
+            "failEffect": {
+              "type": "condition",
+              "condition": "exhaustion",
+              "level": 1
+            }
+          }
+        },
+        {
+          "name": "Narrow Ledge",
+          "description": "Traversing narrow mountain ledges requires a DC 10 Dexterity (Acrobatics) check. Failure means the creature falls.",
+          "effect": {
+            "type": "check",
+            "ability": "dex",
+            "skill": "acrobatics",
+            "dc": 10,
+            "failEffect": {
+              "type": "falling",
+              "distance": "2d6 × 10"
+            }
+          }
+        }
+      ],
+      "commonEncounters": [
+        "Giants",
+        "Griffons",
+        "Wyverns",
+        "Mountain goats",
+        "Dwarves",
+        "Red dragons"
+      ],
+      "weatherTypes": [
+        {
+          "name": "Mountain Storm",
+          "description": "Severe storms at high altitude include strong winds, lightning, and potentially snow or hail. Visibility is reduced to 20 feet, and creatures must make a DC 12 Strength saving throw or be knocked prone by the wind.",
+          "effect": {
+            "type": "visibility",
+            "value": 20,
+            "additionalEffect": {
+              "type": "savingThrow",
+              "ability": "str",
+              "dc": 12,
+              "failEffect": {
+                "type": "condition",
+                "condition": "prone"
+              }
+            }
+          }
+        },
+        {
+          "name": "Thick Fog",
+          "description": "Mountain fog reduces visibility to 10 feet and makes navigation difficult.",
+          "effect": {
+            "type": "visibility",
+            "value": 10,
+            "additionalEffect": {
+              "type": "check",
+              "ability": "wis",
+              "skill": "survival",
+              "value": "disadvantage"
+            }
+          }
+        },
+        {
+          "name": "Clear and Cold",
+          "description": "Clear skies but cold temperatures. At high altitudes, creatures without cold protection must make Constitution saving throws against extreme cold.",
+          "effect": {
+            "type": "savingThrow",
+            "ability": "con",
+            "dc": 10,
+            "frequency": "hourly",
+            "failEffect": {
+              "type": "damage",
+              "damageType": "cold",
+              "value": "1d4"
+            }
+          }
+        }
+      ],
+      "timeOfDayEffects": {
+        "day": {
+          "description": "Intense sunlight at high altitudes can cause sunburn and snow blindness.",
+          "effect": {
+            "type": "savingThrow",
+            "ability": "con",
+            "dc": 10,
+            "failEffect": {
+              "type": "condition",
+              "condition": "blinded",
+              "duration": "1d4"
+            }
+          }
+        },
+        "night": {
+          "description": "Temperatures drop severely at night, increasing the DC for Constitution saving throws against extreme cold by 5.",
+          "effect": {
+            "type": "savingThrow",
+            "ability": "con",
+            "dcModifier": 5
+          }
+        }
+      },
+      "foraging": {
+        "difficulty": "hard",
+        "dcModifier": 2,
+        "foodTypes": [
+          "Mountain goats",
+          "Alpine berries",
+          "Edible lichens",
+          "Mountain herbs",
+          "Eagles and other birds"
+        ]
+      },
+      "navigationDifficulty": "hard",
+      "restDifficulty": "hard",
+      "commonLanguages": ["Dwarvish", "Giant", "Common", "Draconic"],
+      "recommendedLevels": [3, 15]
+    },
+    {
+      "id": "swamp",
+      "name": "Swamp",
+      "description": "Wetlands with shallow water and abundant vegetation, including marshes and bogs.",
+      "terrainFeatures": [
+        "Murky water",
+        "Cypress trees",
+        "Floating vegetation",
+        "Quicksand",
+        "Hummocks",
+        "Tangled roots"
+      ],
+      "hazards": [
+        {
+          "name": "Quicksand",
+          "description": "Swamp quicksand can trap unwary travelers. A creature that steps in quicksand begins to sink and becomes restrained. Each round, it sinks 1d4 feet deeper.",
+          "effect": {
+            "type": "condition",
+            "condition": "restrained",
+            "additionalEffect": {
+              "type": "sinking",
+              "value": "1d4"
+            }
+          }
+        },
+        {
+          "name": "Poisonous Gas",
+          "description": "Pockets of poisonous gas can form in swamps. A creature that enters such an area must make a DC 13 Constitution saving throw or take 3d6 poison damage.",
+          "effect": {
+            "type": "savingThrow",
+            "ability": "con",
+            "dc": 13,
+            "failEffect": {
+              "type": "damage",
+              "damageType": "poison",
+              "value": "3d6"
+            }
+          }
+        },
+        {
+          "name": "Disease",
+          "description": "Swamp water often carries disease. A creature that drinks unfiltered swamp water must make a DC 15 Constitution saving throw or contract a disease.",
+          "effect": {
+            "type": "savingThrow",
+            "ability": "con",
+            "dc": 15,
+            "failEffect": {
+              "type": "disease",
+              "name": "Swamp Fever",
+              "effect": {
+                "type": "condition",
+                "condition": "poisoned",
+                "duration": "2d4"
+              }
+            }
+          }
+        }
+      ],
+      "commonEncounters": [
+        "Bullywugs",
+        "Lizardfolk",
+        "Black dragons",
+        "Trolls",
+        "Will-o'-wisps",
+        "Giant crocodiles"
+      ],
+      "weatherTypes": [
+        {
+          "name": "Heavy Rain",
+          "description": "Heavy rainfall causes water levels to rise and creates difficult terrain throughout the swamp.",
+          "effect": {
+            "type": "terrain",
+            "value": "difficult",
+            "additionalEffect": {
+              "type": "waterLevel",
+              "value": "+1d3"
+            }
+          }
+        },
+                {
+          "name": "Swamp Fog",
+          "description": "Dense fog reduces visibility to 10 feet and muffles sound.",
+          "effect": {
+            "type": "visibility",
+            "value": 10,
+            "additionalEffect": {
+              "type": "check",
+              "ability": "wis",
+              "skill": "perception",
+              "senses": ["hearing"],
+              "value": "disadvantage"
+            }
+          }
+        },
+        {
+          "name": "Humid and Muggy",
+          "description": "High humidity makes physical exertion more difficult. Creatures have disadvantage on Constitution checks and saving throws related to exhaustion.",
+          "effect": {
+            "type": "check",
+            "ability": "con",
+            "value": "disadvantage",
+            "additionalEffect": {
+              "type": "savingThrow",
+              "ability": "con",
+              "condition": "exhaustion",
+              "value": "disadvantage"
+            }
+          }
+        }
+      ],
+      "timeOfDayEffects": {
+        "day": {
+          "description": "Swamps are often shaded by vegetation, creating areas of dim light even during the day.",
+          "effect": {
+            "type": "lighting",
+            "value": "dim light"
+          }
+        },
+        "night": {
+          "description": "Bioluminescent fungi and insects provide small points of light in the darkness, creating an eerie atmosphere.",
+          "effect": {
+            "type": "lighting",
+            "value": "dim light",
+            "range": 5
+          }
+        }
+      },
+      "foraging": {
+        "difficulty": "moderate",
+        "dcModifier": 0,
+        "foodTypes": [
+          "Fish",
+          "Frogs",
+          "Water plants",
+          "Insects",
+          "Reptiles"
+        ]
+      },
+      "navigationDifficulty": "very hard",
+      "restDifficulty": "hard",
+      "commonLanguages": ["Draconic", "Sylvan", "Common", "Goblin"],
+      "recommendedLevels": [2, 12]
+    },
+    {
+      "id": "underdark",
+      "name": "Underdark",
+      "description": "Vast network of underground caverns, tunnels, and subterranean realms.",
+      "terrainFeatures": [
+        "Narrow tunnels",
+        "Vast caverns",
+        "Underground lakes",
+        "Glowing fungi",
+        "Crystal formations",
+        "Lava flows"
+      ],
+      "hazards": [
+        {
+          "name": "Cave-in",
+          "description": "Unstable tunnels can collapse. A creature in the area of a cave-in must make a DC 15 Dexterity saving throw or take 4d10 bludgeoning damage and be buried and restrained.",
+          "effect": {
+            "type": "savingThrow",
+            "ability": "dex",
+            "dc": 15,
+            "failEffect": {
+              "type": "damage",
+              "damageType": "bludgeoning",
+              "value": "4d10",
+              "additionalEffect": {
+                "type": "condition",
+                "condition": "restrained"
+              }
+            }
+          }
+        },
+        {
+          "name": "Toxic Fungi",
+          "description": "Spores from toxic fungi can cause hallucinations or poison. A creature that disturbs toxic fungi must make a DC 13 Constitution saving throw or be poisoned for 1 hour.",
+          "effect": {
+            "type": "savingThrow",
+            "ability": "con",
+            "dc": 13,
+            "failEffect": {
+              "type": "condition",
+              "condition": "poisoned",
+              "duration": "1 hour"
+            }
+          }
+        },
+        {
+          "name": "Tremors",
+          "description": "Minor earthquakes can cause stalactites to fall. A creature in the area must make a DC 12 Dexterity saving throw or take 2d6 piercing damage.",
+          "effect": {
+            "type": "savingThrow",
+            "ability": "dex",
+            "dc": 12,
+            "failEffect": {
+              "type": "damage",
+              "damageType": "piercing",
+              "value": "2d6"
+            }
+          }
+        }
+      ],
+      "commonEncounters": [
+        "Drow",
+        "Mind flayers",
+        "Duergar",
+        "Purple worms",
+        "Umber hulks",
+        "Beholders"
+      ],
+      "weatherTypes": [
+        {
+          "name": "Toxic Gas Pocket",
+          "description": "Pockets of toxic gas can accumulate in low areas. Creatures that enter such areas must make a DC 15 Constitution saving throw or take 3d6 poison damage.",
+          "effect": {
+            "type": "savingThrow",
+            "ability": "con",
+            "dc": 15,
+            "failEffect": {
+              "type": "damage",
+              "damageType": "poison",
+              "value": "3d6"
+            }
+          }
+        },
+        {
+          "name": "Fungal Bloom",
+          "description": "Periodic blooms of fungal spores reduce visibility to 10 feet and can cause respiratory issues.",
+          "effect": {
+            "type": "visibility",
+            "value": 10,
+            "additionalEffect": {
+              "type": "savingThrow",
+              "ability": "con",
+              "dc": 12,
+              "failEffect": {
+                "type": "condition",
+                "condition": "poisoned",
+                "duration": "1d4 hours"
+              }
+            }
+          }
+        },
+        {
+          "name": "Calm",
+          "description": "The typical still, silent atmosphere of the Underdark. No adverse effects.",
+          "effect": {
+            "type": "none"
+          }
+        }
+      ],
+      "timeOfDayEffects": {
+        "day": {
+          "description": "There is no natural day/night cycle in the Underdark. Time is often measured by the growth cycles of fungi or the movements of underground creatures.",
+          "effect": {
+            "type": "lighting",
+            "value": "darkness"
+          }
+        },
+        "night": {
+          "description": "Same as day in the Underdark - perpetual darkness except for bioluminescent fungi and other light sources.",
+          "effect": {
+            "type": "lighting",
+            "value": "darkness"
+          }
+        }
+      },
+      "foraging": {
+        "difficulty": "very hard",
+        "dcModifier": 5,
+        "foodTypes": [
+          "Cave fish",
+          "Edible fungi",
+          "Cave crickets",
+          "Rothé (subterranean cattle)",
+          "Slimes (for the brave)"
+        ]
+      },
+      "navigationDifficulty": "very hard",
+      "restDifficulty": "hard",
+      "commonLanguages": ["Undercommon", "Dwarvish", "Elvish", "Deep Speech"],
+      "recommendedLevels": [5, 20]
+    },
+    {
+      "id": "underwater",
+      "name": "Underwater",
+      "description": "Aquatic environments including oceans, seas, and large lakes.",
+      "terrainFeatures": [
+        "Coral reefs",
+        "Underwater caves",
+        "Kelp forests",
+        "Trenches",
+        "Shipwrecks",
+        "Sandy bottoms"
+      ],
+      "hazards": [
+        {
+          "name": "Crushing Depths",
+          "description": "At extreme depths (below 300 feet), water pressure can cause damage. A creature without pressure adaptation takes 1d6 bludgeoning damage per minute.",
+          "effect": {
+            "type": "damage",
+            "damageType": "bludgeoning",
+            "value": "1d6",
+            "frequency": "minute",
+            "condition": "depth > 300"
+          }
+        },
+        {
+          "name": "Strong Currents",
+          "description": "Strong underwater currents can sweep creatures away. A creature caught in a strong current must make a DC 15 Strength (Athletics) check or be carried 60 feet in the current's direction.",
+          "effect": {
+            "type": "check",
+            "ability": "str",
+            "skill": "athletics",
+            "dc": 15,
+            "failEffect": {
+              "type": "displacement",
+              "distance": 60,
+              "direction": "current"
+            }
+          }
+        },
+        {
+          "name": "Drowning",
+          "description": "Creatures that cannot breathe underwater can hold their breath for a number of minutes equal to 1 + their Constitution modifier (minimum 30 seconds). After this time, they begin drowning.",
+          "effect": {
+            "type": "special",
+            "name": "drowning",
+            "duration": "1 + CON modifier (minutes)",
+            "failEffect": {
+              "type": "condition",
+              "condition": "unconscious",
+              "additionalEffect": {
+                "type": "damage",
+                "damageType": "special",
+                "value": "death"
+              }
+            }
+          }
+        }
+      ],
+      "commonEncounters": [
+        "Sahuagin",
+        "Merfolk",
+        "Giant octopus",
+        "Kuo-toa",
+        "Water elementals",
+        "Dragon turtles"
+      ],
+      "weatherTypes": [
+        {
+          "name": "Underwater Storm",
+          "description": "Powerful currents and turbulent water reduce visibility to 10 feet and require Strength checks to swim against.",
+          "effect": {
+            "type": "visibility",
+            "value": 10,
+            "additionalEffect": {
+              "type": "check",
+              "ability": "str",
+              "skill": "athletics",
+              "dc": 15,
+              "failEffect": {
+                "type": "displacement",
+                "distance": "2d6 × 5",
+                "direction": "current"
+              }
+            }
+          }
+        },
+        {
+          "name": "Murky Water",
+          "description": "Sediment or algae blooms reduce visibility to 5 feet.",
+          "effect": {
+            "type": "visibility",
+            "value": 5
+          }
+        },
+        {
+          "name": "Clear Water",
+          "description": "Unusually clear water allows visibility up to 60 feet.",
+          "effect": {
+            "type": "visibility",
+            "value": 60
+          }
+        }
+      ],
+      "timeOfDayEffects": {
+        "day": {
+          "description": "Sunlight penetrates the water to varying depths, creating bright light near the surface that gradually dims with depth.",
+          "effect": {
+            "type": "lighting",
+            "value": "variable",
+            "condition": "depth"
+          }
+        },
+        "night": {
+          "description": "Darkness prevails underwater at night, except for bioluminescent creatures and features.",
+          "effect": {
+            "type": "lighting",
+            "value": "darkness"
+          }
+        }
+      },
+      "foraging": {
+        "difficulty": "moderate",
+        "dcModifier": 0,
+        "foodTypes": [
+          "Fish",
+          "Shellfish",
+          "Seaweed",
+          "Coral polyps",
+          "Squid"
+        ]
+      },
+      "navigationDifficulty": "hard",
+      "restDifficulty": "very hard",
+      "commonLanguages": ["Aquan", "Common", "Primordial", "Abyssal"],
+      "recommendedLevels": [3, 15]
+    },
+    {
+      "id": "urban",
+      "name": "Urban",
+      "description": "Cities, towns, and other densely populated settlements.",
+      "terrainFeatures": [
+        "Streets",
+        "Buildings",
+        "Sewers",
+        "Marketplaces",
+        "Walls",
+        "Rooftops"
+      ],
+      "hazards": [
+        {
+          "name": "Crowds",
+          "description": "Dense crowds can slow movement and make it difficult to track specific individuals. Movement speed is halved in crowded areas.",
+          "effect": {
+            "type": "speed",
+            "value": "half"
+          }
+        },
+        {
+          "name": "Pickpockets",
+          "description": "Thieves may attempt to steal from characters in crowded areas. Characters must succeed on a DC 15 Wisdom (Perception) check to notice a pickpocket attempt.",
+          "effect": {
+            "type": "check",
+            "ability": "wis",
+            "skill": "perception",
+            "dc": 15,
+            "failEffect": {
+              "type": "theft",
+              "item": "random"
+            }
+          }
+        },
+        {
+          "name": "Collapsing Building",
+          "description": "Damaged or poorly constructed buildings can collapse. A creature in a collapsing building must make a DC 15 Dexterity saving throw or take 4d10 bludgeoning damage and be buried under rubble.",
+          "effect": {
+            "type": "savingThrow",
+            "ability": "dex",
+            "dc": 15,
+            "failEffect": {
+              "type": "damage",
+              "damageType": "bludgeoning",
+              "value": "4d10",
+              "additionalEffect": {
+                "type": "condition",
+                "condition": "restrained"
+              }
+            }
+          }
+        }
+      ],
+      "commonEncounters": [
+        "Guards",
+        "Thieves",
+        "Nobles",
+        "Cultists",
+        "Commoners",
+        "Spies"
+      ],
+      "weatherTypes": [
+        {
+          "name": "Urban Downpour",
+          "description": "Heavy rain in urban areas creates slippery surfaces and can flood low-lying streets.",
+          "effect": {
+            "type": "terrain",
+            "value": "difficult",
+            "additionalEffect": {
+              "type": "check",
+              "ability": "dex",
+              "skill": "acrobatics",
+              "value": "disadvantage"
+            }
+          }
+        },
+        {
+          "name": "Smog",
+          "description": "Industrial cities may experience smog that reduces visibility to 60 feet and can cause respiratory issues.",
+          "effect": {
+            "type": "visibility",
+            "value": 60,
+            "additionalEffect": {
+              "type": "savingThrow",
+              "ability": "con",
+              "dc": 10,
+              "failEffect": {
+                "type": "condition",
+                "condition": "poisoned",
+                "duration": "1 hour"
+              }
+            }
+          }
+        },
+        {
+          "name": "Clear Skies",
+          "description": "Clear weather in an urban environment. No adverse effects.",
+          "effect": {
+            "type": "none"
+          }
+        }
+      ],
+      "timeOfDayEffects": {
+        "day": {
+          "description": "Busy streets filled with people going about their business. Crowds can make movement difficult.",
+          "effect": {
+            "type": "speed",
+            "value": "half",
+            "condition": "crowded areas"
+          }
+        },
+        "night": {
+          "description": "Streets are less crowded but potentially more dangerous. Certain districts may have increased criminal activity.",
+          "effect": {
+            "type": "encounter",
+            "category": "criminal",
+            "probability": "+25%"
+          }
+        }
+      },
+      "foraging": {
+        "difficulty": "special",
+        "dcModifier": 0,
+        "foodTypes": [
+          "Purchased food",
+          "Discarded food",
+          "Street vendor fare",
+          "Tavern meals",
+          "Urban wildlife (pigeons, rats)"
+        ]
+      },
+      "navigationDifficulty": "easy",
+      "restDifficulty": "easy",
+      "commonLanguages": ["Common", "Thieves' Cant", "Elvish", "Dwarvish"],
+      "recommendedLevels": [1, 20]
+    },
+    {
+      "id": "jungle",
+      "name": "Jungle",
+      "description": "Dense, tropical forests with high rainfall and biodiversity.",
+      "terrainFeatures": [
+        "Dense vegetation",
+        "Canopy layers",
+        "Vines",
+        "Rivers",
+        "Ruins",
+        "Clearings"
+      ],
+      "hazards": [
+        {
+          "name": "Poisonous Plants",
+          "description": "Jungles contain many poisonous plants. A creature that touches certain plants must make a DC 13 Constitution saving throw or take 2d10 poison damage.",
+          "effect": {
+            "type": "savingThrow",
+            "ability": "con",
+            "dc": 13,
+            "failEffect": {
+              "type": "damage",
+              "damageType": "poison",
+              "value": "2d10"
+            }
+          }
+        },
+        {
+          "name": "Quicksand",
+          "description": "Hidden quicksand can trap unwary travelers. A creature that steps in quicksand begins to sink and becomes restrained.",
+          "effect": {
+            "type": "condition",
+            "condition": "restrained",
+            "additionalEffect": {
+              "type": "sinking",
+              "value": "1d4"
+            }
+          }
+        },
+        {
+          "name": "Disease",
+          "description": "Tropical diseases are common in jungles. A creature that is bitten by certain insects must make a DC 11 Constitution saving throw or contract a disease.",
+          "effect": {
+            "type": "savingThrow",
+            "ability": "con",
+            "dc": 11,
+            "failEffect": {
+              "type": "disease",
+              "name": "Jungle Fever",
+              "effect": {
+                "type": "condition",
+                "condition": "poisoned",
+                "duration": "2d4"
+              }
+            }
+          }
+        }
+      ],
+      "commonEncounters": [
+        "Yuan-ti",
+        "Dinosaurs",
+        "Giant insects",
+        "Tribal warriors",
+        "Jaguars",
+        "Green dragons"
+      ],
+      "weatherTypes": [
+        {
+          "name": "Tropical Downpour",
+          "description": "Heavy rainfall reduces visibility to 20 feet and creates difficult terrain in low-lying areas.",
+          "effect": {
+            "type": "visibility",
+            "value": 20,
+            "additionalEffect": {
+              "type": "terrain",
+              "value": "difficult"
+            }
+          }
+        },
+        {
+          "name": "Oppressive Heat",
+          "description": "Extreme heat and humidity cause exhaustion. Creatures must make a DC 10 Constitution saving throw every hour or gain one level of exhaustion.",
+          "effect": {
+            "type": "savingThrow",
+            "ability": "con",
+            "dc": 10,
+            "frequency": "hourly",
+            "failEffect": {
+              "type": "condition",
+              "condition": "exhaustion",
+              "level": 1
+            }
+          }
+        },
+        {
+          "name": "Humid and Muggy",
+          "description": "Typical jungle weather with high humidity. No severe adverse effects.",
+          "effect": {
+            "type": "none"
+          }
+        }
+      ],
+      "timeOfDayEffects": {
+        "day": {
+          "description": "Dense canopy filters sunlight, creating a mix of bright light, dim light, and darkness on the jungle floor.",
+          "effect": {
+            "type": "lighting",
+            "value": "mixed"
+          }
+        },
+        "night": {
+          "description": "Pitch darkness under the jungle canopy, with occasional bioluminescent fungi and insects providing small points of light.",
+          "effect": {
+            "type": "lighting",
+            "value": "darkness"
+          }
+        }
+      },
+      "foraging": {
+        "difficulty": "easy",
+        "dcModifier": -2,
+        "foodTypes": [
+          "Tropical fruits",
+          "Nuts",
+          "Edible plants",
+          "Small game",
+          "Fish"
+        ]
+      },
+      "navigationDifficulty": "very hard",
+      "restDifficulty": "hard",
+      "commonLanguages": ["Draconic", "Sylvan", "Common", "Goblin"],
+      "recommendedLevels": [2, 15]
+    },
+    {
+      "id": "volcanic",
+      "name": "Volcanic",
+      "description": "Areas with active or dormant volcanoes, lava fields, and geothermal features.",
+      "terrainFeatures": [
+        "Lava flows",
+        "Ash fields",
+        "Steam vents",
+        "Volcanic rock",
+        "Hot springs",
+        "Sulfur pools"
+      ],
+      "hazards": [
+        {
+          "name": "Lava",
+          "description": "Contact with lava deals 10d10 fire damage per round. Even being within 5 feet of lava deals 2d10 fire damage from the intense heat.",
+          "effect": {
+            "type": "damage",
+            "damageType": "fire",
+            "value": "10d10",
+            "frequency": "round",
+            "condition": "contact",
+            "additionalEffect": {
+              "type": "damage",
+              "damageType": "fire",
+              "value": "2d10",
+              "range": 5
+            }
+          }
+        },
+        {
+          "name": "Toxic Gases",
+          "description": "Volcanic areas often emit toxic gases. A creature that enters an area with toxic gas must make a DC 15 Constitution saving throw or take 3d6 poison damage and be poisoned for 1 hour.",
+          "effect": {
+            "type": "savingThrow",
+            "ability": "con",
+            "dc": 15,
+            "failEffect": {
+              "type": "damage",
+              "damageType": "poison",
+              "value": "3d6",
+              "additionalEffect": {
+                "type": "condition",
+                "condition": "poisoned",
+                "duration": "1 hour"
+              }
+            }
+          }
+        },
+        {
+          "name": "Unstable Ground",
+          "description": "The ground near volcanic areas can be unstable. A creature moving across unstable ground must make a DC 12 Dexterity saving throw or fall into a fissure, taking 2d6 bludgeoning damage.",
+          "effect": {
+            "type": "savingThrow",
+            "ability": "dex",
+            "dc": 12,
+            "failEffect": {
+              "type": "damage",
+              "damageType": "bludgeoning",
+              "value": "2d6"
+            }
+          }
+        }
+      ],
+      "commonEncounters": [
+        "Fire elementals",
+        "Salamanders",
+        "Red dragons",
+        "Fire giants",
+        "Azer",
+        "Magma mephits"
+      ],
+      "weatherTypes": [
+        {
+          "name": "Ash Fall",
+          "description": "Falling volcanic ash reduces visibility to 30 feet and can cause respiratory issues.",
+          "effect": {
+            "type": "visibility",
+            "value": 30,
+            "additionalEffect": {
+              "type": "savingThrow",
+              "ability": "con",
+              "dc": 10,
+              "frequency": "hourly",
+              "failEffect": {
+                "type": "condition",
+                "condition": "poisoned",
+                "duration": "1 hour"
+              }
+            }
+          }
+        },
+        {
+          "name": "Pyroclastic Flow",
+          "description": "A deadly cloud of superheated gas and rock. A creature caught in a pyroclastic flow must make a DC 20 Dexterity saving throw or take 10d10 fire damage and 5d10 bludgeoning damage.",
+          "effect": {
+            "type": "savingThrow",
+            "ability": "dex",
+            "dc": 20,
+            "failEffect": {
+              "type": "damage",
+              "damageType": "fire",
+              "value": "10d10",
+              "additionalEffect": {
+                "type": "damage",
+                "damageType": "bludgeoning",
+                "value": "5d10"
+              }
+            }
+          }
+        },
+        {
+          "name": "Intense Heat",
+          "description": "The ambient temperature is extremely high. Creatures must make a DC 15 Constitution saving throw every hour or gain one level of exhaustion.",
+          "effect": {
+            "type": "savingThrow",
+            "ability": "con",
+            "dc": 15,
+            "frequency": "hourly",
+            "failEffect": {
+              "type": "condition",
+              "condition": "exhaustion",
+              "level": 1
+            }
+          }
+        }
+      ],
+      "timeOfDayEffects": {
+        "day": {
+          "description": "The heat is most intense during the day, increasing the DC for Constitution saving throws against extreme heat by 5.",
+          "effect": {
+            "type": "savingThrow",
+            "ability": "con",
+            "dcModifier": 5
+          }
+        },
+        "night": {
+          "description": "The glow from lava and magma provides dim light in many areas, and the heat remains dangerous.",
+          "effect": {
+            "type": "lighting",
+            "value": "dim light"
+          }
+        }
+      },
+      "foraging": {
+        "difficulty": "very hard",
+        "dcModifier": 5,
+        "foodTypes": [
+          "Heat-resistant plants",
+          "Extremophile fungi",
+          "Volcanic lizards",
+          "Ash beetles",
+          "Sulfur-spring algae"
+        ]
+      },
+      "navigationDifficulty": "hard",
+      "restDifficulty": "very hard",
+      "commonLanguages": ["Ignan", "Giant", "Draconic", "Primordial"],
+      "recommendedLevels": [7, 20]
+    },
+    {
+      "id": "ethereal",
+      "name": "Ethereal Plane",
+      "description": "A misty, ghostly dimension that overlaps with the Material Plane.",
+      "terrainFeatures": [
+        "Mist and fog",
+        "Ghostly landscapes",
+        "Floating islands",
+        "Ectoplasmic formations",
+        "Border regions",
+        "Deep Ethereal"
+      ],
+      "hazards": [
+        {
+          "name": "Ethereal Currents",
+          "description": "Strong currents in the Ethereal Plane can carry creatures away. A creature caught in an ethereal current must make a DC 15 Strength saving throw or be carried 3d6 × 10 feet in a random direction.",
+          "effect": {
+            "type": "savingThrow",
+            "ability": "str",
+            "dc": 15,
+            "failEffect": {
+              "type": "displacement",
+              "distance": "3d6 × 10",
+              "direction": "random"
+            }
+          }
+        },
+        {
+          "name": "Planar Bleeding",
+          "description": "Areas where other planes bleed into the Ethereal can expose creatures to those planes' hazards. A creature in such an area must make a DC 15 Charisma saving throw or be affected by the foreign plane's energy.",
+          "effect": {
+            "type": "savingThrow",
+            "ability": "cha",
+            "dc": 15,
+            "failEffect": {
+              "type": "damage",
+              "damageType": "random",
+              "value": "3d6"
+            }
+          }
+        },
+        {
+          "name": "Ectoplasmic Entanglement",
+          "description": "Concentrations of ectoplasm can entangle creatures. A creature that enters an area of dense ectoplasm must make a DC 13 Strength saving throw or be restrained.",
+          "effect": {
+            "type": "savingThrow",
+            "ability": "str",
+            "dc": 13,
+            "failEffect": {
+              "type": "condition",
+              "condition": "restrained"
+            }
+          }
+        }
+      ],
+      "commonEncounters": [
+        "Ghosts",
+        "Phase spiders",
+        "Ethereal filchers",
+        "Night hags",
+        "Ether cyclones",
+        "Thought elementals"
+      ],
+      "weatherTypes": [
+        {
+          "name": "Ether Storm",
+          "description": "Swirling ethereal energy that can disorient creatures. A creature caught in an ether storm must make a DC 15 Wisdom saving throw or be confused for 1d4 rounds.",
+          "effect": {
+            "type": "savingThrow",
+            "ability": "wis",
+            "dc": 15,
+            "failEffect": {
+              "type": "condition",
+              "condition": "confused",
+              "duration": "1d4 rounds"
+            }
+          }
+        },
+        {
+          "name": "Planar Convergence",
+          "description": "Areas where multiple planes converge, creating unpredictable magical effects. Spells cast in these areas have a 20% chance of producing a wild magic surge.",
+          "effect": {
+            "type": "magic",
+            "value": "wild",
+            "chance": 20
+          }
+        },
+        {
+          "name": "Ethereal Calm",
+          "description": "The typical misty, quiet state of the Ethereal Plane. No adverse effects.",
+          "effect": {
+            "type": "none"
+          }
+        }
+      ],
+      "timeOfDayEffects": {
+        "day": {
+          "description": "There is no true day or night in the Ethereal Plane, but the mists may thin slightly, allowing better visibility of the Material Plane.",
+          "effect": {
+            "type": "visibility",
+            "value": "improved",
+            "target": "Material Plane"
+          }
+        },
+        "night": {
+          "description": "The mists thicken, making it harder to perceive the Material Plane but easier to see other ethereal entities.",
+          "effect": {
+            "type": "visibility",
+            "value": "reduced",
+            "target": "Material Plane",
+            "additionalEffect": {
+              "type": "check",
+              "ability": "wis",
+              "skill": "perception",
+              "target": "ethereal",
+              "value": "advantage"
+            }
+          }
+        }
+      },
+      "foraging": {
+        "difficulty": "special",
+        "dcModifier": 10,
+        "foodTypes": [
+          "Ectoplasmic residue",
+          "Ethereal fruits",
+          "Memory fragments",
+          "Dream essence",
+          "Ghostly sustenance"
+        ]
+      },
+      "navigationDifficulty": "very hard",
+      "restDifficulty": "special",
+      "commonLanguages": ["Common", "Ethereal", "Ghost Speech", "Telepathy"],
+      "recommendedLevels": [10, 20]
+    }
+  ]
+}
