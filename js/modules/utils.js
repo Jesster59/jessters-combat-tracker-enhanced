@@ -4,7 +4,7 @@
  */
 class Utils {
     constructor() {
-        console.log("Utils initialized");
+        console.log("Utils module initialized");
     }
 
     /**
@@ -281,4 +281,257 @@ class Utils {
     caseInsensitiveContains(haystack, needle) {
         return haystack.toLowerCase().includes(needle.toLowerCase());
     }
+
+    /**
+     * Format a number with ordinal suffix (1st, 2nd, 3rd, etc.)
+     * @param {number} n - The number to format
+     * @returns {string} The formatted number with ordinal suffix
+     */
+    ordinalSuffix(n) {
+        const s = ['th', 'st', 'nd', 'rd'];
+        const v = n % 100;
+        return n + (s[(v - 20) % 10] || s[v] || s[0]);
+    }
+
+    /**
+     * Capitalize the first letter of a string
+     * @param {string} str - The string to capitalize
+     * @returns {string} The capitalized string
+     */
+    capitalize(str) {
+        if (!str) return '';
+        return str.charAt(0).toUpperCase() + str.slice(1);
+    }
+
+    /**
+     * Convert a string to title case
+     * @param {string} str - The string to convert
+     * @returns {string} The title case string
+     */
+    titleCase(str) {
+        if (!str) return '';
+        return str.toLowerCase().split(' ')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ');
+    }
+
+    /**
+     * Get a random integer between min and max (inclusive)
+     * @param {number} min - Minimum value
+     * @param {number} max - Maximum value
+     * @returns {number} Random integer
+     */
+    getRandomInt(min, max) {
+        min = Math.ceil(min);
+        max = Math.floor(max);
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    /**
+     * Check if an object is empty
+     * @param {Object} obj - The object to check
+     * @returns {boolean} True if the object is empty
+     */
+    isEmptyObject(obj) {
+        return obj && Object.keys(obj).length === 0 && obj.constructor === Object;
+    }
+
+    /**
+     * Format file size in bytes to human-readable format
+     * @param {number} bytes - The file size in bytes
+     * @returns {string} Formatted file size
+     */
+    formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    /**
+     * Get URL parameters as an object
+     * @returns {Object} URL parameters
+     */
+    getUrlParams() {
+        const params = {};
+        new URLSearchParams(window.location.search).forEach((value, key) => {
+            params[key] = value;
+        });
+        return params;
+    }
+
+    /**
+     * Create URL with query parameters
+     * @param {string} baseUrl - Base URL
+     * @param {Object} params - Query parameters
+     * @returns {string} URL with query parameters
+     */
+    createUrlWithParams(baseUrl, params) {
+        const url = new URL(baseUrl, window.location.origin);
+        Object.keys(params).forEach(key => {
+            url.searchParams.append(key, params[key]);
+        });
+        return url.toString();
+    }
+
+    /**
+     * Copy text to clipboard
+     * @param {string} text - Text to copy
+     * @returns {Promise<boolean>} Success status
+     */
+    async copyToClipboard(text) {
+        try {
+            await navigator.clipboard.writeText(text);
+            return true;
+        } catch (err) {
+            console.error('Failed to copy text: ', err);
+            return false;
+        }
+    }
+
+    /**
+     * Check if device is mobile
+     * @returns {boolean} True if device is mobile
+     */
+    isMobileDevice() {
+        return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    }
+
+    /**
+     * Check if browser supports a specific feature
+     * @param {string} feature - Feature to check
+     * @returns {boolean} True if feature is supported
+     */
+    supportsFeature(feature) {
+        const features = {
+            serviceWorker: 'serviceWorker' in navigator,
+            webp: document.createElement('canvas')
+                .toDataURL('image/webp').indexOf('data:image/webp') === 0,
+            notification: 'Notification' in window,
+            localStorage: (() => {
+                try {
+                    localStorage.setItem('test', 'test');
+                    localStorage.removeItem('test');
+                    return true;
+                } catch (e) {
+                    return false;
+                }
+            })(),
+            indexedDB: 'indexedDB' in window
+        };
+        
+        return features[feature] || false;
+    }
+
+    /**
+     * Format a date relative to now (e.g., "5 minutes ago")
+     * @param {Date|string} date - The date to format
+     * @returns {string} Relative time string
+     */
+    timeAgo(date) {
+        const now = new Date();
+        const past = new Date(date);
+        const seconds = Math.floor((now - past) / 1000);
+        
+        // Time units in seconds
+        const intervals = {
+            year: 31536000,
+            month: 2592000,
+            week: 604800,
+            day: 86400,
+            hour: 3600,
+            minute: 60
+        };
+        
+        // Check each interval
+        for (const [unit, secondsInUnit] of Object.entries(intervals)) {
+            const interval = Math.floor(seconds / secondsInUnit);
+            if (interval >= 1) {
+                return `${interval} ${unit}${interval === 1 ? '' : 's'} ago`;
+            }
+        }
+        
+        return 'just now';
+    }
+
+    /**
+     * Truncate text to a specific length with ellipsis
+     * @param {string} text - Text to truncate
+     * @param {number} length - Maximum length
+     * @returns {string} Truncated text
+     */
+    truncateText(text, length = 50) {
+        if (!text || text.length <= length) return text;
+        return text.substring(0, length - 3) + '...';
+    }
+
+    /**
+     * Convert a string to kebab-case
+     * @param {string} str - String to convert
+     * @returns {string} Kebab-case string
+     */
+    toKebabCase(str) {
+        return str
+            .replace(/([a-z])([A-Z])/g, '$1-$2')
+            .replace(/[\s_]+/g, '-')
+            .toLowerCase();
+    }
+
+    /**
+     * Convert a string to camelCase
+     * @param {string} str - String to convert
+     * @returns {string} camelCase string
+     */
+    toCamelCase(str) {
+        return str
+            .replace(/(?:^\w|[A-Z]|\b\w)/g, (word, index) => 
+                index === 0 ? word.toLowerCase() : word.toUpperCase())
+            .replace(/\s+/g, '');
+    }
+
+    /**
+     * Get browser and OS information
+     * @returns {Object} Browser and OS info
+     */
+    getBrowserInfo() {
+        const ua = navigator.userAgent;
+        let browser = "Unknown";
+        let os = "Unknown";
+        
+        // Detect browser
+        if (ua.indexOf("Firefox") > -1) {
+            browser = "Firefox";
+        } else if (ua.indexOf("SamsungBrowser") > -1) {
+            browser = "Samsung Browser";
+        } else if (ua.indexOf("Opera") > -1 || ua.indexOf("OPR") > -1) {
+            browser = "Opera";
+        } else if (ua.indexOf("Trident") > -1) {
+            browser = "Internet Explorer";
+        } else if (ua.indexOf("Edge") > -1) {
+            browser = "Edge";
+        } else if (ua.indexOf("Chrome") > -1) {
+            browser = "Chrome";
+        } else if (ua.indexOf("Safari") > -1) {
+            browser = "Safari";
+        }
+        
+        // Detect OS
+        if (ua.indexOf("Windows") > -1) {
+            os = "Windows";
+        } else if (ua.indexOf("Mac") > -1) {
+            os = "MacOS";
+        } else if (ua.indexOf("Linux") > -1) {
+            os = "Linux";
+        } else if (ua.indexOf("Android") > -1) {
+            os = "Android";
+        } else if (ua.indexOf("iPhone") > -1 || ua.indexOf("iPad") > -1) {
+            os = "iOS";
+        }
+        
+        return { browser, os };
+    }
 }
+
+// Export the Utils class
+export default Utils;
