@@ -1,39 +1,55 @@
 /**
  * Storage module for Jesster's Combat Tracker
- * Handles data persistence using localStorage, IndexedDB, and optional cloud storage
+ * Handles data persistence
  */
 class Storage {
     constructor() {
-        this.dbName = 'JesstersCombatTracker';
-        this.dbVersion = 1;
-        this.db = null;
-        this.isIndexedDBSupported = 'indexedDB' in window;
-        this.isLocalStorageSupported = this._checkLocalStorage();
-        this.cloudEnabled = false;
-        this.cloudConfig = null;
-        this.userId = null;
+        // Storage options
+        this.options = {
+            prefix: 'jct_',
+            useCompression: true,
+            useEncryption: false,
+            encryptionKey: '',
+            storageType: 'auto', // auto, localStorage, indexedDB, memory
+            maxLocalStorageSize: 5 * 1024 * 1024, // 5MB
+            maxIndexedDBSize: 50 * 1024 * 1024 // 50MB
+        };
         
-        // Initialize IndexedDB if supported
-        if (this.isIndexedDBSupported) {
-            this._initIndexedDB();
-        }
+        // In-memory storage
+        this.memoryStorage = {};
+        
+        // IndexedDB database
+        this.db = null;
+        this.dbName = 'jessterCombatTracker';
+        this.dbVersion = 1;
+        
+        // Initialize storage
+        this._initStorage();
         
         console.log("Storage module initialized");
     }
 
     /**
-     * Check if localStorage is available
+     * Initialize storage
      * @private
-     * @returns {boolean} True if localStorage is available
      */
-    _checkLocalStorage() {
-        try {
-            localStorage.setItem('test', 'test');
-            localStorage.removeItem('test');
-            return true;
-        } catch (e) {
-            console.warn('localStorage not available:', e);
-            return false;
+    async _initStorage() {
+        // Check storage type
+        if (this.options.storageType === 'auto') {
+            // Determine best storage type
+            if (this._isIndexedDBAvailable()) {
+                this.options.storageType = 'indexedDB';
+            } else if (this._isLocalStorageAvailable()) {
+                this.options.storageType = 'localStorage';
+            } else {
+                this.options.storageType = 'memory';
+                console.warn('Using in-memory storage. Data will not persist between sessions.');
+            }
+        }
+        
+        // Initialize IndexedDB if needed
+        if (this.options.storageType === 'indexedDB') {
+            await this._initIndexedDB();
         }
     }
 
@@ -42,200 +58,270 @@ class Storage {
      * @private
      */
     async _initIndexedDB() {
-        if (!this.isIndexedDBSupported) return;
-
         return new Promise((resolve, reject) => {
+            if (!window.indexedDB) {
+                console.warn('IndexedDB not supported. Falling back to localStorage.');
+                this.options.storageType = 'localStorage';
+                resolve();
+                return;
+            }
+            
             const request = indexedDB.open(this.dbName, this.dbVersion);
             
             request.onerror = (event) => {
                 console.error('IndexedDB error:', event.target.error);
-                this.isIndexedDBSupported = false;
-                reject(event.target.error);
+                console.warn('Falling back to localStorage.');
+                this.options.storageType = 'localStorage';
+                resolve();
             };
             
             request.onsuccess = (event) => {
                 this.db = event.target.result;
-                console.log('IndexedDB connection established');
-                resolve(this.db);
+                resolve();
             };
             
             request.onupgradeneeded = (event) => {
                 const db = event.target.result;
                 
-                // Create object stores if they don't exist
-                if (!db.objectStoreNames.contains('roster')) {
-                    db.createObjectStore('roster', { keyPath: 'id' });
-                }
-                
-                if (!db.objectStoreNames.contains('monsters')) {
-                    db.createObjectStore('monsters', { keyPath: 'id' });
-                }
-                
-                if (!db.objectStoreNames.contains('parties')) {
-                    db.createObjectStore('parties', { keyPath: 'id' });
-                }
-                
-                if (!db.objectStoreNames.contains('encounters')) {
-                    db.createObjectStore('encounters', { keyPath: 'id' });
-                }
-                
-                if (!db.objectStoreNames.contains('combats')) {
-                    db.createObjectStore('combats', { keyPath: 'id' });
-                }
-                
-                if (!db.objectStoreNames.contains('settings')) {
-                    db.createObjectStore('settings', { keyPath: 'id' });
-                }
-                
-                if (!db.objectStoreNames.contains('cache')) {
-                    const cacheStore = db.createObjectStore('cache', { keyPath: 'id' });
-                    cacheStore.createIndex('timestamp', 'timestamp', { unique: false });
+                // Create object stores
+                if (!db.objectStoreNames.contains('data')) {
+                    db.createObjectStore('data', { keyPath: 'key' });
                 }
             };
         });
     }
 
     /**
-     * Configure cloud storage
-     * @param {Object} config - Firebase configuration
-     * @param {string} userId - User ID for cloud storage
+     * Check if localStorage is available
+     * @private
+     * @returns {boolean} True if localStorage is available
      */
-    configureCloudStorage(config, userId) {
-        this.cloudConfig = config;
-        this.userId = userId;
-        this.cloudEnabled = true;
-    }
-
-    /**
-     * Disable cloud storage
-     */
-    disableCloudStorage() {
-        this.cloudEnabled = false;
-    }
-
-    /**
-     * Save data to storage
-     * @param {string} key - Storage key
-     * @param {any} data - Data to store
-     * @param {Object} options - Storage options
-     * @param {boolean} options.useLocalStorage - Use localStorage instead of IndexedDB
-     * @param {boolean} options.useCloud - Use cloud storage
-     * @param {string} options.collection - Collection name for cloud storage
-     * @returns {Promise<boolean>} Success status
-     */
-    async save(key, data, options = {}) {
-        const { useLocalStorage = false, useCloud = this.cloudEnabled, collection = null } = options;
-        
+    _isLocalStorageAvailable() {
         try {
-            // Use localStorage if specified or if IndexedDB is not supported
-            if (useLocalStorage || !this.isIndexedDBSupported) {
-                if (!this.isLocalStorageSupported) {
-                    throw new Error('localStorage is not supported');
-                }
-                localStorage.setItem(key, JSON.stringify(data));
-            } 
-            // Use IndexedDB
-            else {
-                await this._saveToIndexedDB(key, data);
-            }
-            
-            // Save to cloud if enabled and configured
-            if (useCloud && this.cloudEnabled && collection) {
-                await this._saveToCloud(collection, key, data);
-            }
-            
+            const test = 'test';
+            localStorage.setItem(test, test);
+            localStorage.removeItem(test);
             return true;
-        } catch (error) {
-            console.error('Error saving data:', error);
+        } catch (e) {
             return false;
         }
     }
 
     /**
-     * Load data from storage
-     * @param {string} key - Storage key
-     * @param {Object} options - Storage options
-     * @param {boolean} options.useLocalStorage - Use localStorage instead of IndexedDB
-     * @param {boolean} options.useCloud - Use cloud storage
-     * @param {string} options.collection - Collection name for cloud storage
-     * @param {boolean} options.preferCloud - Prefer cloud data over local data
-     * @returns {Promise<any>} Loaded data
+     * Check if IndexedDB is available
+     * @private
+     * @returns {boolean} True if IndexedDB is available
      */
-    async load(key, options = {}) {
-        const { 
-            useLocalStorage = false, 
-            useCloud = this.cloudEnabled, 
-            collection = null,
-            preferCloud = false
-        } = options;
+    _isIndexedDBAvailable() {
+        return !!window.indexedDB;
+    }
+
+    /**
+     * Get full key with prefix
+     * @private
+     * @param {string} key - Key
+     * @returns {string} Full key with prefix
+     */
+    _getFullKey(key) {
+        return `${this.options.prefix}${key}`;
+    }
+
+    /**
+     * Compress data
+     * @private
+     * @param {*} data - Data to compress
+     * @returns {string} Compressed data
+     */
+    _compress(data) {
+        if (!this.options.useCompression) {
+            return JSON.stringify(data);
+        }
         
         try {
-            let data = null;
+            const jsonString = JSON.stringify(data);
             
-            // Try to load from cloud first if preferCloud is true
-            if (preferCloud && useCloud && this.cloudEnabled && collection) {
-                data = await this._loadFromCloud(collection, key);
-                if (data) return data;
+            // Use LZ-based compression if available
+            if (window.LZString) {
+                return window.LZString.compress(jsonString);
             }
             
-            // Load from localStorage if specified or if IndexedDB is not supported
-            if (useLocalStorage || !this.isIndexedDBSupported) {
-                if (!this.isLocalStorageSupported) {
-                    throw new Error('localStorage is not supported');
-                }
-                const item = localStorage.getItem(key);
-                data = item ? JSON.parse(item) : null;
-            } 
-            // Load from IndexedDB
-            else {
-                data = await this._loadFromIndexedDB(key);
-            }
-            
-            // If data is not found locally and cloud is enabled, try to load from cloud
-            if (data === null && useCloud && this.cloudEnabled && collection && !preferCloud) {
-                data = await this._loadFromCloud(collection, key);
-            }
-            
-            return data;
+            // Fallback to simple compression
+            return jsonString;
         } catch (error) {
-            console.error('Error loading data:', error);
+            console.error('Compression error:', error);
+            return JSON.stringify(data);
+        }
+    }
+
+    /**
+     * Decompress data
+     * @private
+     * @param {string} compressedData - Compressed data
+     * @returns {*} Decompressed data
+     */
+    _decompress(compressedData) {
+        if (!compressedData) return null;
+        
+        if (!this.options.useCompression) {
+            return JSON.parse(compressedData);
+        }
+        
+        try {
+            // Use LZ-based decompression if available
+            if (window.LZString && typeof compressedData === 'string' && !compressedData.startsWith('{')) {
+                const jsonString = window.LZString.decompress(compressedData);
+                return JSON.parse(jsonString);
+            }
+            
+            // Fallback to simple decompression
+            return JSON.parse(compressedData);
+        } catch (error) {
+            console.error('Decompression error:', error);
             return null;
         }
     }
 
     /**
-     * Delete data from storage
-     * @param {string} key - Storage key
-     * @param {Object} options - Storage options
-     * @param {boolean} options.useLocalStorage - Use localStorage instead of IndexedDB
-     * @param {boolean} options.useCloud - Use cloud storage
-     * @param {string} options.collection - Collection name for cloud storage
-     * @returns {Promise<boolean>} Success status
+     * Encrypt data
+     * @private
+     * @param {string} data - Data to encrypt
+     * @returns {string} Encrypted data
      */
-    async delete(key, options = {}) {
-        const { useLocalStorage = false, useCloud = this.cloudEnabled, collection = null } = options;
+    _encrypt(data) {
+        if (!this.options.useEncryption || !this.options.encryptionKey) {
+            return data;
+        }
         
         try {
-            // Delete from localStorage if specified or if IndexedDB is not supported
-            if (useLocalStorage || !this.isIndexedDBSupported) {
-                if (!this.isLocalStorageSupported) {
-                    throw new Error('localStorage is not supported');
-                }
-                localStorage.removeItem(key);
-            } 
-            // Delete from IndexedDB
-            else {
-                await this._deleteFromIndexedDB(key);
+            // Simple XOR encryption for demonstration
+            // In a real app, use a proper encryption library
+            const key = this.options.encryptionKey;
+            let result = '';
+            
+            for (let i = 0; i < data.length; i++) {
+                const charCode = data.charCodeAt(i) ^ key.charCodeAt(i % key.length);
+                result += String.fromCharCode(charCode);
             }
             
-            // Delete from cloud if enabled and configured
-            if (useCloud && this.cloudEnabled && collection) {
-                await this._deleteFromCloud(collection, key);
+            return btoa(result); // Base64 encode
+        } catch (error) {
+            console.error('Encryption error:', error);
+            return data;
+        }
+    }
+
+    /**
+     * Decrypt data
+     * @private
+     * @param {string} encryptedData - Encrypted data
+     * @returns {string} Decrypted data
+     */
+    _decrypt(encryptedData) {
+        if (!this.options.useEncryption || !this.options.encryptionKey) {
+            return encryptedData;
+        }
+        
+        try {
+            // Simple XOR decryption for demonstration
+            const key = this.options.encryptionKey;
+            const data = atob(encryptedData); // Base64 decode
+            let result = '';
+            
+            for (let i = 0; i < data.length; i++) {
+                const charCode = data.charCodeAt(i) ^ key.charCodeAt(i % key.length);
+                result += String.fromCharCode(charCode);
             }
             
+            return result;
+        } catch (error) {
+            console.error('Decryption error:', error);
+            return encryptedData;
+        }
+    }
+
+    /**
+     * Process data for storage
+     * @private
+     * @param {*} data - Data to process
+     * @returns {string} Processed data
+     */
+    _processForStorage(data) {
+        const compressed = this._compress(data);
+        return this.options.useEncryption ? this._encrypt(compressed) : compressed;
+    }
+
+    /**
+     * Process data from storage
+     * @private
+     * @param {string} data - Data to process
+     * @returns {*} Processed data
+     */
+    _processFromStorage(data) {
+        const decrypted = this.options.useEncryption ? this._decrypt(data) : data;
+        return this._decompress(decrypted);
+    }
+
+    /**
+     * Save data to localStorage
+     * @private
+     * @param {string} key - Key
+     * @param {*} data - Data to save
+     * @returns {Promise<boolean>} Success status
+     */
+    async _saveToLocalStorage(key, data) {
+        try {
+            const fullKey = this._getFullKey(key);
+            const processedData = this._processForStorage(data);
+            
+            // Check size
+            if (processedData.length > this.options.maxLocalStorageSize) {
+                console.error(`Data for key ${key} exceeds maximum localStorage size`);
+                return false;
+            }
+            
+            localStorage.setItem(fullKey, processedData);
             return true;
         } catch (error) {
-            console.error('Error deleting data:', error);
+            console.error(`Error saving to localStorage (${key}):`, error);
+            return false;
+        }
+    }
+
+    /**
+     * Load data from localStorage
+     * @private
+     * @param {string} key - Key
+     * @returns {Promise<*>} Loaded data
+     */
+    async _loadFromLocalStorage(key) {
+        try {
+            const fullKey = this._getFullKey(key);
+            const data = localStorage.getItem(fullKey);
+            
+            if (data === null) {
+                return null;
+            }
+            
+            return this._processFromStorage(data);
+        } catch (error) {
+            console.error(`Error loading from localStorage (${key}):`, error);
+            return null;
+        }
+    }
+
+    /**
+     * Delete data from localStorage
+     * @private
+     * @param {string} key - Key
+     * @returns {Promise<boolean>} Success status
+     */
+    async _deleteFromLocalStorage(key) {
+        try {
+            const fullKey = this._getFullKey(key);
+            localStorage.removeItem(fullKey);
+            return true;
+        } catch (error) {
+            console.error(`Error deleting from localStorage (${key}):`, error);
             return false;
         }
     }
@@ -243,365 +329,670 @@ class Storage {
     /**
      * Save data to IndexedDB
      * @private
-     * @param {string} storeName - Object store name
-     * @param {any} data - Data to store
-     * @returns {Promise<void>}
+     * @param {string} key - Key
+     * @param {*} data - Data to save
+     * @returns {Promise<boolean>} Success status
      */
-    async _saveToIndexedDB(storeName, data) {
-        if (!this.db) {
-            await this._initIndexedDB();
-        }
-        
-        return new Promise((resolve, reject) => {
-            const transaction = this.db.transaction([storeName], 'readwrite');
-            const store = transaction.objectStore(storeName);
-            const request = store.put(data);
+    async _saveToIndexedDB(key, data) {
+        return new Promise((resolve) => {
+            if (!this.db) {
+                console.error('IndexedDB not initialized');
+                resolve(false);
+                return;
+            }
             
-            request.onsuccess = () => resolve();
-            request.onerror = (event) => reject(event.target.error);
+            try {
+                const transaction = this.db.transaction(['data'], 'readwrite');
+                const objectStore = transaction.objectStore('data');
+                
+                const processedData = this._processForStorage(data);
+                
+                // Check size
+                if (processedData.length > this.options.maxIndexedDBSize) {
+                    console.error(`Data for key ${key} exceeds maximum IndexedDB size`);
+                    resolve(false);
+                    return;
+                }
+                
+                const request = objectStore.put({
+                    key: key,
+                    value: processedData,
+                    timestamp: Date.now()
+                });
+                
+                request.onsuccess = () => {
+                    resolve(true);
+                };
+                
+                request.onerror = (event) => {
+                    console.error(`Error saving to IndexedDB (${key}):`, event.target.error);
+                    resolve(false);
+                };
+            } catch (error) {
+                console.error(`Error saving to IndexedDB (${key}):`, error);
+                resolve(false);
+            }
         });
     }
 
     /**
      * Load data from IndexedDB
      * @private
-     * @param {string} storeName - Object store name
-     * @param {string} key - Key to load
-     * @returns {Promise<any>}
+     * @param {string} key - Key
+     * @returns {Promise<*>} Loaded data
      */
-    async _loadFromIndexedDB(storeName, key = null) {
-        if (!this.db) {
-            await this._initIndexedDB();
-        }
-        
-        return new Promise((resolve, reject) => {
-            const transaction = this.db.transaction([storeName], 'readonly');
-            const store = transaction.objectStore(storeName);
-            const request = key ? store.get(key) : store.getAll();
+    async _loadFromIndexedDB(key) {
+        return new Promise((resolve) => {
+            if (!this.db) {
+                console.error('IndexedDB not initialized');
+                resolve(null);
+                return;
+            }
             
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = (event) => reject(event.target.error);
+            try {
+                const transaction = this.db.transaction(['data'], 'readonly');
+                const objectStore = transaction.objectStore('data');
+                const request = objectStore.get(key);
+                
+                request.onsuccess = (event) => {
+                    const result = event.target.result;
+                    if (!result) {
+                        resolve(null);
+                        return;
+                    }
+                    
+                    resolve(this._processFromStorage(result.value));
+                };
+                
+                request.onerror = (event) => {
+                    console.error(`Error loading from IndexedDB (${key}):`, event.target.error);
+                    resolve(null);
+                };
+            } catch (error) {
+                console.error(`Error loading from IndexedDB (${key}):`, error);
+                resolve(null);
+            }
         });
     }
 
     /**
      * Delete data from IndexedDB
      * @private
-     * @param {string} storeName - Object store name
-     * @param {string} key - Key to delete
-     * @returns {Promise<void>}
+     * @param {string} key - Key
+     * @returns {Promise<boolean>} Success status
      */
-    async _deleteFromIndexedDB(storeName, key) {
-        if (!this.db) {
-            await this._initIndexedDB();
-        }
-        
-        return new Promise((resolve, reject) => {
-            const transaction = this.db.transaction([storeName], 'readwrite');
-            const store = transaction.objectStore(storeName);
-            const request = store.delete(key);
+    async _deleteFromIndexedDB(key) {
+        return new Promise((resolve) => {
+            if (!this.db) {
+                console.error('IndexedDB not initialized');
+                resolve(false);
+                return;
+            }
             
-            request.onsuccess = () => resolve();
-            request.onerror = (event) => reject(event.target.error);
+            try {
+                const transaction = this.db.transaction(['data'], 'readwrite');
+                const objectStore = transaction.objectStore('data');
+                const request = objectStore.delete(key);
+                
+                request.onsuccess = () => {
+                    resolve(true);
+                };
+                
+                request.onerror = (event) => {
+                    console.error(`Error deleting from IndexedDB (${key}):`, event.target.error);
+                    resolve(false);
+                };
+            } catch (error) {
+                console.error(`Error deleting from IndexedDB (${key}):`, error);
+                resolve(false);
+            }
         });
     }
 
     /**
-     * Save data to cloud storage
+     * Save data to memory storage
      * @private
-     * @param {string} collection - Collection name
-     * @param {string} docId - Document ID
-     * @param {any} data - Data to store
-     * @returns {Promise<void>}
-     */
-    async _saveToCloud(collection, docId, data) {
-        // This is a placeholder for Firebase integration
-        // Will be implemented when Firebase is configured
-        console.log(`Cloud save: ${collection}/${docId}`);
-        return Promise.resolve();
-    }
-
-    /**
-     * Load data from cloud storage
-     * @private
-     * @param {string} collection - Collection name
-     * @param {string} docId - Document ID
-     * @returns {Promise<any>}
-     */
-    async _loadFromCloud(collection, docId) {
-        // This is a placeholder for Firebase integration
-        // Will be implemented when Firebase is configured
-        console.log(`Cloud load: ${collection}/${docId}`);
-        return Promise.resolve(null);
-    }
-
-    /**
-     * Delete data from cloud storage
-     * @private
-     * @param {string} collection - Collection name
-     * @param {string} docId - Document ID
-     * @returns {Promise<void>}
-     */
-    async _deleteFromCloud(collection, docId) {
-        // This is a placeholder for Firebase integration
-        // Will be implemented when Firebase is configured
-        console.log(`Cloud delete: ${collection}/${docId}`);
-        return Promise.resolve();
-    }
-
-    /**
-     * Get all items from a store
-     * @param {string} storeName - Object store name
-     * @param {Object} options - Options
-     * @param {boolean} options.useLocalStorage - Use localStorage instead of IndexedDB
-     * @returns {Promise<Array>} Array of items
-     */
-    async getAll(storeName, options = {}) {
-        const { useLocalStorage = false } = options;
-        
-        try {
-            // Use localStorage if specified or if IndexedDB is not supported
-            if (useLocalStorage || !this.isIndexedDBSupported) {
-                if (!this.isLocalStorageSupported) {
-                    throw new Error('localStorage is not supported');
-                }
-                
-                // Get all items with the prefix
-                const prefix = `${storeName}_`;
-                const items = [];
-                
-                for (let i = 0; i < localStorage.length; i++) {
-                    const key = localStorage.key(i);
-                    if (key.startsWith(prefix)) {
-                        const item = JSON.parse(localStorage.getItem(key));
-                        items.push(item);
-                    }
-                }
-                
-                return items;
-            } 
-            // Use IndexedDB
-            else {
-                return await this._loadFromIndexedDB(storeName);
-            }
-        } catch (error) {
-            console.error('Error getting all items:', error);
-            return [];
-        }
-    }
-
-    /**
-     * Clear all data from a store
-     * @param {string} storeName - Object store name
-     * @param {Object} options - Options
-     * @param {boolean} options.useLocalStorage - Use localStorage instead of IndexedDB
-     * @param {boolean} options.useCloud - Use cloud storage
-     * @param {string} options.collection - Collection name for cloud storage
+     * @param {string} key - Key
+     * @param {*} data - Data to save
      * @returns {Promise<boolean>} Success status
      */
-    async clearStore(storeName, options = {}) {
-        const { useLocalStorage = false, useCloud = this.cloudEnabled, collection = null } = options;
-        
+    async _saveToMemory(key, data) {
         try {
-            // Clear localStorage if specified or if IndexedDB is not supported
-            if (useLocalStorage || !this.isIndexedDBSupported) {
-                if (!this.isLocalStorageSupported) {
-                    throw new Error('localStorage is not supported');
-                }
-                
-                // Remove all items with the prefix
-                const prefix = `${storeName}_`;
-                const keysToRemove = [];
-                
-                for (let i = 0; i < localStorage.length; i++) {
-                    const key = localStorage.key(i);
-                    if (key.startsWith(prefix)) {
-                        keysToRemove.push(key);
-                    }
-                }
-                
-                keysToRemove.forEach(key => localStorage.removeItem(key));
-            } 
-            // Clear IndexedDB
-            else {
-                if (!this.db) {
-                    await this._initIndexedDB();
-                }
-                
-                await new Promise((resolve, reject) => {
-                    const transaction = this.db.transaction([storeName], 'readwrite');
-                    const store = transaction.objectStore(storeName);
-                    const request = store.clear();
-                    
-                    request.onsuccess = () => resolve();
-                    request.onerror = (event) => reject(event.target.error);
-                });
-            }
-            
-            // Clear cloud if enabled and configured
-            if (useCloud && this.cloudEnabled && collection) {
-                // This is a placeholder for Firebase integration
-                // Will be implemented when Firebase is configured
-                console.log(`Cloud clear: ${collection}`);
-            }
-            
+            this.memoryStorage[key] = {
+                value: data,
+                timestamp: Date.now()
+            };
             return true;
         } catch (error) {
-            console.error('Error clearing store:', error);
+            console.error(`Error saving to memory (${key}):`, error);
             return false;
         }
     }
 
     /**
-     * Export all data to a JSON file
-     * @returns {Promise<Blob>} JSON blob
+     * Load data from memory storage
+     * @private
+     * @param {string} key - Key
+     * @returns {Promise<*>} Loaded data
+     */
+    async _loadFromMemory(key) {
+        try {
+            const item = this.memoryStorage[key];
+            return item ? item.value : null;
+        } catch (error) {
+            console.error(`Error loading from memory (${key}):`, error);
+            return null;
+        }
+    }
+
+    /**
+     * Delete data from memory storage
+     * @private
+     * @param {string} key - Key
+     * @returns {Promise<boolean>} Success status
+     */
+    async _deleteFromMemory(key) {
+        try {
+            delete this.memoryStorage[key];
+            return true;
+        } catch (error) {
+            console.error(`Error deleting from memory (${key}):`, error);
+            return false;
+        }
+    }
+
+    /**
+     * Save data
+     * @param {string} key - Key
+     * @param {*} data - Data to save
+     * @param {Object} options - Save options
+     * @param {boolean} options.useLocalStorage - Force using localStorage
+     * @returns {Promise<boolean>} Success status
+     */
+    async save(key, data, options = {}) {
+        // Determine storage type
+        let storageType = this.options.storageType;
+        if (options.useLocalStorage) {
+            storageType = 'localStorage';
+        }
+        
+        // Save data
+        switch (storageType) {
+            case 'localStorage':
+                return await this._saveToLocalStorage(key, data);
+            case 'indexedDB':
+                return await this._saveToIndexedDB(key, data);
+            case 'memory':
+                return await this._saveToMemory(key, data);
+            default:
+                console.error(`Unknown storage type: ${storageType}`);
+                return false;
+        }
+    }
+
+    /**
+     * Load data
+     * @param {string} key - Key
+     * @param {Object} options - Load options
+     * @param {boolean} options.useLocalStorage - Force using localStorage
+     * @returns {Promise<*>} Loaded data
+     */
+    async load(key, options = {}) {
+        // Determine storage type
+        let storageType = this.options.storageType;
+        if (options.useLocalStorage) {
+            storageType = 'localStorage';
+        }
+        
+        // Load data
+        switch (storageType) {
+            case 'localStorage':
+                return await this._loadFromLocalStorage(key);
+            case 'indexedDB':
+                return await this._loadFromIndexedDB(key);
+            case 'memory':
+                return await this._loadFromMemory(key);
+            default:
+                console.error(`Unknown storage type: ${storageType}`);
+                return null;
+        }
+    }
+
+    /**
+     * Delete data
+     * @param {string} key - Key
+     * @param {Object} options - Delete options
+     * @param {boolean} options.useLocalStorage - Force using localStorage
+     * @returns {Promise<boolean>} Success status
+     */
+    async delete(key, options = {}) {
+        // Determine storage type
+        let storageType = this.options.storageType;
+        if (options.useLocalStorage) {
+            storageType = 'localStorage';
+        }
+        
+        // Delete data
+        switch (storageType) {
+            case 'localStorage':
+                return await this._deleteFromLocalStorage(key);
+            case 'indexedDB':
+                return await this._deleteFromIndexedDB(key);
+            case 'memory':
+                return await this._deleteFromMemory(key);
+            default:
+                console.error(`Unknown storage type: ${storageType}`);
+                return false;
+        }
+    }
+
+    /**
+     * Check if data exists
+     * @param {string} key - Key
+     * @param {Object} options - Options
+     * @param {boolean} options.useLocalStorage - Force using localStorage
+     * @returns {Promise<boolean>} True if data exists
+     */
+    async exists(key, options = {}) {
+        const data = await this.load(key, options);
+        return data !== null;
+    }
+
+    /**
+     * Get all keys
+     * @param {Object} options - Options
+     * @param {boolean} options.useLocalStorage - Force using localStorage
+     * @returns {Promise<Array>} Keys
+     */
+    async getKeys(options = {}) {
+        // Determine storage type
+        let storageType = this.options.storageType;
+        if (options.useLocalStorage) {
+            storageType = 'localStorage';
+        }
+        
+        // Get keys
+        switch (storageType) {
+            case 'localStorage':
+                try {
+                    const keys = [];
+                    const prefix = this.options.prefix;
+                    
+                    for (let i = 0; i < localStorage.length; i++) {
+                        const key = localStorage.key(i);
+                        if (key.startsWith(prefix)) {
+                            keys.push(key.substring(prefix.length));
+                        }
+                    }
+                    
+                    return keys;
+                } catch (error) {
+                    console.error('Error getting keys from localStorage:', error);
+                    return [];
+                }
+            case 'indexedDB':
+                return new Promise((resolve) => {
+                    if (!this.db) {
+                        console.error('IndexedDB not initialized');
+                        resolve([]);
+                        return;
+                    }
+                    
+                    try {
+                        const transaction = this.db.transaction(['data'], 'readonly');
+                        const objectStore = transaction.objectStore('data');
+                        const request = objectStore.getAllKeys();
+                        
+                        request.onsuccess = (event) => {
+                            resolve(event.target.result);
+                        };
+                        
+                        request.onerror = (event) => {
+                            console.error('Error getting keys from IndexedDB:', event.target.error);
+                            resolve([]);
+                        };
+                    } catch (error) {
+                        console.error('Error getting keys from IndexedDB:', error);
+                        resolve([]);
+                    }
+                });
+            case 'memory':
+                return Object.keys(this.memoryStorage);
+            default:
+                console.error(`Unknown storage type: ${storageType}`);
+                return [];
+        }
+    }
+
+    /**
+     * Get all data
+     * @param {string} keyPrefix - Key prefix
+     * @param {Object} options - Options
+     * @param {boolean} options.useLocalStorage - Force using localStorage
+     * @returns {Promise<Array>} Data
+     */
+    async getAll(keyPrefix = '', options = {}) {
+        const keys = await this.getKeys(options);
+        const filteredKeys = keyPrefix ? keys.filter(key => key.startsWith(keyPrefix)) : keys;
+        
+        const results = [];
+        for (const key of filteredKeys) {
+            const data = await this.load(key, options);
+            if (data !== null) {
+                results.push(data);
+            }
+        }
+        
+        return results;
+    }
+
+    /**
+     * Clear all data
+     * @param {Object} options - Options
+     * @param {boolean} options.useLocalStorage - Force using localStorage
+     * @returns {Promise<boolean>} Success status
+     */
+    async clear(options = {}) {
+        // Determine storage type
+        let storageType = this.options.storageType;
+        if (options.useLocalStorage) {
+            storageType = 'localStorage';
+        }
+        
+        // Clear data
+        switch (storageType) {
+            case 'localStorage':
+                try {
+                    const prefix = this.options.prefix;
+                    const keysToRemove = [];
+                    
+                    for (let i = 0; i < localStorage.length; i++) {
+                        const key = localStorage.key(i);
+                        if (key.startsWith(prefix)) {
+                            keysToRemove.push(key);
+                        }
+                    }
+                    
+                    keysToRemove.forEach(key => localStorage.removeItem(key));
+                    return true;
+                } catch (error) {
+                    console.error('Error clearing localStorage:', error);
+                    return false;
+                }
+            case 'indexedDB':
+                return new Promise((resolve) => {
+                    if (!this.db) {
+                        console.error('IndexedDB not initialized');
+                        resolve(false);
+                        return;
+                    }
+                    
+                    try {
+                        const transaction = this.db.transaction(['data'], 'readwrite');
+                        const objectStore = transaction.objectStore('data');
+                        const request = objectStore.clear();
+                        
+                        request.onsuccess = () => {
+                            resolve(true);
+                        };
+                        
+                        request.onerror = (event) => {
+                            console.error('Error clearing IndexedDB:', event.target.error);
+                            resolve(false);
+                        };
+                    } catch (error) {
+                        console.error('Error clearing IndexedDB:', error);
+                        resolve(false);
+                    }
+                });
+            case 'memory':
+                this.memoryStorage = {};
+                return true;
+            default:
+                console.error(`Unknown storage type: ${storageType}`);
+                return false;
+        }
+    }
+
+    /**
+     * Set storage options
+     * @param {Object} options - Storage options
+     * @returns {Promise<boolean>} Success status
+     */
+    async setOptions(options) {
+        // Update options
+        this.options = { ...this.options, ...options };
+        
+        // Reinitialize storage if storage type changed
+        if (options.storageType) {
+            await this._initStorage();
+        }
+        
+        return true;
+    }
+
+    /**
+     * Get storage options
+     * @returns {Object} Storage options
+     */
+    getOptions() {
+        return { ...this.options };
+    }
+
+    /**
+     * Get storage type
+     * @returns {string} Storage type
+     */
+    getStorageType() {
+        return this.options.storageType;
+    }
+
+    /**
+     * Get storage usage
+     * @returns {Promise<Object>} Storage usage
+     */
+    async getStorageUsage() {
+        switch (this.options.storageType) {
+            case 'localStorage':
+                try {
+                    let totalSize = 0;
+                    const prefix = this.options.prefix;
+                    
+                    for (let i = 0; i < localStorage.length; i++) {
+                        const key = localStorage.key(i);
+                        if (key.startsWith(prefix)) {
+                            totalSize += localStorage.getItem(key).length * 2; // UTF-16 characters (2 bytes each)
+                        }
+                    }
+                    
+                    return {
+                        used: totalSize,
+                        total: this.options.maxLocalStorageSize,
+                        percentage: (totalSize / this.options.maxLocalStorageSize) * 100
+                    };
+                } catch (error) {
+                    console.error('Error getting localStorage usage:', error);
+                    return { used: 0, total: 0, percentage: 0 };
+                }
+            case 'indexedDB':
+                // Estimating IndexedDB usage is complex and browser-dependent
+                // This is a simplified approach
+                return new Promise((resolve) => {
+                    if (!this.db) {
+                        resolve({ used: 0, total: this.options.maxIndexedDBSize, percentage: 0 });
+                        return;
+                    }
+                    
+                    try {
+                        const transaction = this.db.transaction(['data'], 'readonly');
+                        const objectStore = transaction.objectStore('data');
+                        const request = objectStore.getAll();
+                        
+                        request.onsuccess = (event) => {
+                            const data = event.target.result;
+                            let totalSize = 0;
+                            
+                            data.forEach(item => {
+                                totalSize += (item.value ? item.value.length : 0);
+                            });
+                            
+                            resolve({
+                                used: totalSize,
+                                total: this.options.maxIndexedDBSize,
+                                percentage: (totalSize / this.options.maxIndexedDBSize) * 100
+                            });
+                        };
+                        
+                        request.onerror = () => {
+                            resolve({ used: 0, total: this.options.maxIndexedDBSize, percentage: 0 });
+                        };
+                    } catch (error) {
+                        console.error('Error getting IndexedDB usage:', error);
+                        resolve({ used: 0, total: this.options.maxIndexedDBSize, percentage: 0 });
+                    }
+                });
+            case 'memory':
+                let totalSize = 0;
+                
+                Object.values(this.memoryStorage).forEach(item => {
+                    try {
+                        totalSize += JSON.stringify(item).length;
+                    } catch (e) {
+                        // Ignore errors
+                    }
+                });
+                
+                return {
+                    used: totalSize,
+                    total: Infinity,
+                    percentage: 0
+                };
+            default:
+                return { used: 0, total: 0, percentage: 0 };
+        }
+    }
+
+    /**
+     * Export all data
+     * @returns {Promise<Object>} Exported data
      */
     async exportData() {
-        try {
-            const data = {};
-            
-            // Export data from all stores
-            const stores = ['roster', 'monsters', 'parties', 'encounters', 'combats', 'settings'];
-            
-            for (const store of stores) {
-                data[store] = await this.getAll(store);
-            }
-            
-            // Create a JSON blob
-            const json = JSON.stringify(data, null, 2);
-            const blob = new Blob([json], { type: 'application/json' });
-            
-            return blob;
-        } catch (error) {
-            console.error('Error exporting data:', error);
-            return null;
+        const keys = await this.getKeys();
+        const data = {};
+        
+        for (const key of keys) {
+            data[key] = await this.load(key);
         }
+        
+        return {
+            data,
+            timestamp: Date.now(),
+            version: '1.0'
+        };
     }
 
     /**
-     * Import data from a JSON file
-     * @param {Object} data - Imported data
-     * @returns {Promise<boolean>} Success status
+     * Import data
+     * @param {Object} importData - Data to import
+     * @returns {Promise<Object>} Import result
      */
-    async importData(data) {
+    async importData(importData) {
+        if (!importData || !importData.data) {
+            return { success: false, message: 'Invalid import data' };
+        }
+        
         try {
-            // Import data to all stores
-            const stores = ['roster', 'monsters', 'parties', 'encounters', 'combats', 'settings'];
+            const keys = Object.keys(importData.data);
+            let successCount = 0;
+            let failCount = 0;
             
-            for (const store of stores) {
-                if (data[store] && Array.isArray(data[store])) {
-                    // Clear existing data
-                    await this.clearStore(store);
-                    
-                    // Import new data
-                    for (const item of data[store]) {
-                        await this.save(store, item);
-                    }
+            for (const key of keys) {
+                const success = await this.save(key, importData.data[key]);
+                if (success) {
+                    successCount++;
+                } else {
+                    failCount++;
                 }
             }
             
-            return true;
+            return {
+                success: true,
+                message: `Imported ${successCount} items successfully, ${failCount} failed`,
+                successCount,
+                failCount,
+                totalCount: keys.length
+            };
         } catch (error) {
             console.error('Error importing data:', error);
-            return false;
+            return { success: false, message: `Error importing data: ${error.message}` };
         }
     }
 
     /**
-     * Cache data with expiration
-     * @param {string} key - Cache key
-     * @param {any} data - Data to cache
-     * @param {number} ttl - Time to live in milliseconds
+     * Backup data to file
+     * @param {string} filename - Filename
      * @returns {Promise<boolean>} Success status
      */
-    async cacheData(key, data, ttl = 3600000) { // Default: 1 hour
+    async backupToFile(filename = 'jct-backup.json') {
         try {
-            const cacheItem = {
-                id: key,
-                data,
-                timestamp: Date.now(),
-                expiry: Date.now() + ttl
-            };
+            const exportData = await this.exportData();
+            const json = JSON.stringify(exportData);
             
-            await this._saveToIndexedDB('cache', cacheItem);
+            // Create download link
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            
+            // Trigger download
+            document.body.appendChild(a);
+            a.click();
+            
+            // Clean up
+            setTimeout(() => {
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }, 100);
+            
             return true;
         } catch (error) {
-            console.error('Error caching data:', error);
+            console.error('Error backing up data:', error);
             return false;
         }
     }
 
     /**
-     * Get cached data
-     * @param {string} key - Cache key
-     * @returns {Promise<any>} Cached data or null if expired/not found
+     * Restore data from file
+     * @param {File} file - File to restore from
+     * @returns {Promise<Object>} Restore result
      */
-    async getCachedData(key) {
-        try {
-            const cacheItem = await this._loadFromIndexedDB('cache', key);
-            
-            if (!cacheItem) return null;
-            
-            // Check if cache has expired
-            if (cacheItem.expiry < Date.now()) {
-                await this._deleteFromIndexedDB('cache', key);
-                return null;
+    async restoreFromFile(file) {
+        return new Promise((resolve) => {
+            if (!file) {
+                resolve({ success: false, message: 'No file provided' });
+                return;
             }
             
-            return cacheItem.data;
-        } catch (error) {
-            console.error('Error getting cached data:', error);
-            return null;
-        }
-    }
-
-    /**
-     * Clear expired cache items
-     * @returns {Promise<number>} Number of items cleared
-     */
-    async clearExpiredCache() {
-        try {
-            if (!this.db) {
-                await this._initIndexedDB();
-            }
+            const reader = new FileReader();
             
-            const transaction = this.db.transaction(['cache'], 'readwrite');
-            const store = transaction.objectStore('cache');
-            const index = store.index('timestamp');
-            const now = Date.now();
-            
-            // Get all cache items
-            const cacheItems = await new Promise((resolve, reject) => {
-                const request = index.openCursor();
-                const items = [];
-                
-                request.onsuccess = (event) => {
-                    const cursor = event.target.result;
-                    if (cursor) {
-                        items.push(cursor.value);
-                        cursor.continue();
-                    } else {
-                        resolve(items);
-                    }
-                };
-                
-                request.onerror = (event) => reject(event.target.error);
-            });
-            
-            // Delete expired items
-            let deletedCount = 0;
-            for (const item of cacheItems) {
-                if (item.expiry < now) {
-                    await this._deleteFromIndexedDB('cache', item.id);
-                    deletedCount++;
+            reader.onload = async (event) => {
+                try {
+                    const importData = JSON.parse(event.target.result);
+                    const result = await this.importData(importData);
+                    resolve(result);
+                } catch (error) {
+                    console.error('Error restoring data:', error);
+                    resolve({ success: false, message: `Error restoring data: ${error.message}` });
                 }
-            }
+            };
             
-            return deletedCount;
-        } catch (error) {
-            console.error('Error clearing expired cache:', error);
-            return 0;
-        }
+            reader.onerror = () => {
+                resolve({ success: false, message: 'Error reading file' });
+            };
+            
+            reader.readAsText(file);
+        });
     }
 }
 
