@@ -1,1665 +1,2091 @@
 /**
  * UI module for Jesster's Combat Tracker
- * Handles user interface components, rendering, and interactions
+ * Handles user interface components
  */
 class UI {
     constructor(settings) {
-        // Store reference to the settings module
+        // Store reference to settings module
         this.settings = settings;
         
-        // UI state
-        this.activeTab = 'combat';
-        this.modalStack = [];
-        this.toastQueue = [];
-        this.isProcessingToasts = false;
-        this.draggedElement = null;
-        this.dropTarget = null;
-        this.resizeObservers = [];
-        this.tooltips = [];
-        
-        // UI elements cache
+        // UI elements
         this.elements = {};
         
-        // Event handlers
-        this.eventHandlers = {};
+        // Modal stack
+        this.modalStack = [];
+        
+        // Toast notifications
+        this.toasts = [];
+        this.toastContainer = null;
+        
+        // Drag state
+        this.dragState = {
+            dragging: false,
+            element: null,
+            offsetX: 0,
+            offsetY: 0
+        };
+        
+        // Resize state
+        this.resizeState = {
+            resizing: false,
+            element: null,
+            startWidth: 0,
+            startHeight: 0,
+            startX: 0,
+            startY: 0
+        };
+        
+        // Event listeners
+        this.eventListeners = {};
         
         console.log("UI module initialized");
     }
 
     /**
-     * Initialize the UI
-     * @param {Object} appElements - Main app elements
+     * Initialize UI
      */
-    init(appElements = {}) {
-        // Store references to main app elements
-        this.elements = {
-            ...appElements,
-            body: document.body,
-            app: document.getElementById('app') || document.body,
-            modal: document.getElementById('modal-container'),
-            toast: document.getElementById('toast-container')
-        };
+    init() {
+        // Create toast container
+        this._createToastContainer();
         
-        // Create UI containers if they don't exist
-        this._createUIContainers();
+        // Add global event listeners
+        this._addGlobalEventListeners();
         
-        // Apply theme from settings
-        this.settings.applyTheme();
-        
-        // Initialize tooltips
-        this._initTooltips();
-        
-        // Initialize tab navigation
-        this._initTabNavigation();
-        
-        // Initialize global event listeners
-        this._initEventListeners();
+        // Apply settings
+        this.applySettings();
     }
 
     /**
-     * Create UI containers if they don't exist
+     * Create toast container
      * @private
      */
-    _createUIContainers() {
-        // Create modal container if it doesn't exist
-        if (!this.elements.modal) {
-            const modalContainer = document.createElement('div');
-            modalContainer.id = 'modal-container';
-            modalContainer.className = 'modal-container hidden';
-            document.body.appendChild(modalContainer);
-            this.elements.modal = modalContainer;
-        }
-        
-        // Create toast container if it doesn't exist
-        if (!this.elements.toast) {
-            const toastContainer = document.createElement('div');
-            toastContainer.id = 'toast-container';
-            toastContainer.className = 'toast-container';
-            document.body.appendChild(toastContainer);
-            this.elements.toast = toastContainer;
+    _createToastContainer() {
+        // Create container if it doesn't exist
+        if (!this.toastContainer) {
+            this.toastContainer = document.createElement('div');
+            this.toastContainer.className = 'toast-container';
+            document.body.appendChild(this.toastContainer);
         }
     }
 
     /**
-     * Initialize tooltips
+     * Add global event listeners
      * @private
      */
-    _initTooltips() {
-        // Clear existing tooltips
-        this.tooltips.forEach(tooltip => {
-            if (tooltip.element) {
-                tooltip.element.removeEventListener('mouseenter', tooltip.mouseEnterHandler);
-                tooltip.element.removeEventListener('mouseleave', tooltip.mouseLeaveHandler);
-                tooltip.element.removeEventListener('focus', tooltip.mouseEnterHandler);
-                tooltip.element.removeEventListener('blur', tooltip.mouseLeaveHandler);
+    _addGlobalEventListeners() {
+        // Document click listener for closing dropdowns
+        document.addEventListener('click', (event) => {
+            const dropdowns = document.querySelectorAll('.dropdown.active');
+            dropdowns.forEach(dropdown => {
+                if (!dropdown.contains(event.target)) {
+                    dropdown.classList.remove('active');
+                }
+            });
+        });
+        
+        // Escape key listener for closing modals
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && this.modalStack.length > 0) {
+                this.closeModal();
             }
         });
-        this.tooltips = [];
         
-        // Find all elements with data-tooltip attribute
-        const tooltipElements = document.querySelectorAll('[data-tooltip]');
-        
-        tooltipElements.forEach(element => {
-            const tooltip = element.getAttribute('data-tooltip');
-            if (!tooltip) return;
-            
-            const mouseEnterHandler = () => this.showTooltip(element, tooltip);
-            const mouseLeaveHandler = () => this.hideTooltip(element);
-            
-            element.addEventListener('mouseenter', mouseEnterHandler);
-            element.addEventListener('mouseleave', mouseLeaveHandler);
-            element.addEventListener('focus', mouseEnterHandler);
-            element.addEventListener('blur', mouseLeaveHandler);
-            
-            this.tooltips.push({
-                element,
-                mouseEnterHandler,
-                mouseLeaveHandler
-            });
+        // Window resize listener
+        window.addEventListener('resize', () => {
+            this._triggerEvent('windowResize');
         });
     }
 
     /**
-     * Initialize tab navigation
-     * @private
+     * Apply settings to UI
      */
-    _initTabNavigation() {
-        // Find all tab navigation links
-        const tabLinks = document.querySelectorAll('[data-tab-link]');
+    applySettings() {
+        // Apply theme
+        this.applyTheme();
         
-        tabLinks.forEach(link => {
-            const tabId = link.getAttribute('data-tab-link');
-            if (!tabId) return;
-            
-            link.addEventListener('click', (e) => {
-                e.preventDefault();
-                this.switchTab(tabId);
-            });
-        });
-        
-        // Activate default tab
-        this.switchTab(this.activeTab);
+        // Apply font size
+        this.applyFontSize();
     }
 
     /**
-     * Initialize global event listeners
-     * @private
+     * Apply theme
      */
-    _initEventListeners() {
-        // Listen for keyboard shortcuts
-        document.addEventListener('keydown', this._handleKeyDown.bind(this));
+    applyTheme() {
+        const theme = this.settings.getTheme();
+        const isDark = theme === 'dark' || (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
         
-        // Listen for resize events
-        window.addEventListener('resize', this._handleResize.bind(this));
+        // Set data-theme attribute on document element
+        document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
         
-        // Listen for visibility change
-        document.addEventListener('visibilitychange', this._handleVisibilityChange.bind(this));
-        
-        // Listen for online/offline events
-        window.addEventListener('online', this._handleOnlineStatus.bind(this));
-        window.addEventListener('offline', this._handleOnlineStatus.bind(this));
-    }
-
-    /**
-     * Handle keyboard shortcuts
-     * @private
-     * @param {KeyboardEvent} event - Keyboard event
-     */
-    _handleKeyDown(event) {
-        // Close modal with Escape key
-        if (event.key === 'Escape' && this.modalStack.length > 0) {
-            this.closeModal();
-            event.preventDefault();
-            return;
-        }
-        
-        // Dispatch event to registered handlers
-        if (this.eventHandlers.keydown) {
-            this.eventHandlers.keydown.forEach(handler => handler(event));
-        }
-    }
-
-    /**
-     * Handle window resize
-     * @private
-     */
-    _handleResize() {
-        // Notify resize observers
-        this.resizeObservers.forEach(observer => observer());
-        
-        // Dispatch event to registered handlers
-        if (this.eventHandlers.resize) {
-            this.eventHandlers.resize.forEach(handler => handler());
-        }
-    }
-
-    /**
-     * Handle visibility change
-     * @private
-     */
-    _handleVisibilityChange() {
-        const isVisible = document.visibilityState === 'visible';
-        
-        // Dispatch event to registered handlers
-        if (this.eventHandlers.visibilityChange) {
-            this.eventHandlers.visibilityChange.forEach(handler => handler(isVisible));
-        }
-    }
-
-    /**
-     * Handle online/offline status
-     * @private
-     */
-    _handleOnlineStatus() {
-        const isOnline = navigator.onLine;
-        
-        // Show toast notification
-        if (isOnline) {
-            this.showToast('You are back online', 'success');
+        // Add/remove dark-theme class on body
+        if (isDark) {
+            document.body.classList.add('dark-theme');
         } else {
-            this.showToast('You are offline. Some features may be unavailable.', 'warning', 0);
-        }
-        
-        // Dispatch event to registered handlers
-        if (this.eventHandlers.onlineStatus) {
-            this.eventHandlers.onlineStatus.forEach(handler => handler(isOnline));
+            document.body.classList.remove('dark-theme');
         }
     }
 
     /**
-     * Register an event handler
-     * @param {string} eventType - Event type
-     * @param {Function} handler - Event handler
-     * @returns {Function} Function to unregister the handler
+     * Apply font size
      */
-    on(eventType, handler) {
-        if (!this.eventHandlers[eventType]) {
-            this.eventHandlers[eventType] = [];
+    applyFontSize() {
+        const fontSize = this.settings.getFontSize();
+        
+        // Remove existing font size classes
+        document.body.classList.remove('font-small', 'font-medium', 'font-large');
+        
+        // Add new font size class
+        document.body.classList.add(`font-${fontSize}`);
+    }
+
+    /**
+     * Get element by ID
+     * @param {string} id - Element ID
+     * @returns {HTMLElement} Element
+     */
+    getElement(id) {
+        // Check if element is already cached
+        if (this.elements[id]) {
+            return this.elements[id];
         }
         
-        this.eventHandlers[eventType].push(handler);
+        // Get element
+        const element = document.getElementById(id);
         
-        // Return function to unregister the handler
-        return () => {
-            this.off(eventType, handler);
-        };
+        // Cache element
+        if (element) {
+            this.elements[id] = element;
+        }
+        
+        return element;
     }
 
     /**
-     * Unregister an event handler
-     * @param {string} eventType - Event type
-     * @param {Function} handler - Event handler
+     * Create element
+     * @param {string} tag - Element tag
+     * @param {Object} options - Element options
+     * @param {string} options.id - Element ID
+     * @param {string|Array} options.className - Element class name(s)
+     * @param {Object} options.attributes - Element attributes
+     * @param {Object} options.style - Element style
+     * @param {string|HTMLElement} options.content - Element content
+     * @param {Array} options.children - Element children
+     * @returns {HTMLElement} Created element
      */
-    off(eventType, handler) {
-        if (!this.eventHandlers[eventType]) return;
+    createElement(tag, options = {}) {
+        // Create element
+        const element = document.createElement(tag);
         
-        this.eventHandlers[eventType] = this.eventHandlers[eventType].filter(h => h !== handler);
-    }
-
-    /**
-     * Add a resize observer
-     * @param {Function} observer - Resize observer function
-     * @returns {Function} Function to remove the observer
-     */
-    addResizeObserver(observer) {
-        this.resizeObservers.push(observer);
+        // Set ID
+        if (options.id) {
+            element.id = options.id;
+            this.elements[options.id] = element;
+        }
         
-        // Return function to remove the observer
-        return () => {
-            this.resizeObservers = this.resizeObservers.filter(o => o !== observer);
-        };
-    }
-
-    /**
-     * Switch to a different tab
-     * @param {string} tabId - Tab ID
-     */
-    switchTab(tabId) {
-        // Update active tab
-        this.activeTab = tabId;
-        
-        // Update tab links
-        const tabLinks = document.querySelectorAll('[data-tab-link]');
-        tabLinks.forEach(link => {
-            const linkTabId = link.getAttribute('data-tab-link');
-            if (linkTabId === tabId) {
-                link.classList.add('active');
-                link.setAttribute('aria-selected', 'true');
+        // Set class name
+        if (options.className) {
+            if (Array.isArray(options.className)) {
+                element.className = options.className.join(' ');
             } else {
-                link.classList.remove('active');
-                link.setAttribute('aria-selected', 'false');
+                element.className = options.className;
             }
-        });
+        }
         
-        // Update tab content
-        const tabContents = document.querySelectorAll('[data-tab-content]');
-        tabContents.forEach(content => {
-            const contentTabId = content.getAttribute('data-tab-content');
-            if (contentTabId === tabId) {
-                content.classList.remove('hidden');
-                content.setAttribute('aria-hidden', 'false');
+        // Set attributes
+        if (options.attributes) {
+            Object.entries(options.attributes).forEach(([key, value]) => {
+                element.setAttribute(key, value);
+            });
+        }
+        
+        // Set style
+        if (options.style) {
+            Object.entries(options.style).forEach(([key, value]) => {
+                element.style[key] = value;
+            });
+        }
+        
+        // Set content
+        if (options.content) {
+            if (typeof options.content === 'string') {
+                element.innerHTML = options.content;
             } else {
-                content.classList.add('hidden');
-                content.setAttribute('aria-hidden', 'true');
+                element.appendChild(options.content);
             }
-        });
+        }
         
-        // Dispatch tab change event
-        if (this.eventHandlers.tabChange) {
-            this.eventHandlers.tabChange.forEach(handler => handler(tabId));
+        // Add children
+        if (options.children) {
+            options.children.forEach(child => {
+                element.appendChild(child);
+            });
+        }
+        
+        return element;
+    }
+
+    /**
+     * Show element
+     * @param {string|HTMLElement} element - Element ID or element
+     */
+    showElement(element) {
+        // Get element
+        const el = typeof element === 'string' ? this.getElement(element) : element;
+        
+        // Show element
+        if (el) {
+            el.style.display = '';
         }
     }
 
     /**
-     * Show a modal dialog
-     * @param {string} title - Modal title
-     * @param {string} content - Modal content (HTML)
+     * Hide element
+     * @param {string|HTMLElement} element - Element ID or element
+     */
+    hideElement(element) {
+        // Get element
+        const el = typeof element === 'string' ? this.getElement(element) : element;
+        
+        // Hide element
+        if (el) {
+            el.style.display = 'none';
+        }
+    }
+
+    /**
+     * Toggle element
+     * @param {string|HTMLElement} element - Element ID or element
+     * @returns {boolean} New visibility state
+     */
+    toggleElement(element) {
+        // Get element
+        const el = typeof element === 'string' ? this.getElement(element) : element;
+        
+        // Toggle element
+        if (el) {
+            const isHidden = el.style.display === 'none';
+            el.style.display = isHidden ? '' : 'none';
+            return isHidden;
+        }
+        
+        return false;
+    }
+
+    /**
+     * Add class to element
+     * @param {string|HTMLElement} element - Element ID or element
+     * @param {string} className - Class name
+     */
+    addClass(element, className) {
+        // Get element
+        const el = typeof element === 'string' ? this.getElement(element) : element;
+        
+        // Add class
+        if (el) {
+            el.classList.add(className);
+        }
+    }
+
+    /**
+     * Remove class from element
+     * @param {string|HTMLElement} element - Element ID or element
+     * @param {string} className - Class name
+     */
+    removeClass(element, className) {
+        // Get element
+        const el = typeof element === 'string' ? this.getElement(element) : element;
+        
+        // Remove class
+        if (el) {
+            el.classList.remove(className);
+        }
+    }
+
+    /**
+     * Toggle class on element
+     * @param {string|HTMLElement} element - Element ID or element
+     * @param {string} className - Class name
+     * @returns {boolean} New class state
+     */
+    toggleClass(element, className) {
+        // Get element
+        const el = typeof element === 'string' ? this.getElement(element) : element;
+        
+        // Toggle class
+        if (el) {
+            return el.classList.toggle(className);
+        }
+        
+        return false;
+    }
+
+    /**
+     * Set element content
+     * @param {string|HTMLElement} element - Element ID or element
+     * @param {string|HTMLElement} content - Content
+     */
+    setContent(element, content) {
+        // Get element
+        const el = typeof element === 'string' ? this.getElement(element) : element;
+        
+        // Set content
+        if (el) {
+            if (typeof content === 'string') {
+                el.innerHTML = content;
+            } else {
+                el.innerHTML = '';
+                el.appendChild(content);
+            }
+        }
+    }
+
+    /**
+     * Append content to element
+     * @param {string|HTMLElement} element - Element ID or element
+     * @param {string|HTMLElement} content - Content
+     */
+    appendContent(element, content) {
+        // Get element
+        const el = typeof element === 'string' ? this.getElement(element) : element;
+        
+        // Append content
+        if (el) {
+            if (typeof content === 'string') {
+                el.innerHTML += content;
+            } else {
+                el.appendChild(content);
+            }
+        }
+    }
+
+    /**
+     * Clear element content
+     * @param {string|HTMLElement} element - Element ID or element
+     */
+    clearContent(element) {
+        // Get element
+        const el = typeof element === 'string' ? this.getElement(element) : element;
+        
+        // Clear content
+        if (el) {
+            el.innerHTML = '';
+        }
+    }
+
+    /**
+     * Show modal
      * @param {Object} options - Modal options
-     * @param {boolean} options.closable - Whether the modal can be closed
-     * @param {boolean} options.wide - Whether the modal should be wide
-     * @param {boolean} options.fullscreen - Whether the modal should be fullscreen
-     * @param {Function} options.onClose - Callback when modal is closed
-     * @returns {Object} Modal control object
+     * @param {string} options.title - Modal title
+     * @param {string|HTMLElement} options.content - Modal content
+     * @param {Array} options.buttons - Modal buttons
+     * @param {string} options.size - Modal size (small, medium, large)
+     * @param {boolean} options.closeOnClickOutside - Close modal when clicking outside
+     * @param {boolean} options.showCloseButton - Show close button
+     * @returns {HTMLElement} Modal element
      */
-    showModal(title, content, options = {}) {
+    showModal(options = {}) {
+        // Default options
         const {
-            closable = true,
-            wide = false,
-            fullscreen = false,
-            onClose = null
+            title = '',
+            content = '',
+            buttons = [],
+            size = 'medium',
+            closeOnClickOutside = true,
+            showCloseButton = true
         } = options;
         
-        // Create modal element
-        const modalId = `modal-${Date.now()}`;
-        const modalElement = document.createElement('div');
-        modalElement.id = modalId;
-        modalElement.className = `modal ${wide ? 'modal-wide' : ''} ${fullscreen ? 'modal-fullscreen' : ''}`;
-        modalElement.setAttribute('role', 'dialog');
-        modalElement.setAttribute('aria-modal', 'true');
-        modalElement.setAttribute('aria-labelledby', `${modalId}-title`);
-        
-        // Create modal content
-        modalElement.innerHTML = `
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h2 id="${modalId}-title" class="modal-title">${title}</h2>
-                    ${closable ? '<button class="modal-close" aria-label="Close">×</button>' : ''}
-                </div>
-                <div class="modal-body">
-                    ${content}
-                </div>
-            </div>
-        `;
-        
-        // Add modal to container
-        this.elements.modal.appendChild(modalElement);
-        this.elements.modal.classList.remove('hidden');
-        
-        // Add to modal stack
-        this.modalStack.push({
-            id: modalId,
-            element: modalElement,
-            onClose
+        // Create modal backdrop
+        const backdrop = this.createElement('div', {
+            className: 'modal-backdrop'
         });
         
-        // Add event listeners
-        if (closable) {
-            const closeButton = modalElement.querySelector('.modal-close');
-            closeButton.addEventListener('click', () => this.closeModal(modalId));
+        // Create modal
+        const modal = this.createElement('div', {
+            className: ['modal', `modal-${size}`]
+        });
+        
+        // Create modal header
+        const header = this.createElement('div', {
+            className: 'modal-header'
+        });
+        
+        // Create modal title
+        const titleElement = this.createElement('h2', {
+            className: 'modal-title',
+            content: title
+        });
+        
+        // Add title to header
+        header.appendChild(titleElement);
+        
+        // Add close button
+        if (showCloseButton) {
+            const closeButton = this.createElement('button', {
+                className: 'modal-close',
+                content: '×'
+            });
             
-            // Close on click outside
-            modalElement.addEventListener('click', (e) => {
-                if (e.target === modalElement) {
-                    this.closeModal(modalId);
+            // Add click event
+            closeButton.addEventListener('click', () => {
+                this.closeModal();
+            });
+            
+            header.appendChild(closeButton);
+        }
+        
+        // Add header to modal
+        modal.appendChild(header);
+        
+        // Create modal body
+        const body = this.createElement('div', {
+            className: 'modal-body'
+        });
+        
+        // Add content to body
+        if (typeof content === 'string') {
+            body.innerHTML = content;
+        } else {
+            body.appendChild(content);
+        }
+        
+        // Add body to modal
+        modal.appendChild(body);
+        
+        // Create modal footer
+        if (buttons.length > 0) {
+            const footer = this.createElement('div', {
+                className: 'modal-footer'
+            });
+            
+            // Add buttons
+            buttons.forEach(button => {
+                const buttonElement = this.createElement('button', {
+                    className: ['modal-button', button.className || ''],
+                    content: button.text || 'Button'
+                });
+                
+                // Add click event
+                if (button.onClick) {
+                    buttonElement.addEventListener('click', () => {
+                        button.onClick(modal);
+                    });
+                }
+                
+                footer.appendChild(buttonElement);
+            });
+            
+            // Add footer to modal
+            modal.appendChild(footer);
+        }
+        
+        // Add click event to backdrop
+        if (closeOnClickOutside) {
+            backdrop.addEventListener('click', (event) => {
+                if (event.target === backdrop) {
+                    this.closeModal();
                 }
             });
         }
         
-        // Initialize tooltips in modal
-        this._initTooltips();
+        // Add modal to backdrop
+        backdrop.appendChild(modal);
         
-        // Return modal control object
-        return {
-            id: modalId,
-            close: () => this.closeModal(modalId),
-            getElement: () => modalElement
-        };
+        // Add backdrop to body
+        document.body.appendChild(backdrop);
+        
+        // Add to modal stack
+        this.modalStack.push({
+            backdrop,
+            modal,
+            options
+        });
+        
+        // Add modal-open class to body
+        document.body.classList.add('modal-open');
+        
+        // Return modal
+        return modal;
     }
 
     /**
-     * Close a modal dialog
-     * @param {string} modalId - Modal ID (optional, closes the top modal if not provided)
+     * Close modal
+     * @param {HTMLElement} [modalToClose] - Specific modal to close (closes top modal if not provided)
      * @returns {boolean} Success status
      */
-    closeModal(modalId = null) {
-        // If no modal ID is provided, close the top modal
-        if (!modalId && this.modalStack.length > 0) {
-            modalId = this.modalStack[this.modalStack.length - 1].id;
+    closeModal(modalToClose = null) {
+        // Check if there are any modals
+        if (this.modalStack.length === 0) {
+            return false;
         }
         
-        // Find the modal in the stack
-        const modalIndex = this.modalStack.findIndex(modal => modal.id === modalId);
-        if (modalIndex === -1) return false;
+        // Find modal to close
+        let modalIndex = this.modalStack.length - 1; // Default to top modal
         
-        // Get the modal
-        const modal = this.modalStack[modalIndex];
-        
-        // Remove the modal from the DOM
-        if (modal.element && modal.element.parentNode) {
-            modal.element.parentNode.removeChild(modal.element);
+        if (modalToClose) {
+            // Find specific modal
+            modalIndex = this.modalStack.findIndex(item => item.modal === modalToClose);
+            
+            if (modalIndex === -1) {
+                return false;
+            }
         }
         
-        // Remove the modal from the stack
+        // Get modal
+        const { backdrop } = this.modalStack[modalIndex];
+        
+        // Remove modal from stack
         this.modalStack.splice(modalIndex, 1);
         
-        // Hide the modal container if there are no more modals
-        if (this.modalStack.length === 0) {
-            this.elements.modal.classList.add('hidden');
-        }
+        // Remove backdrop from body
+        document.body.removeChild(backdrop);
         
-        // Call the onClose callback
-        if (modal.onClose) {
-            modal.onClose();
+        // Remove modal-open class from body if no more modals
+        if (this.modalStack.length === 0) {
+            document.body.classList.remove('modal-open');
         }
         
         return true;
     }
 
     /**
-     * Show a confirmation dialog
-     * @param {string} title - Dialog title
-     * @param {string} message - Dialog message
+     * Close all modals
+     */
+    closeAllModals() {
+        // Close all modals
+        while (this.modalStack.length > 0) {
+            this.closeModal();
+        }
+    }
+
+    /**
+     * Show confirmation dialog
      * @param {Object} options - Dialog options
+     * @param {string} options.title - Dialog title
+     * @param {string} options.message - Dialog message
      * @param {string} options.confirmText - Confirm button text
      * @param {string} options.cancelText - Cancel button text
-     * @param {string} options.confirmClass - Confirm button CSS class
-     * @returns {Promise<boolean>} Promise that resolves to true if confirmed, false if cancelled
+     * @param {Function} options.onConfirm - Confirm callback
+     * @param {Function} options.onCancel - Cancel callback
+     * @returns {HTMLElement} Modal element
      */
-    showConfirmation(title, message, options = {}) {
+    showConfirmation(options = {}) {
+        // Default options
         const {
+            title = 'Confirmation',
+            message = 'Are you sure?',
             confirmText = 'Confirm',
             cancelText = 'Cancel',
-            confirmClass = 'bg-red-600 hover:bg-red-700'
+            onConfirm = () => {},
+            onCancel = () => {}
         } = options;
         
-        return new Promise((resolve) => {
-            // Create confirmation dialog content
-            const content = `
-                <div class="confirmation-dialog">
-                    <p class="mb-4">${message}</p>
-                    <div class="flex justify-end space-x-2">
-                        <button id="confirm-cancel" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
-                            ${cancelText}
-                        </button>
-                        <button id="confirm-ok" class="${confirmClass} text-white font-bold py-2 px-4 rounded">
-                            ${confirmText}
-                        </button>
-                    </div>
-                </div>
-            `;
-            
-            // Show the modal
-            const modal = this.showModal(title, content);
-            
-            // Add event listeners
-            const confirmButton = document.getElementById('confirm-ok');
-            const cancelButton = document.getElementById('confirm-cancel');
-            
-            confirmButton.addEventListener('click', () => {
-                modal.close();
-                resolve(true);
-            });
-            
-            cancelButton.addEventListener('click', () => {
-                modal.close();
-                resolve(false);
-            });
-            
-            // Focus the cancel button by default (safer option)
-            cancelButton.focus();
+        // Create content
+        const content = this.createElement('div', {
+            className: 'confirmation-dialog',
+            content: message
+        });
+        
+        // Create buttons
+        const buttons = [
+            {
+                text: cancelText,
+                className: 'button-secondary',
+                onClick: (modal) => {
+                    this.closeModal(modal);
+                    onCancel();
+                }
+            },
+            {
+                text: confirmText,
+                className: 'button-primary',
+                onClick: (modal) => {
+                    this.closeModal(modal);
+                    onConfirm();
+                }
+            }
+        ];
+        
+        // Show modal
+        return this.showModal({
+            title,
+            content,
+            buttons,
+            size: 'small'
         });
     }
 
     /**
-     * Show a prompt dialog
-     * @param {string} title - Dialog title
-     * @param {string} message - Dialog message
-     * @param {string} defaultValue - Default input value
+     * Show alert dialog
      * @param {Object} options - Dialog options
+     * @param {string} options.title - Dialog title
+     * @param {string} options.message - Dialog message
+     * @param {string} options.buttonText - Button text
+     * @param {Function} options.onClose - Close callback
+     * @returns {HTMLElement} Modal element
+     */
+    showAlert(options = {}) {
+        // Default options
+        const {
+            title = 'Alert',
+            message = '',
+            buttonText = 'OK',
+            onClose = () => {}
+        } = options;
+        
+        // Create content
+        const content = this.createElement('div', {
+            className: 'alert-dialog',
+            content: message
+        });
+        
+        // Create buttons
+        const buttons = [
+            {
+                text: buttonText,
+                className: 'button-primary',
+                onClick: (modal) => {
+                    this.closeModal(modal);
+                    onClose();
+                }
+            }
+        ];
+        
+        // Show modal
+        return this.showModal({
+            title,
+            content,
+            buttons,
+            size: 'small'
+        });
+    }
+
+    /**
+     * Show prompt dialog
+     * @param {Object} options - Dialog options
+     * @param {string} options.title - Dialog title
+     * @param {string} options.message - Dialog message
+     * @param {string} options.defaultValue - Default input value
+     * @param {string} options.placeholder - Input placeholder
      * @param {string} options.confirmText - Confirm button text
      * @param {string} options.cancelText - Cancel button text
-     * @param {string} options.inputType - Input type (text, number, etc.)
-     * @param {string} options.placeholder - Input placeholder
-     * @returns {Promise<string|null>} Promise that resolves to the input value if confirmed, null if cancelled
+     * @param {Function} options.onConfirm - Confirm callback
+     * @param {Function} options.onCancel - Cancel callback
+     * @returns {HTMLElement} Modal element
      */
-    showPrompt(title, message, defaultValue = '', options = {}) {
+    showPrompt(options = {}) {
+        // Default options
         const {
+            title = 'Prompt',
+            message = '',
+            defaultValue = '',
+            placeholder = '',
             confirmText = 'OK',
             cancelText = 'Cancel',
-            inputType = 'text',
-            placeholder = ''
+            onConfirm = () => {},
+            onCancel = () => {}
         } = options;
         
-        return new Promise((resolve) => {
-            // Create prompt dialog content
-            const content = `
-                <div class="prompt-dialog">
-                    <p class="mb-2">${message}</p>
-                    <input 
-                        type="${inputType}" 
-                        id="prompt-input" 
-                        class="w-full p-2 border border-gray-300 rounded mb-4" 
-                        value="${defaultValue}"
-                        placeholder="${placeholder}"
-                    >
-                    <div class="flex justify-end space-x-2">
-                        <button id="prompt-cancel" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
-                            ${cancelText}
-                        </button>
-                        <button id="prompt-ok" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                            ${confirmText}
-                        </button>
-                    </div>
-                </div>
-            `;
-            
-            // Show the modal
-            const modal = this.showModal(title, content);
-            
-            // Add event listeners
-            const promptInput = document.getElementById('prompt-input');
-            const confirmButton = document.getElementById('prompt-ok');
-            const cancelButton = document.getElementById('prompt-cancel');
-            
-            confirmButton.addEventListener('click', () => {
-                modal.close();
-                resolve(promptInput.value);
-            });
-            
-            cancelButton.addEventListener('click', () => {
-                modal.close();
-                resolve(null);
-            });
-            
-            // Handle Enter key
-            promptInput.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') {
-                    modal.close();
-                    resolve(promptInput.value);
-                }
-            });
-            
-            // Focus the input
-            promptInput.focus();
-            promptInput.select();
+        // Create content
+        const content = this.createElement('div', {
+            className: 'prompt-dialog'
         });
-    }
-
-    /**
-     * Show a toast notification
-     * @param {string} message - Toast message
-     * @param {string} type - Toast type (info, success, warning, error)
-     * @param {number} duration - Toast duration in milliseconds (0 for persistent)
-     */
-    showToast(message, type = 'info', duration = 3000) {
-        // Add toast to queue
-        this.toastQueue.push({ message, type, duration });
         
-        // Process queue if not already processing
-        if (!this.isProcessingToasts) {
-            this._processToastQueue();
-        }
-    }
-
-    /**
-     * Process toast queue
-     * @private
-     */
-    async _processToastQueue() {
-        if (this.toastQueue.length === 0) {
-            this.isProcessingToasts = false;
-            return;
+        // Add message
+        if (message) {
+            const messageElement = this.createElement('p', {
+                content: message
+            });
+            content.appendChild(messageElement);
         }
         
-        this.isProcessingToasts = true;
+        // Add input
+        const input = this.createElement('input', {
+            attributes: {
+                type: 'text',
+                value: defaultValue,
+                placeholder
+            }
+        });
+        content.appendChild(input);
         
-        // Get the next toast
-        const { message, type, duration } = this.toastQueue.shift();
+        // Create buttons
+        const buttons = [
+            {
+                text: cancelText,
+                className: 'button-secondary',
+                onClick: (modal) => {
+                    this.closeModal(modal);
+                    onCancel();
+                }
+            },
+            {
+                text: confirmText,
+                className: 'button-primary',
+                onClick: (modal) => {
+                    this.closeModal(modal);
+                    onConfirm(input.value);
+                }
+            }
+        ];
         
-        // Create toast element
-        const toastId = `toast-${Date.now()}`;
-        const toastElement = document.createElement('div');
-        toastElement.id = toastId;
-        toastElement.className = `toast toast-${type}`;
-        toastElement.setAttribute('role', 'alert');
+        // Show modal
+        const modal = this.showModal({
+            title,
+            content,
+            buttons,
+            size: 'small'
+        });
         
-        // Add icon based on type
-        let icon = '';
-        switch (type) {
-            case 'success':
-                icon = '<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>';
-                break;
-            case 'warning':
-                icon = '<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg>';
-                break;
-            case 'error':
-                icon = '<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path></svg>';
-                break;
-            default: // info
-                icon = '<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path></svg>';
-                break;
-        }
-        
-        // Create toast content
-        toastElement.innerHTML = `
-            <div class="toast-content">
-                <div class="toast-icon">${icon}</div>
-                <div class="toast-message">${message}</div>
-                <button class="toast-close" aria-label="Close">×</button>
-            </div>
-            ${duration > 0 ? '<div class="toast-progress"></div>' : ''}
-        `;
-        
-        // Add to container
-        this.elements.toast.appendChild(toastElement);
-        
-        // Animate in
+        // Focus input
         setTimeout(() => {
-            toastElement.classList.add('show');
+            input.focus();
+            input.select();
+        }, 100);
+        
+        return modal;
+    }
+
+    /**
+     * Show toast notification
+     * @param {Object} options - Toast options
+     * @param {string} options.message - Toast message
+     * @param {string} options.type - Toast type (info, success, warning, error)
+     * @param {number} options.duration - Toast duration in milliseconds
+     * @returns {HTMLElement} Toast element
+     */
+    showToast(options = {}) {
+        // Default options
+        const {
+            message = '',
+            type = 'info',
+            duration = 3000
+        } = options;
+        
+        // Create toast
+        const toast = this.createElement('div', {
+            className: ['toast', `toast-${type}`],
+            content: message
+        });
+        
+        // Add toast to container
+        this.toastContainer.appendChild(toast);
+        
+        // Add to toasts array
+        this.toasts.push(toast);
+        
+        // Show toast
+        setTimeout(() => {
+            toast.classList.add('show');
         }, 10);
         
-        // Add progress animation if duration > 0
-        if (duration > 0) {
-            const progressBar = toastElement.querySelector('.toast-progress');
-            progressBar.style.animationDuration = `${duration}ms`;
-        }
+        // Hide toast after duration
+        setTimeout(() => {
+            this.hideToast(toast);
+        }, duration);
         
-        // Add close button event listener
-        const closeButton = toastElement.querySelector('.toast-close');
-        closeButton.addEventListener('click', () => {
-            this._removeToast(toastId);
-        });
-        
-        // Auto-remove after duration (if not persistent)
-        if (duration > 0) {
-            await new Promise(resolve => setTimeout(resolve, duration));
-            this._removeToast(toastId);
-        }
-        
-        // Process next toast
-        this._processToastQueue();
+        return toast;
     }
 
     /**
-     * Remove a toast
-     * @private
-     * @param {string} toastId - Toast ID
+     * Hide toast notification
+     * @param {HTMLElement} toast - Toast element
      */
-    _removeToast(toastId) {
-        const toastElement = document.getElementById(toastId);
-        if (!toastElement) return;
+    hideToast(toast) {
+        // Remove show class
+        toast.classList.remove('show');
         
-        // Animate out
-        toastElement.classList.remove('show');
-        
-        // Remove after animation
+        // Remove toast after animation
         setTimeout(() => {
-            if (toastElement.parentNode) {
-                toastElement.parentNode.removeChild(toastElement);
+            if (toast.parentNode) {
+                toast.parentNode.removeChild(toast);
+            }
+            
+            // Remove from toasts array
+            const index = this.toasts.indexOf(toast);
+            if (index !== -1) {
+                this.toasts.splice(index, 1);
             }
         }, 300);
     }
 
     /**
-     * Show a tooltip
-     * @param {HTMLElement} element - Element to show tooltip for
-     * @param {string} content - Tooltip content
+     * Show loading spinner
+     * @param {Object} options - Spinner options
+     * @param {string} options.message - Spinner message
+     * @param {boolean} options.overlay - Show overlay
+     * @returns {HTMLElement} Spinner element
      */
-    showTooltip(element, content) {
-        // Check if tooltip already exists
-        let tooltip = element.querySelector('.tooltip');
-        if (tooltip) return;
-        
-        // Create tooltip element
-        tooltip = document.createElement('div');
-        tooltip.className = 'tooltip';
-        tooltip.textContent = content;
-        tooltip.setAttribute('role', 'tooltip');
-        
-        // Add to element
-        element.appendChild(tooltip);
-        
-        // Position tooltip
-        this._positionTooltip(element, tooltip);
-    }
-
-    /**
-     * Hide a tooltip
-     * @param {HTMLElement} element - Element to hide tooltip for
-     */
-    hideTooltip(element) {
-        const tooltip = element.querySelector('.tooltip');
-        if (tooltip) {
-            tooltip.parentNode.removeChild(tooltip);
-        }
-    }
-
-    /**
-     * Position a tooltip
-     * @private
-     * @param {HTMLElement} element - Element to position tooltip for
-     * @param {HTMLElement} tooltip - Tooltip element
-     */
-    _positionTooltip(element, tooltip) {
-        const rect = element.getBoundingClientRect();
-        const tooltipRect = tooltip.getBoundingClientRect();
-        
-        // Default position (top)
-        let top = rect.top - tooltipRect.height - 5;
-        let left = rect.left + (rect.width / 2) - (tooltipRect.width / 2);
-        
-        // Check if tooltip would go off the top of the screen
-        if (top < 5) {
-            // Position below element
-            top = rect.bottom + 5;
-            tooltip.classList.add('tooltip-bottom');
-        } else {
-            tooltip.classList.add('tooltip-top');
-        }
-        
-        // Check if tooltip would go off the left of the screen
-        if (left < 5) {
-            left = 5;
-        }
-        
-        // Check if tooltip would go off the right of the screen
-        if (left + tooltipRect.width > window.innerWidth - 5) {
-            left = window.innerWidth - tooltipRect.width - 5;
-        }
-        
-        // Set position
-        tooltip.style.top = `${top}px`;
-        tooltip.style.left = `${left}px`;
-    }
-
-    /**
-     * Show a loading spinner
-     * @param {HTMLElement} container - Container element
-     * @param {string} message - Loading message
-     * @returns {Object} Loading spinner control object
-     */
-    showLoading(container, message = 'Loading...') {
-        // Create loading element
-        const loadingId = `loading-${Date.now()}`;
-        const loadingElement = document.createElement('div');
-        loadingElement.id = loadingId;
-        loadingElement.className = 'loading-container';
-        loadingElement.setAttribute('role', 'status');
-        loadingElement.setAttribute('aria-live', 'polite');
-        
-        // Create loading content
-        loadingElement.innerHTML = `
-            <div class="loading-spinner"></div>
-            <div class="loading-message">${message}</div>
-        `;
-        
-        // Add to container
-        container.appendChild(loadingElement);
-        
-        // Return control object
-        return {
-            id: loadingId,
-            update: (newMessage) => {
-                const messageElement = loadingElement.querySelector('.loading-message');
-                if (messageElement) {
-                    messageElement.textContent = newMessage;
-                }
-            },
-            remove: () => {
-                if (loadingElement.parentNode) {
-                    loadingElement.parentNode.removeChild(loadingElement);
-                }
-            }
-        };
-    }
-
-    /**
-     * Enable drag and drop for an element
-     * @param {HTMLElement} element - Element to make draggable
-     * @param {Object} options - Drag options
-     * @param {string} options.dragHandle - Selector for drag handle
-     * @param {Function} options.onDragStart - Callback when drag starts
-     * @param {Function} options.onDragEnd - Callback when drag ends
-     * @param {Function} options.onDragOver - Callback when dragging over a target
-     * @param {Function} options.onDrop - Callback when dropped on a target
-     */
-    enableDragDrop(element, options = {}) {
+    showSpinner(options = {}) {
+        // Default options
         const {
-            dragHandle = null,
-            onDragStart = null,
-            onDragEnd = null,
-            onDragOver = null,
-            onDrop = null
+            message = 'Loading...',
+            overlay = true
         } = options;
         
-        // Make element draggable
-        element.setAttribute('draggable', 'true');
+        // Create spinner container
+        const container = this.createElement('div', {
+            className: ['spinner-container', overlay ? 'with-overlay' : '']
+        });
         
-        // Add drag handle if specified
-        if (dragHandle) {
-            const handle = element.querySelector(dragHandle);
-            if (handle) {
-                handle.classList.add('drag-handle');
-                handle.addEventListener('mousedown', () => {
-                    element.setAttribute('draggable', 'true');
-                });
-                handle.addEventListener('mouseup', () => {
-                    element.setAttribute('draggable', 'false');
-                });
-            }
+        // Create spinner
+        const spinner = this.createElement('div', {
+            className: 'spinner'
+        });
+        container.appendChild(spinner);
+        
+        // Add message
+        if (message) {
+            const messageElement = this.createElement('div', {
+                className: 'spinner-message',
+                content: message
+            });
+            container.appendChild(messageElement);
         }
         
-        // Add drag event listeners
-        element.addEventListener('dragstart', (e) => {
-            this.draggedElement = element;
+        // Add to body
+        document.body.appendChild(container);
+        
+        return container;
+    }
+
+    /**
+     * Hide loading spinner
+     * @param {HTMLElement} spinner - Spinner element
+     */
+    hideSpinner(spinner) {
+        // Remove spinner
+        if (spinner && spinner.parentNode) {
+            spinner.parentNode.removeChild(spinner);
+        }
+    }
+
+    /**
+     * Make element draggable
+     * @param {HTMLElement} element - Element to make draggable
+     * @param {HTMLElement} handle - Drag handle (defaults to element)
+     */
+    makeDraggable(element, handle = null) {
+        // Use element as handle if not provided
+        const dragHandle = handle || element;
+        
+        // Add draggable attribute
+        element.setAttribute('draggable', 'true');
+        
+        // Add drag handle class
+        dragHandle.classList.add('drag-handle');
+        
+        // Add mousedown event
+        dragHandle.addEventListener('mousedown', (event) => {
+            // Only handle left mouse button
+            if (event.button !== 0) return;
+            
+            // Prevent default
+            event.preventDefault();
+            
+            // Get element position
+            const rect = element.getBoundingClientRect();
+            
+            // Set drag state
+            this.dragState = {
+                dragging: true,
+                element,
+                offsetX: event.clientX - rect.left,
+                offsetY: event.clientY - rect.top
+            };
+            
+            // Add dragging class
             element.classList.add('dragging');
-            
-            // Set drag data
-            e.dataTransfer.effectAllowed = 'move';
-            e.dataTransfer.setData('text/plain', element.id);
-            
-            // Set drag image
-            const dragImage = element.cloneNode(true);
-            dragImage.style.opacity = '0.7';
-            dragImage.style.position = 'absolute';
-            dragImage.style.top = '-1000px';
-            document.body.appendChild(dragImage);
-            e.dataTransfer.setDragImage(dragImage, 0, 0);
-            
-            // Call onDragStart callback
-            if (onDragStart) {
-                onDragStart(element, e);
-            }
-            
-            // Remove drag image after dragstart
-            setTimeout(() => {
-                document.body.removeChild(dragImage);
-            }, 0);
         });
         
-        element.addEventListener('dragend', (e) => {
-            this.draggedElement = null;
+        // Add mousemove event
+        document.addEventListener('mousemove', (event) => {
+            // Check if dragging
+            if (!this.dragState.dragging || this.dragState.element !== element) return;
+            
+            // Prevent default
+            event.preventDefault();
+            
+            // Calculate new position
+            const x = event.clientX - this.dragState.offsetX;
+            const y = event.clientY - this.dragState.offsetY;
+            
+            // Set element position
+            element.style.left = `${x}px`;
+            element.style.top = `${y}px`;
+        });
+        
+        // Add mouseup event
+        document.addEventListener('mouseup', () => {
+            // Check if dragging
+            if (!this.dragState.dragging || this.dragState.element !== element) return;
+            
+            // Reset drag state
+            this.dragState = {
+                dragging: false,
+                element: null,
+                offsetX: 0,
+                offsetY: 0
+            };
+            
+            // Remove dragging class
             element.classList.remove('dragging');
-            
-            // Call onDragEnd callback
-            if (onDragEnd) {
-                onDragEnd(element, this.dropTarget, e);
-            }
-            
-            this.dropTarget = null;
-        });
-        
-        // Add drop target event listeners
-        const dropTargets = document.querySelectorAll('.drop-target');
-        dropTargets.forEach(target => {
-            target.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                e.dataTransfer.dropEffect = 'move';
-                
-                this.dropTarget = target;
-                target.classList.add('drag-over');
-                
-                                // Call onDragOver callback
-                if (onDragOver) {
-                    onDragOver(element, target, e);
-                }
-            });
-            
-            target.addEventListener('dragleave', (e) => {
-                target.classList.remove('drag-over');
-                if (this.dropTarget === target) {
-                    this.dropTarget = null;
-                }
-            });
-            
-            target.addEventListener('drop', (e) => {
-                e.preventDefault();
-                target.classList.remove('drag-over');
-                
-                // Call onDrop callback
-                if (onDrop && this.draggedElement) {
-                    onDrop(this.draggedElement, target, e);
-                }
-            });
         });
     }
 
     /**
-     * Create a tabbed interface
-     * @param {HTMLElement} container - Container element
-     * @param {Object[]} tabs - Tab definitions
-     * @param {string} tabs[].id - Tab ID
-     * @param {string} tabs[].label - Tab label
-     * @param {string} tabs[].content - Tab content (HTML)
-     * @param {boolean} tabs[].active - Whether the tab is active
-     * @returns {Object} Tabbed interface control object
+     * Make element resizable
+     * @param {HTMLElement} element - Element to make resizable
+     * @param {Object} options - Resize options
+     * @param {boolean} options.minWidth - Minimum width
+     * @param {boolean} options.minHeight - Minimum height
+     * @param {boolean} options.maxWidth - Maximum width
+     * @param {boolean} options.maxHeight - Maximum height
+     * @param {boolean} options.preserveAspectRatio - Preserve aspect ratio
      */
-    createTabbedInterface(container, tabs) {
+    makeResizable(element, options = {}) {
+        // Default options
+        const {
+            minWidth = 100,
+            minHeight = 100,
+            maxWidth = Infinity,
+            maxHeight = Infinity,
+            preserveAspectRatio = false
+        } = options;
+        
+        // Add resizable class
+        element.classList.add('resizable');
+        
+        // Create resize handle
+        const handle = this.createElement('div', {
+            className: 'resize-handle'
+        });
+        
+        // Add handle to element
+        element.appendChild(handle);
+        
+        // Add mousedown event
+        handle.addEventListener('mousedown', (event) => {
+            // Only handle left mouse button
+            if (event.button !== 0) return;
+            
+            // Prevent default
+            event.preventDefault();
+            
+            // Get element dimensions
+            const rect = element.getBoundingClientRect();
+            
+            // Set resize state
+            this.resizeState = {
+                resizing: true,
+                element,
+                startWidth: rect.width,
+                startHeight: rect.height,
+                startX: event.clientX,
+                startY: event.clientY,
+                aspectRatio: preserveAspectRatio ? rect.width / rect.height : null
+            };
+            
+            // Add resizing class
+            element.classList.add('resizing');
+        });
+        
+        // Add mousemove event
+        document.addEventListener('mousemove', (event) => {
+            // Check if resizing
+            if (!this.resizeState.resizing || this.resizeState.element !== element) return;
+            
+            // Prevent default
+            event.preventDefault();
+            
+            // Calculate new dimensions
+            let width = this.resizeState.startWidth + (event.clientX - this.resizeState.startX);
+            let height = this.resizeState.startHeight + (event.clientY - this.resizeState.startY);
+            
+            // Apply aspect ratio
+            if (this.resizeState.aspectRatio) {
+                height = width / this.resizeState.aspectRatio;
+            }
+            
+            // Apply min/max constraints
+            width = Math.max(minWidth, Math.min(maxWidth, width));
+            height = Math.max(minHeight, Math.min(maxHeight, height));
+            
+            // Set element dimensions
+            element.style.width = `${width}px`;
+            element.style.height = `${height}px`;
+        });
+        
+        // Add mouseup event
+        document.addEventListener('mouseup', () => {
+            // Check if resizing
+            if (!this.resizeState.resizing || this.resizeState.element !== element) return;
+            
+            // Reset resize state
+            this.resizeState = {
+                resizing: false,
+                element: null,
+                startWidth: 0,
+                startHeight: 0,
+                startX: 0,
+                startY: 0,
+                aspectRatio: null
+            };
+            
+            // Remove resizing class
+            element.classList.remove('resizing');
+        });
+    }
+
+    /**
+     * Create tabs
+     * @param {string|HTMLElement} container - Container element ID or element
+     * @param {Array} tabs - Tab definitions
+     * @param {Object} options - Tab options
+     * @returns {Object} Tab controller
+     */
+    createTabs(container, tabs, options = {}) {
+        // Get container
+        const containerElement = typeof container === 'string' ? this.getElement(container) : container;
+        
+        // Default options
+        const {
+            activeTab = 0,
+            onTabChange = null
+        } = options;
+        
         // Create tab container
-        const tabId = `tabs-${Date.now()}`;
-        const tabContainer = document.createElement('div');
-        tabContainer.id = tabId;
-        tabContainer.className = 'tabbed-interface';
+        const tabContainer = this.createElement('div', {
+            className: 'tab-container'
+        });
         
-        // Create tab navigation
-        const tabNav = document.createElement('div');
-        tabNav.className = 'tab-nav';
-        tabNav.setAttribute('role', 'tablist');
+        // Create tab header
+        const tabHeader = this.createElement('div', {
+            className: 'tab-header'
+        });
         
-        // Create tab content container
-        const tabContent = document.createElement('div');
-        tabContent.className = 'tab-content';
+        // Create tab content
+        const tabContent = this.createElement('div', {
+            className: 'tab-content'
+        });
         
-        // Add tabs
-        let activeTabId = null;
-        tabs.forEach(tab => {
+        // Create tab buttons and panels
+        const tabButtons = [];
+        const tabPanels = [];
+        
+        tabs.forEach((tab, index) => {
             // Create tab button
-            const tabButton = document.createElement('button');
-            tabButton.id = `${tabId}-tab-${tab.id}`;
-            tabButton.className = 'tab-button';
-            tabButton.textContent = tab.label;
-            tabButton.setAttribute('role', 'tab');
-            tabButton.setAttribute('aria-controls', `${tabId}-panel-${tab.id}`);
+            const tabButton = this.createElement('button', {
+                className: ['tab-button', index === activeTab ? 'active' : ''],
+                content: tab.label
+            });
             
             // Create tab panel
-            const tabPanel = document.createElement('div');
-            tabPanel.id = `${tabId}-panel-${tab.id}`;
-            tabPanel.className = 'tab-panel';
-            tabPanel.innerHTML = tab.content;
-            tabPanel.setAttribute('role', 'tabpanel');
-            tabPanel.setAttribute('aria-labelledby', `${tabId}-tab-${tab.id}`);
-            
-            // Set active tab
-            if (tab.active || activeTabId === null) {
-                activeTabId = tab.id;
-                tabButton.classList.add('active');
-                tabButton.setAttribute('aria-selected', 'true');
-                tabPanel.classList.add('active');
-            } else {
-                tabButton.setAttribute('aria-selected', 'false');
-                tabPanel.classList.add('hidden');
-            }
+            const tabPanel = this.createElement('div', {
+                className: ['tab-panel', index === activeTab ? 'active' : ''],
+                content: tab.content
+            });
             
             // Add click event
             tabButton.addEventListener('click', () => {
                 // Deactivate all tabs
-                tabNav.querySelectorAll('.tab-button').forEach(button => {
-                    button.classList.remove('active');
-                    button.setAttribute('aria-selected', 'false');
-                });
+                tabButtons.forEach(button => button.classList.remove('active'));
+                tabPanels.forEach(panel => panel.classList.remove('active'));
                 
-                tabContent.querySelectorAll('.tab-panel').forEach(panel => {
-                    panel.classList.remove('active');
-                    panel.classList.add('hidden');
-                });
-                
-                // Activate clicked tab
+                // Activate this tab
                 tabButton.classList.add('active');
-                tabButton.setAttribute('aria-selected', 'true');
                 tabPanel.classList.add('active');
-                tabPanel.classList.remove('hidden');
                 
-                // Update active tab ID
-                activeTabId = tab.id;
+                // Call onTabChange callback
+                if (onTabChange) {
+                    onTabChange(index, tab);
+                }
             });
             
+            // Add to arrays
+            tabButtons.push(tabButton);
+            tabPanels.push(tabPanel);
+            
             // Add to containers
-            tabNav.appendChild(tabButton);
+            tabHeader.appendChild(tabButton);
             tabContent.appendChild(tabPanel);
         });
         
-        // Add to container
-        tabContainer.appendChild(tabNav);
+        // Add to tab container
+        tabContainer.appendChild(tabHeader);
         tabContainer.appendChild(tabContent);
-        container.appendChild(tabContainer);
         
-        // Return control object
+        // Add to container
+        containerElement.appendChild(tabContainer);
+        
+        // Return tab controller
         return {
-            id: tabId,
-            getActiveTab: () => activeTabId,
-            setActiveTab: (tabId) => {
-                const tabButton = document.getElementById(`${tabId}-tab-${tabId}`);
-                if (tabButton) {
-                    tabButton.click();
+            container: tabContainer,
+            header: tabHeader,
+            content: tabContent,
+            buttons: tabButtons,
+            panels: tabPanels,
+                        setActiveTab: (index) => {
+                // Check if index is valid
+                if (index < 0 || index >= tabs.length) {
+                    return false;
                 }
+                
+                // Deactivate all tabs
+                tabButtons.forEach(button => button.classList.remove('active'));
+                tabPanels.forEach(panel => panel.classList.remove('active'));
+                
+                // Activate selected tab
+                tabButtons[index].classList.add('active');
+                tabPanels[index].classList.add('active');
+                
+                // Call onTabChange callback
+                if (onTabChange) {
+                    onTabChange(index, tabs[index]);
+                }
+                
+                return true;
             },
-            addTab: (tab) => {
-                // Create tab button
-                const tabButton = document.createElement('button');
-                tabButton.id = `${tabId}-tab-${tab.id}`;
-                tabButton.className = 'tab-button';
-                tabButton.textContent = tab.label;
-                tabButton.setAttribute('role', 'tab');
-                tabButton.setAttribute('aria-controls', `${tabId}-panel-${tab.id}`);
-                tabButton.setAttribute('aria-selected', 'false');
-                
-                // Create tab panel
-                const tabPanel = document.createElement('div');
-                tabPanel.id = `${tabId}-panel-${tab.id}`;
-                tabPanel.className = 'tab-panel hidden';
-                tabPanel.innerHTML = tab.content;
-                tabPanel.setAttribute('role', 'tabpanel');
-                tabPanel.setAttribute('aria-labelledby', `${tabId}-tab-${tab.id}`);
-                
-                // Add click event
-                tabButton.addEventListener('click', () => {
-                    // Deactivate all tabs
-                    tabNav.querySelectorAll('.tab-button').forEach(button => {
-                        button.classList.remove('active');
-                        button.setAttribute('aria-selected', 'false');
-                    });
-                    
-                    tabContent.querySelectorAll('.tab-panel').forEach(panel => {
-                        panel.classList.remove('active');
-                        panel.classList.add('hidden');
-                    });
-                    
-                    // Activate clicked tab
-                    tabButton.classList.add('active');
-                    tabButton.setAttribute('aria-selected', 'true');
-                    tabPanel.classList.add('active');
-                    tabPanel.classList.remove('hidden');
-                    
-                    // Update active tab ID
-                    activeTabId = tab.id;
-                });
-                
-                // Add to containers
-                tabNav.appendChild(tabButton);
-                tabContent.appendChild(tabPanel);
-                
-                // Activate if specified
-                if (tab.active) {
-                    tabButton.click();
-                }
-            },
-            removeTab: (tabId) => {
-                const tabButton = document.getElementById(`${tabId}-tab-${tabId}`);
-                const tabPanel = document.getElementById(`${tabId}-panel-${tabId}`);
-                
-                if (tabButton) {
-                    tabButton.parentNode.removeChild(tabButton);
-                }
-                
-                if (tabPanel) {
-                    tabPanel.parentNode.removeChild(tabPanel);
-                }
-                
-                // If active tab was removed, activate first tab
-                if (activeTabId === tabId) {
-                    const firstTabButton = tabNav.querySelector('.tab-button');
-                    if (firstTabButton) {
-                        firstTabButton.click();
-                    } else {
-                        activeTabId = null;
-                    }
-                }
+            getActiveTabIndex: () => {
+                return tabButtons.findIndex(button => button.classList.contains('active'));
             }
         };
     }
 
     /**
-     * Create a collapsible section
-     * @param {HTMLElement} container - Container element
-     * @param {string} title - Section title
-     * @param {string} content - Section content (HTML)
-     * @param {Object} options - Options
-     * @param {boolean} options.expanded - Whether the section is expanded
-     * @param {string} options.titleClass - CSS class for the title
-     * @param {string} options.contentClass - CSS class for the content
-     * @returns {Object} Collapsible section control object
+     * Create accordion
+     * @param {string|HTMLElement} container - Container element ID or element
+     * @param {Array} sections - Accordion sections
+     * @param {Object} options - Accordion options
+     * @returns {Object} Accordion controller
      */
-    createCollapsible(container, title, content, options = {}) {
+    createAccordion(container, sections, options = {}) {
+        // Get container
+        const containerElement = typeof container === 'string' ? this.getElement(container) : container;
+        
+        // Default options
         const {
-            expanded = false,
-            titleClass = '',
-            contentClass = ''
+            multipleOpen = false,
+            initialOpen = []
         } = options;
         
-        // Create collapsible container
-        const collapsibleId = `collapsible-${Date.now()}`;
-        const collapsibleContainer = document.createElement('div');
-        collapsibleContainer.id = collapsibleId;
-        collapsibleContainer.className = 'collapsible';
+        // Create accordion container
+        const accordionContainer = this.createElement('div', {
+            className: 'accordion-container'
+        });
         
-        // Create header
-        const header = document.createElement('div');
-        header.className = `collapsible-header ${titleClass}`;
-        header.innerHTML = `
-            <span class="collapsible-title">${title}</span>
-            <span class="collapsible-icon">${expanded ? '▼' : '►'}</span>
-        `;
+        // Create sections
+        const sectionElements = [];
         
-        // Create content
-        const contentElement = document.createElement('div');
-        contentElement.className = `collapsible-content ${contentClass}`;
-        contentElement.innerHTML = content;
-        
-        // Set initial state
-        if (!expanded) {
-            contentElement.style.display = 'none';
-        }
-        
-        // Add click event
-        header.addEventListener('click', () => {
-            const isExpanded = contentElement.style.display !== 'none';
-            const icon = header.querySelector('.collapsible-icon');
+        sections.forEach((section, index) => {
+            // Create section
+            const sectionElement = this.createElement('div', {
+                className: 'accordion-section'
+            });
             
-            if (isExpanded) {
-                contentElement.style.display = 'none';
-                icon.textContent = '►';
+            // Create header
+            const header = this.createElement('div', {
+                className: 'accordion-header',
+                content: section.title
+            });
+            
+            // Create content
+            const content = this.createElement('div', {
+                className: 'accordion-content',
+                content: section.content
+            });
+            
+            // Check if initially open
+            if (initialOpen.includes(index)) {
+                sectionElement.classList.add('open');
             } else {
-                contentElement.style.display = 'block';
-                icon.textContent = '▼';
+                content.style.display = 'none';
             }
+            
+            // Add click event
+            header.addEventListener('click', () => {
+                // Check if open
+                const isOpen = sectionElement.classList.contains('open');
+                
+                // Close other sections if not multiple open
+                if (!multipleOpen && !isOpen) {
+                    sectionElements.forEach(el => {
+                        el.classList.remove('open');
+                        el.querySelector('.accordion-content').style.display = 'none';
+                    });
+                }
+                
+                // Toggle section
+                sectionElement.classList.toggle('open');
+                content.style.display = sectionElement.classList.contains('open') ? '' : 'none';
+            });
+            
+            // Add to section
+            sectionElement.appendChild(header);
+            sectionElement.appendChild(content);
+            
+            // Add to container
+            accordionContainer.appendChild(sectionElement);
+            
+            // Add to array
+            sectionElements.push(sectionElement);
         });
         
         // Add to container
-        collapsibleContainer.appendChild(header);
-        collapsibleContainer.appendChild(contentElement);
-        container.appendChild(collapsibleContainer);
+        containerElement.appendChild(accordionContainer);
         
-        // Return control object
+        // Return accordion controller
         return {
-            id: collapsibleId,
-            isExpanded: () => contentElement.style.display !== 'none',
-            expand: () => {
-                contentElement.style.display = 'block';
-                header.querySelector('.collapsible-icon').textContent = '▼';
-            },
-            collapse: () => {
-                contentElement.style.display = 'none';
-                header.querySelector('.collapsible-icon').textContent = '►';
-            },
-            toggle: () => {
-                const isExpanded = contentElement.style.display !== 'none';
-                if (isExpanded) {
-                    contentElement.style.display = 'none';
-                    header.querySelector('.collapsible-icon').textContent = '►';
-                } else {
-                    contentElement.style.display = 'block';
-                    header.querySelector('.collapsible-icon').textContent = '▼';
+            container: accordionContainer,
+            sections: sectionElements,
+            openSection: (index) => {
+                // Check if index is valid
+                if (index < 0 || index >= sections.length) {
+                    return false;
                 }
+                
+                // Close other sections if not multiple open
+                if (!multipleOpen) {
+                    sectionElements.forEach((el, i) => {
+                        if (i !== index) {
+                            el.classList.remove('open');
+                            el.querySelector('.accordion-content').style.display = 'none';
+                        }
+                    });
+                }
+                
+                // Open section
+                sectionElements[index].classList.add('open');
+                sectionElements[index].querySelector('.accordion-content').style.display = '';
+                
+                return true;
             },
-            updateContent: (newContent) => {
-                contentElement.innerHTML = newContent;
+            closeSection: (index) => {
+                // Check if index is valid
+                if (index < 0 || index >= sections.length) {
+                    return false;
+                }
+                
+                // Close section
+                sectionElements[index].classList.remove('open');
+                sectionElements[index].querySelector('.accordion-content').style.display = 'none';
+                
+                return true;
             },
-            updateTitle: (newTitle) => {
-                header.querySelector('.collapsible-title').textContent = newTitle;
+            toggleSection: (index) => {
+                // Check if index is valid
+                if (index < 0 || index >= sections.length) {
+                    return false;
+                }
+                
+                // Check if open
+                const isOpen = sectionElements[index].classList.contains('open');
+                
+                // Close other sections if not multiple open and opening this section
+                if (!multipleOpen && !isOpen) {
+                    sectionElements.forEach((el, i) => {
+                        if (i !== index) {
+                            el.classList.remove('open');
+                            el.querySelector('.accordion-content').style.display = 'none';
+                        }
+                    });
+                }
+                
+                // Toggle section
+                sectionElements[index].classList.toggle('open');
+                sectionElements[index].querySelector('.accordion-content').style.display = 
+                    sectionElements[index].classList.contains('open') ? '' : 'none';
+                
+                return true;
             }
         };
     }
 
     /**
-     * Create a context menu
-     * @param {HTMLElement} element - Element to attach context menu to
-     * @param {Object[]} items - Menu items
-     * @param {string} items[].label - Item label
-     * @param {Function} items[].action - Item action
-     * @param {boolean} items[].divider - Whether to add a divider after this item
-     * @param {string} items[].icon - Item icon (HTML)
+     * Create dropdown
+     * @param {string|HTMLElement} container - Container element ID or element
+     * @param {Object} options - Dropdown options
+     * @returns {Object} Dropdown controller
      */
-    createContextMenu(element, items) {
-        // Add context menu event
-        element.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-            
-            // Remove any existing context menus
-            document.querySelectorAll('.context-menu').forEach(menu => {
-                menu.parentNode.removeChild(menu);
-            });
-            
-            // Create context menu
-            const menuId = `context-menu-${Date.now()}`;
-            const menu = document.createElement('div');
-            menu.id = menuId;
-            menu.className = 'context-menu';
-            menu.setAttribute('role', 'menu');
-            
-            // Add items
-            items.forEach(item => {
-                if (item.divider) {
-                    const divider = document.createElement('div');
-                    divider.className = 'context-menu-divider';
-                    menu.appendChild(divider);
-                } else {
-                    const menuItem = document.createElement('div');
-                    menuItem.className = 'context-menu-item';
-                    menuItem.setAttribute('role', 'menuitem');
-                    menuItem.innerHTML = `
-                        ${item.icon ? `<span class="context-menu-icon">${item.icon}</span>` : ''}
-                        <span class="context-menu-label">${item.label}</span>
-                    `;
-                    
-                    // Add click event
-                    menuItem.addEventListener('click', () => {
-                        // Close menu
-                        document.body.removeChild(menu);
-                        
-                        // Call action
-                        if (item.action) {
-                            item.action();
-                        }
-                    });
-                    
-                    menu.appendChild(menuItem);
-                }
-            });
-            
-            // Position menu
-            menu.style.top = `${e.clientY}px`;
-            menu.style.left = `${e.clientX}px`;
-            
-            // Add to body
-            document.body.appendChild(menu);
-            
-            // Adjust position if menu goes off screen
-            const menuRect = menu.getBoundingClientRect();
-            if (menuRect.right > window.innerWidth) {
-                menu.style.left = `${window.innerWidth - menuRect.width - 5}px`;
-            }
-            if (menuRect.bottom > window.innerHeight) {
-                menu.style.top = `${window.innerHeight - menuRect.height - 5}px`;
-            }
-            
-            // Close menu on click outside
-            const closeMenu = (e) => {
-                if (!menu.contains(e.target)) {
-                    document.body.removeChild(menu);
-                    document.removeEventListener('click', closeMenu);
-                }
-            };
-            
-            // Add delay to prevent immediate closing
-            setTimeout(() => {
-                document.addEventListener('click', closeMenu);
-            }, 100);
-        });
-    }
-
-    /**
-     * Create a dropdown menu
-     * @param {HTMLElement} button - Button element
-     * @param {Object[]} items - Menu items
-     * @param {string} items[].label - Item label
-     * @param {Function} items[].action - Item action
-     * @param {boolean} items[].divider - Whether to add a divider after this item
-     * @param {string} items[].icon - Item icon (HTML)
-     */
-    createDropdownMenu(button, items) {
+    createDropdown(container, options = {}) {
+        // Get container
+        const containerElement = typeof container === 'string' ? this.getElement(container) : container;
+        
+        // Default options
+        const {
+            label = 'Select',
+            items = [],
+            selectedIndex = -1,
+            onChange = null
+        } = options;
+        
         // Create dropdown container
-        const dropdownId = `dropdown-${Date.now()}`;
-        const dropdown = document.createElement('div');
-        dropdown.id = dropdownId;
-        dropdown.className = 'dropdown';
+        const dropdownContainer = this.createElement('div', {
+            className: 'dropdown'
+        });
+        
+        // Create dropdown button
+        const button = this.createElement('button', {
+            className: 'dropdown-button',
+            content: label
+        });
         
         // Create dropdown menu
-        const menu = document.createElement('div');
-        menu.className = 'dropdown-menu hidden';
-        menu.setAttribute('role', 'menu');
+        const menu = this.createElement('div', {
+            className: 'dropdown-menu'
+        });
         
-        // Add items
-        items.forEach(item => {
-            if (item.divider) {
-                const divider = document.createElement('div');
-                divider.className = 'dropdown-divider';
-                menu.appendChild(divider);
-            } else {
-                const menuItem = document.createElement('div');
-                menuItem.className = 'dropdown-item';
-                menuItem.setAttribute('role', 'menuitem');
-                menuItem.innerHTML = `
-                    ${item.icon ? `<span class="dropdown-icon">${item.icon}</span>` : ''}
-                    <span class="dropdown-label">${item.label}</span>
-                `;
+        // Create dropdown items
+        const itemElements = [];
+        
+        items.forEach((item, index) => {
+            // Create item
+            const itemElement = this.createElement('div', {
+                className: ['dropdown-item', index === selectedIndex ? 'selected' : ''],
+                content: item.label
+            });
+            
+            // Add click event
+            itemElement.addEventListener('click', () => {
+                // Update selected item
+                itemElements.forEach(el => el.classList.remove('selected'));
+                itemElement.classList.add('selected');
                 
-                // Add click event
-                menuItem.addEventListener('click', () => {
-                    // Close menu
-                    menu.classList.add('hidden');
-                    
-                    // Call action
-                    if (item.action) {
-                        item.action();
-                    }
-                });
+                // Update button text
+                button.textContent = item.label;
                 
-                menu.appendChild(menuItem);
-            }
+                // Close dropdown
+                dropdownContainer.classList.remove('active');
+                
+                // Call onChange callback
+                if (onChange) {
+                    onChange(index, item);
+                }
+            });
+            
+            // Add to menu
+            menu.appendChild(itemElement);
+            
+            // Add to array
+            itemElements.push(itemElement);
+        });
+        
+        // Set initial selection
+        if (selectedIndex >= 0 && selectedIndex < items.length) {
+            button.textContent = items[selectedIndex].label;
+        }
+        
+        // Add click event to button
+        button.addEventListener('click', (event) => {
+            // Prevent propagation
+            event.stopPropagation();
+            
+            // Toggle dropdown
+            dropdownContainer.classList.toggle('active');
         });
         
         // Add to container
-        dropdown.appendChild(menu);
-        button.parentNode.insertBefore(dropdown, button.nextSibling);
+        dropdownContainer.appendChild(button);
+        dropdownContainer.appendChild(menu);
+        containerElement.appendChild(dropdownContainer);
         
-        // Position menu
-        button.addEventListener('click', (e) => {
-            e.preventDefault();
-            
-            // Toggle menu
-            menu.classList.toggle('hidden');
-            
-            // Position menu
-            const buttonRect = button.getBoundingClientRect();
-            menu.style.top = `${buttonRect.bottom}px`;
-            menu.style.left = `${buttonRect.left}px`;
-            
-            // Adjust position if menu goes off screen
-            const menuRect = menu.getBoundingClientRect();
-            if (menuRect.right > window.innerWidth) {
-                menu.style.left = `${window.innerWidth - menuRect.width - 5}px`;
+        // Return dropdown controller
+        return {
+            container: dropdownContainer,
+            button,
+            menu,
+            items: itemElements,
+            setSelectedIndex: (index) => {
+                // Check if index is valid
+                if (index < 0 || index >= items.length) {
+                    return false;
+                }
+                
+                // Update selected item
+                itemElements.forEach(el => el.classList.remove('selected'));
+                itemElements[index].classList.add('selected');
+                
+                // Update button text
+                button.textContent = items[index].label;
+                
+                // Call onChange callback
+                if (onChange) {
+                    onChange(index, items[index]);
+                }
+                
+                return true;
+            },
+            getSelectedIndex: () => {
+                return itemElements.findIndex(item => item.classList.contains('selected'));
+            },
+            open: () => {
+                dropdownContainer.classList.add('active');
+            },
+            close: () => {
+                dropdownContainer.classList.remove('active');
+            },
+            toggle: () => {
+                dropdownContainer.classList.toggle('active');
+                return dropdownContainer.classList.contains('active');
             }
-        });
-        
-        // Close menu on click outside
-        document.addEventListener('click', (e) => {
-            if (!button.contains(e.target) && !menu.contains(e.target)) {
-                menu.classList.add('hidden');
-            }
-        });
+        };
     }
 
     /**
-     * Show an alert
-     * @param {string} message - Alert message
-     * @param {string} type - Alert type (info, success, warning, error)
+     * Create tooltip
+     * @param {string|HTMLElement} element - Element ID or element
+     * @param {string} content - Tooltip content
+     * @param {Object} options - Tooltip options
+     * @returns {Object} Tooltip controller
      */
-    showAlert(message, type = 'info') {
-        // Create alert element
-        const alertId = `alert-${Date.now()}`;
-        const alertElement = document.createElement('div');
-        alertElement.id = alertId;
-        alertElement.className = `alert alert-${type}`;
-        alertElement.setAttribute('role', 'alert');
+    createTooltip(element, content, options = {}) {
+        // Get element
+        const el = typeof element === 'string' ? this.getElement(element) : element;
         
-        // Add icon based on type
-        let icon = '';
-        switch (type) {
-            case 'success':
-                icon = '<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>';
-                break;
-            case 'warning':
-                icon = '<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg>';
-                break;
-            case 'error':
-                icon = '<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path></svg>';
-                break;
-            default: // info
-                icon = '<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path></svg>';
-                break;
+        // Default options
+        const {
+            position = 'top',
+            delay = 500,
+            className = ''
+        } = options;
+        
+        // Create tooltip element
+        const tooltip = this.createElement('div', {
+            className: ['tooltip', `tooltip-${position}`, className],
+            content
+        });
+        
+        // Add to body
+        document.body.appendChild(tooltip);
+        
+        // Hide tooltip initially
+        tooltip.style.opacity = '0';
+        tooltip.style.visibility = 'hidden';
+        
+        // Variables
+        let showTimeout = null;
+        let visible = false;
+        
+        // Show tooltip function
+        const showTooltip = () => {
+            // Clear timeout
+            if (showTimeout) {
+                clearTimeout(showTimeout);
+            }
+            
+            // Set timeout
+            showTimeout = setTimeout(() => {
+                // Get element position
+                const rect = el.getBoundingClientRect();
+                
+                // Calculate position
+                let left, top;
+                
+                switch (position) {
+                    case 'top':
+                        left = rect.left + (rect.width / 2) - (tooltip.offsetWidth / 2);
+                        top = rect.top - tooltip.offsetHeight - 10;
+                        break;
+                    case 'bottom':
+                        left = rect.left + (rect.width / 2) - (tooltip.offsetWidth / 2);
+                        top = rect.bottom + 10;
+                        break;
+                    case 'left':
+                        left = rect.left - tooltip.offsetWidth - 10;
+                        top = rect.top + (rect.height / 2) - (tooltip.offsetHeight / 2);
+                        break;
+                    case 'right':
+                        left = rect.right + 10;
+                        top = rect.top + (rect.height / 2) - (tooltip.offsetHeight / 2);
+                        break;
+                }
+                
+                // Set position
+                tooltip.style.left = `${left}px`;
+                tooltip.style.top = `${top}px`;
+                
+                // Show tooltip
+                tooltip.style.opacity = '1';
+                tooltip.style.visibility = 'visible';
+                
+                // Set visible flag
+                visible = true;
+            }, delay);
+        };
+        
+        // Hide tooltip function
+        const hideTooltip = () => {
+            // Clear timeout
+            if (showTimeout) {
+                clearTimeout(showTimeout);
+            }
+            
+            // Hide tooltip
+            tooltip.style.opacity = '0';
+            tooltip.style.visibility = 'hidden';
+            
+            // Set visible flag
+            visible = false;
+        };
+        
+        // Add event listeners
+        el.addEventListener('mouseenter', showTooltip);
+        el.addEventListener('mouseleave', hideTooltip);
+        el.addEventListener('focus', showTooltip);
+        el.addEventListener('blur', hideTooltip);
+        
+        // Return tooltip controller
+        return {
+            element: tooltip,
+            show: () => {
+                showTooltip();
+                // Show immediately
+                if (showTimeout) {
+                    clearTimeout(showTimeout);
+                }
+                tooltip.style.opacity = '1';
+                tooltip.style.visibility = 'visible';
+                visible = true;
+            },
+            hide: hideTooltip,
+            isVisible: () => visible,
+            setContent: (newContent) => {
+                tooltip.innerHTML = newContent;
+            },
+            destroy: () => {
+                // Remove event listeners
+                el.removeEventListener('mouseenter', showTooltip);
+                el.removeEventListener('mouseleave', hideTooltip);
+                el.removeEventListener('focus', showTooltip);
+                el.removeEventListener('blur', hideTooltip);
+                
+                // Remove tooltip
+                if (tooltip.parentNode) {
+                    tooltip.parentNode.removeChild(tooltip);
+                }
+            }
+        };
+    }
+
+    /**
+     * Create progress bar
+     * @param {string|HTMLElement} container - Container element ID or element
+     * @param {Object} options - Progress bar options
+     * @returns {Object} Progress bar controller
+     */
+    createProgressBar(container, options = {}) {
+        // Get container
+        const containerElement = typeof container === 'string' ? this.getElement(container) : container;
+        
+        // Default options
+        const {
+            value = 0,
+            max = 100,
+            showText = true,
+            textFormat = 'percent', // percent, value, custom
+            customText = null,
+            className = ''
+        } = options;
+        
+        // Create progress bar container
+        const progressContainer = this.createElement('div', {
+            className: ['progress-container', className]
+        });
+        
+        // Create progress bar
+        const progressBar = this.createElement('div', {
+            className: 'progress-bar'
+        });
+        
+        // Create progress text
+        const progressText = this.createElement('div', {
+            className: 'progress-text'
+        });
+        
+        // Set initial value
+        const percent = Math.min(100, Math.max(0, (value / max) * 100));
+        progressBar.style.width = `${percent}%`;
+        
+        // Set initial text
+        if (showText) {
+            let text;
+            
+            switch (textFormat) {
+                case 'percent':
+                    text = `${Math.round(percent)}%`;
+                    break;
+                case 'value':
+                    text = `${value}/${max}`;
+                    break;
+                case 'custom':
+                    text = customText ? customText(value, max, percent) : `${value}/${max}`;
+                    break;
+            }
+            
+            progressText.textContent = text;
+        } else {
+            progressText.style.display = 'none';
         }
         
-        // Create alert content
-        alertElement.innerHTML = `
-            <div class="alert-content">
-                <div class="alert-icon">${icon}</div>
-                <div class="alert-message">${message}</div>
-                <button class="alert-close" aria-label="Close">×</button>
-            </div>
-        `;
+        // Add to container
+        progressContainer.appendChild(progressBar);
+        progressContainer.appendChild(progressText);
+        containerElement.appendChild(progressContainer);
         
-        // Add to app container
-        this.elements.app.appendChild(alertElement);
-        
-        // Add close button event listener
-        const closeButton = alertElement.querySelector('.alert-close');
-        closeButton.addEventListener('click', () => {
-            alertElement.parentNode.removeChild(alertElement);
-        });
-        
-        // Auto-remove after 5 seconds
-        setTimeout(() => {
-            if (alertElement.parentNode) {
-                alertElement.parentNode.removeChild(alertElement);
+        // Return progress bar controller
+        return {
+            container: progressContainer,
+            bar: progressBar,
+            text: progressText,
+            setValue: (newValue) => {
+                // Calculate percent
+                const newPercent = Math.min(100, Math.max(0, (newValue / max) * 100));
+                
+                // Update bar
+                progressBar.style.width = `${newPercent}%`;
+                
+                // Update text
+                if (showText) {
+                    let text;
+                    
+                    switch (textFormat) {
+                        case 'percent':
+                            text = `${Math.round(newPercent)}%`;
+                            break;
+                        case 'value':
+                            text = `${newValue}/${max}`;
+                            break;
+                        case 'custom':
+                            text = customText ? customText(newValue, max, newPercent) : `${newValue}/${max}`;
+                            break;
+                    }
+                    
+                    progressText.textContent = text;
+                }
+                
+                return newPercent;
+            },
+            setMax: (newMax) => {
+                // Update max
+                max = newMax;
+                
+                // Recalculate percent
+                const currentValue = (progressBar.style.width.replace('%', '') / 100) * max;
+                const newPercent = Math.min(100, Math.max(0, (currentValue / newMax) * 100));
+                
+                // Update bar
+                progressBar.style.width = `${newPercent}%`;
+                
+                // Update text
+                if (showText) {
+                    let text;
+                    
+                    switch (textFormat) {
+                        case 'percent':
+                            text = `${Math.round(newPercent)}%`;
+                            break;
+                        case 'value':
+                            text = `${currentValue}/${newMax}`;
+                            break;
+                        case 'custom':
+                            text = customText ? customText(currentValue, newMax, newPercent) : `${currentValue}/${newMax}`;
+                            break;
+                    }
+                    
+                    progressText.textContent = text;
+                }
+                
+                return newMax;
             }
-        }, 5000);
+        };
     }
 
     /**
-     * Create a form with validation
-     * @param {HTMLElement} container - Container element
-     * @param {Object[]} fields - Form fields
-     * @param {string} fields[].name - Field name
-     * @param {string} fields[].label - Field label
-     * @param {string} fields[].type - Field type
-     * @param {string} fields[].placeholder - Field placeholder
-     * @param {boolean} fields[].required - Whether the field is required
-     * @param {string} fields[].value - Field value
-     * @param {Function} fields[].validate - Validation function
+     * Add event listener
+     * @param {string} event - Event name
+     * @param {Function} callback - Callback function
+     * @returns {string} Listener ID
+     */
+    addEventListener(event, callback) {
+        // Generate ID
+        const id = `listener-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+        
+        // Initialize event array if needed
+        if (!this.eventListeners[event]) {
+            this.eventListeners[event] = {};
+        }
+        
+        // Add listener
+        this.eventListeners[event][id] = callback;
+        
+        // Return ID
+        return id;
+    }
+
+    /**
+     * Remove event listener
+     * @param {string} event - Event name
+     * @param {string} id - Listener ID
+     * @returns {boolean} Success status
+     */
+    removeEventListener(event, id) {
+        // Check if event exists
+        if (!this.eventListeners[event]) {
+            return false;
+        }
+        
+        // Check if listener exists
+        if (!this.eventListeners[event][id]) {
+            return false;
+        }
+        
+        // Remove listener
+        delete this.eventListeners[event][id];
+        
+        return true;
+    }
+
+    /**
+     * Trigger event
+     * @param {string} event - Event name
+     * @param {*} data - Event data
+     */
+    _triggerEvent(event, data) {
+        // Check if event exists
+        if (!this.eventListeners[event]) {
+            return;
+        }
+        
+        // Call listeners
+        Object.values(this.eventListeners[event]).forEach(callback => {
+            try {
+                callback(data);
+            } catch (error) {
+                console.error(`Error in ${event} event listener:`, error);
+            }
+        });
+    }
+
+    /**
+     * Create form
+     * @param {string|HTMLElement} container - Container element ID or element
+     * @param {Array} fields - Form fields
      * @param {Object} options - Form options
-     * @param {string} options.submitText - Submit button text
-     * @param {string} options.cancelText - Cancel button text
-     * @param {Function} options.onSubmit - Submit callback
-     * @param {Function} options.onCancel - Cancel callback
-     * @returns {Object} Form control object
+     * @returns {Object} Form controller
      */
     createForm(container, fields, options = {}) {
+        // Get container
+        const containerElement = typeof container === 'string' ? this.getElement(container) : container;
+        
+        // Default options
         const {
             submitText = 'Submit',
             cancelText = 'Cancel',
             onSubmit = null,
-            onCancel = null
+            onCancel = null,
+            showCancel = true,
+            className = ''
         } = options;
         
-        // Create form element
-        const formId = `form-${Date.now()}`;
-        const form = document.createElement('form');
-        form.id = formId;
-        form.className = 'form';
-        form.noValidate = true;
+        // Create form
+        const form = this.createElement('form', {
+            className: ['ui-form', className]
+        });
         
-        // Add fields
+        // Create form fields
+        const formFields = {};
+        
         fields.forEach(field => {
-            const fieldId = `${formId}-${field.name}`;
-            const fieldContainer = document.createElement('div');
-            fieldContainer.className = 'form-group';
+            // Create field container
+            const fieldContainer = this.createElement('div', {
+                className: ['form-field', field.className || '']
+            });
             
             // Create label
-            const label = document.createElement('label');
-            label.htmlFor = fieldId;
-            label.className = 'form-label';
-            label.textContent = field.label;
-            if (field.required) {
-                label.innerHTML += ' <span class="required">*</span>';
+            if (field.label) {
+                const label = this.createElement('label', {
+                    content: field.label
+                });
+                
+                // Add required indicator
+                if (field.required) {
+                    label.innerHTML += ' <span class="required">*</span>';
+                }
+                
+                fieldContainer.appendChild(label);
             }
             
             // Create input
             let input;
-            if (field.type === 'textarea') {
-                input = document.createElement('textarea');
-                input.rows = field.rows || 3;
-            } else if (field.type === 'select') {
-                input = document.createElement('select');
-                if (field.options) {
-                    field.options.forEach(option => {
-                        const optionElement = document.createElement('option');
-                        optionElement.value = option.value;
-                        optionElement.textContent = option.label;
-                        if (option.value === field.value) {
-                            optionElement.selected = true;
+            
+            switch (field.type) {
+                case 'text':
+                case 'email':
+                case 'password':
+                case 'number':
+                case 'date':
+                case 'time':
+                case 'color':
+                    input = this.createElement('input', {
+                        attributes: {
+                            type: field.type,
+                            name: field.name,
+                            value: field.value || '',
+                            placeholder: field.placeholder || '',
+                            required: field.required || false,
+                            min: field.min,
+                            max: field.max,
+                            step: field.step
                         }
-                        input.appendChild(optionElement);
                     });
-                }
+                    break;
+                case 'textarea':
+                    input = this.createElement('textarea', {
+                        attributes: {
+                            name: field.name,
+                            placeholder: field.placeholder || '',
+                            required: field.required || false,
+                            rows: field.rows || 3
+                        },
+                        content: field.value || ''
+                    });
+                    break;
+                case 'select':
+                    input = this.createElement('select', {
+                        attributes: {
+                            name: field.name,
+                            required: field.required || false
+                        }
+                    });
+                    
+                    // Add options
+                    if (field.options) {
+                        field.options.forEach(option => {
+                            const optionElement = this.createElement('option', {
+                                attributes: {
+                                    value: option.value
+                                },
+                                content: option.label
+                            });
+                            
+                            // Set selected
+                            if (option.value === field.value) {
+                                optionElement.selected = true;
+                            }
+                            
+                            input.appendChild(optionElement);
+                        });
+                    }
+                    break;
+                case 'checkbox':
+                    input = this.createElement('input', {
+                        attributes: {
+                            type: 'checkbox',
+                            name: field.name,
+                            checked: field.value || false,
+                            required: field.required || false
+                        }
+                    });
+                    break;
+                case 'radio':
+                    // Create radio group
+                    input = this.createElement('div', {
+                        className: 'radio-group'
+                    });
+                    
+                    // Add options
+                    if (field.options) {
+                        field.options.forEach(option => {
+                            const radioContainer = this.createElement('div', {
+                                className: 'radio-option'
+                            });
+                            
+                            const radioInput = this.createElement('input', {
+                                attributes: {
+                                    type: 'radio',
+                                    name: field.name,
+                                    value: option.value,
+                                    checked: option.value === field.value,
+                                    required: field.required || false
+                                }
+                            });
+                            
+                            const radioLabel = this.createElement('label', {
+                                content: option.label
+                            });
+                            
+                            radioContainer.appendChild(radioInput);
+                            radioContainer.appendChild(radioLabel);
+                            input.appendChild(radioContainer);
+                        });
+                    }
+                    break;
+                default:
+                    input = this.createElement('input', {
+                        attributes: {
+                            type: 'text',
+                            name: field.name,
+                            value: field.value || '',
+                            placeholder: field.placeholder || '',
+                            required: field.required || false
+                        }
+                    });
+            }
+            
+            // Add help text
+            if (field.help) {
+                const helpText = this.createElement('div', {
+                    className: 'help-text',
+                    content: field.help
+                });
+                
+                fieldContainer.appendChild(input);
+                fieldContainer.appendChild(helpText);
             } else {
-                input = document.createElement('input');
-                input.type = field.type || 'text';
+                fieldContainer.appendChild(input);
             }
             
-            input.id = fieldId;
-            input.name = field.name;
-            input.className = 'form-control';
-            
-            if (field.placeholder) {
-                input.placeholder = field.placeholder;
-            }
-            
-            if (field.required) {
-                input.required = true;
-            }
-            
-            if (field.value !== undefined) {
-                input.value = field.value;
-            }
-            
-            if (field.min !== undefined) {
-                input.min = field.min;
-            }
-            
-            if (field.max !== undefined) {
-                input.max = field.max;
-            }
-            
-            if (field.step !== undefined) {
-                input.step = field.step;
-            }
-            
-            if (field.pattern) {
-                input.pattern = field.pattern;
-            }
-            
-            // Create error message container
-            const errorContainer = document.createElement('div');
-            errorContainer.className = 'form-error hidden';
-            errorContainer.id = `${fieldId}-error`;
-            
-            // Add validation
-            input.addEventListener('blur', () => {
-                this._validateField(input, field.validate, errorContainer);
-            });
-            
-            // Add to container
-            fieldContainer.appendChild(label);
-            fieldContainer.appendChild(input);
-            fieldContainer.appendChild(errorContainer);
+            // Add to form
             form.appendChild(fieldContainer);
+            
+            // Add to fields object
+            formFields[field.name] = input;
         });
         
-        // Add buttons
-        const buttonContainer = document.createElement('div');
-        buttonContainer.className = 'form-buttons';
+        // Create buttons container
+        const buttonsContainer = this.createElement('div', {
+            className: 'form-buttons'
+        });
         
-        if (cancelText) {
-            const cancelButton = document.createElement('button');
-            cancelButton.type = 'button';
-            cancelButton.className = 'btn btn-secondary';
-            cancelButton.textContent = cancelText;
+        // Create submit button
+        const submitButton = this.createElement('button', {
+            attributes: {
+                type: 'submit'
+            },
+            className: 'button-primary',
+            content: submitText
+        });
+        
+        // Create cancel button
+        let cancelButton = null;
+        if (showCancel) {
+            cancelButton = this.createElement('button', {
+                attributes: {
+                    type: 'button'
+                },
+                className: 'button-secondary',
+                content: cancelText
+            });
             
-            cancelButton.addEventListener('click', () => {
+            // Add click event
+            cancelButton.addEventListener('click', (event) => {
+                event.preventDefault();
+                
                 if (onCancel) {
                     onCancel();
                 }
             });
             
-            buttonContainer.appendChild(cancelButton);
+            buttonsContainer.appendChild(cancelButton);
         }
         
-        const submitButton = document.createElement('button');
-        submitButton.type = 'submit';
-        submitButton.className = 'btn btn-primary';
-        submitButton.textContent = submitText;
+        // Add submit button
+        buttonsContainer.appendChild(submitButton);
         
-        buttonContainer.appendChild(submitButton);
-        form.appendChild(buttonContainer);
+        // Add buttons to form
+        form.appendChild(buttonsContainer);
         
         // Add submit event
-        form.addEventListener('submit', (e) => {
-            e.preventDefault();
+        form.addEventListener('submit', (event) => {
+            event.preventDefault();
             
-            // Validate all fields
-            let isValid = true;
-            const formData = {};
+            // Get form data
+            const formData = new FormData(form);
+            const data = {};
             
+            // Convert FormData to object
+            for (const [key, value] of formData.entries()) {
+                data[key] = value;
+            }
+            
+            // Handle checkboxes (they're only included when checked)
             fields.forEach(field => {
-                const input = form.elements[field.name];
-                const errorContainer = document.getElementById(`${input.id}-error`);
-                
-                const fieldValid = this._validateField(input, field.validate, errorContainer);
-                if (!fieldValid) {
-                    isValid = false;
+                if (field.type === 'checkbox' && !data[field.name]) {
+                    data[field.name] = false;
                 }
-                
-                // Collect form data
-                formData[field.name] = input.value;
             });
             
-            // Submit if valid
-            if (isValid && onSubmit) {
-                onSubmit(formData);
+            if (onSubmit) {
+                onSubmit(data, form);
             }
         });
         
         // Add to container
-        container.appendChild(form);
+        containerElement.appendChild(form);
         
-        // Return form control object
+        // Return form controller
         return {
-            id: formId,
-            getValues: () => {
-                const formData = {};
+            form,
+            fields: formFields,
+            getData: () => {
+                // Get form data
+                const formData = new FormData(form);
+                const data = {};
+                
+                // Convert FormData to object
+                for (const [key, value] of formData.entries()) {
+                    data[key] = value;
+                }
+                
+                // Handle checkboxes (they're only included when checked)
                 fields.forEach(field => {
-                    formData[field.name] = form.elements[field.name].value;
-                });
-                return formData;
-            },
-            setValues: (values) => {
-                Object.entries(values).forEach(([name, value]) => {
-                    if (form.elements[name]) {
-                        form.elements[name].value = value;
+                    if (field.type === 'checkbox' && !data[field.name]) {
+                        data[field.name] = false;
                     }
                 });
+                
+                return data;
             },
-            validate: () => {
-                let isValid = true;
+            setData: (data) => {
+                // Set form data
                 fields.forEach(field => {
-                    const input = form.elements[field.name];
-                    const errorContainer = document.getElementById(`${input.id}-error`);
-                    
-                    const fieldValid = this._validateField(input, field.validate, errorContainer);
-                    if (!fieldValid) {
-                        isValid = false;
+                    if (data[field.name] !== undefined) {
+                        const input = formFields[field.name];
+                        
+                        switch (field.type) {
+                            case 'checkbox':
+                                input.checked = !!data[field.name];
+                                break;
+                            case 'radio':
+                                const radioInputs = input.querySelectorAll('input[type="radio"]');
+                                radioInputs.forEach(radio => {
+                                    radio.checked = radio.value === data[field.name];
+                                });
+                                break;
+                            case 'select':
+                                const options = input.querySelectorAll('option');
+                                options.forEach(option => {
+                                    option.selected = option.value === data[field.name];
+                                });
+                                break;
+                            case 'textarea':
+                                input.value = data[field.name];
+                                break;
+                            default:
+                                input.value = data[field.name];
+                        }
                     }
                 });
-                return isValid;
             },
             reset: () => {
                 form.reset();
-                form.querySelectorAll('.form-error').forEach(error => {
-                    error.classList.add('hidden');
-                    error.textContent = '';
-                });
+            },
+            validate: () => {
+                return form.checkValidity();
+            },
+            submit: () => {
+                form.dispatchEvent(new Event('submit'));
             }
         };
-    }
-
-    /**
-     * Validate a form field
-     * @private
-     * @param {HTMLElement} input - Input element
-     * @param {Function} validateFn - Custom validation function
-     * @param {HTMLElement} errorContainer - Error container element
-     * @returns {boolean} Whether the field is valid
-     */
-    _validateField(input, validateFn, errorContainer) {
-        // Clear previous error
-        errorContainer.classList.add('hidden');
-        errorContainer.textContent = '';
-        
-        // Check if field is required and empty
-        if (input.required && !input.value.trim()) {
-            errorContainer.textContent = 'This field is required';
-            errorContainer.classList.remove('hidden');
-            return false;
-        }
-        
-        // Check pattern
-        if (input.pattern && input.value) {
-            const regex = new RegExp(input.pattern);
-            if (!regex.test(input.value)) {
-                errorContainer.textContent = 'Please enter a valid value';
-                errorContainer.classList.remove('hidden');
-                return false;
-            }
-        }
-        
-        // Check min/max for number inputs
-        if (input.type === 'number' && input.value) {
-            const value = parseFloat(input.value);
-            
-            if (input.min !== undefined && value < parseFloat(input.min)) {
-                errorContainer.textContent = `Value must be at least ${input.min}`;
-                errorContainer.classList.remove('hidden');
-                return false;
-            }
-            
-            if (input.max !== undefined && value > parseFloat(input.max)) {
-                errorContainer.textContent = `Value must be at most ${input.max}`;
-                errorContainer.classList.remove('hidden');
-                return false;
-            }
-        }
-        
-        // Custom validation
-        if (validateFn && input.value) {
-            const error = validateFn(input.value);
-            if (error) {
-                errorContainer.textContent = error;
-                errorContainer.classList.remove('hidden');
-                return false;
-            }
-        }
-        
-        return true;
     }
 }
 
