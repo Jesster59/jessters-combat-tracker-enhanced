@@ -1,405 +1,584 @@
 /**
- * Initiative Tracker for Jesster's Combat Tracker
- * Handles initiative ordering, ties, and manual adjustments
+ * Initiative module for Jesster's Combat Tracker
+ * Handles initiative-specific functionality
  */
-class InitiativeTracker {
-  constructor(app) {
-    this.app = app;
-    this.initiativeOrder = [];
-    this.currentIndex = 0;
-    this.draggedElement = null;
-    this.draggedOverElement = null;
-    console.log("Initiative.js loaded successfully");
-  }
-  
-  /**
-   * Initialize the initiative tracker
-   */
-  init() {
-    // Create the initiative sidebar if it doesn't exist
-    this.createInitiativeSidebar();
-    
-    // Add event listener for initiative type changes
-    const initiativeTypeSelect = document.getElementById('initiative-type');
-    if (initiativeTypeSelect) {
-      initiativeTypeSelect.addEventListener('change', () => {
-        this.updateInitiativeDisplay();
-      });
+class Initiative {
+    constructor(dice, settings) {
+        // Store references to other modules
+        this.dice = dice;
+        this.settings = settings;
+        
+        // Initiative systems
+        this.systems = [
+            {
+                id: 'standard',
+                name: 'Standard',
+                description: 'Each combatant rolls initiative individually and acts in initiative order.'
+            },
+            {
+                id: 'group',
+                name: 'Group',
+                description: 'Monsters of the same type share initiative. Players roll individually.'
+            },
+            {
+                id: 'popcorn',
+                name: 'Popcorn',
+                description: 'After a combatant acts, they choose who goes next.'
+            },
+            {
+                id: 'side',
+                name: 'Side Initiative',
+                description: 'Players roll as a group, monsters roll as a group. Highest side goes first, then alternates.'
+            }
+        ];
+        
+        // Current system
+        this.currentSystem = this.settings.getInitiativeSystem();
+        
+        console.log("Initiative module initialized");
     }
-  }
-  
-  /**
-   * Create the initiative sidebar
-   */
-  createInitiativeSidebar() {
-    // Check if sidebar already exists
-    if (document.getElementById('initiative-sidebar')) return;
-    
-    // Create the sidebar container
-    const sidebar = document.createElement('div');
-    sidebar.id = 'initiative-sidebar';
-    sidebar.className = 'fixed right-0 top-0 h-full bg-gray-800 w-64 shadow-lg transform translate-x-full transition-transform duration-300 ease-in-out z-40 flex flex-col';
-    
-    // Create the sidebar content
-    sidebar.innerHTML = `
-      <div class="p-4 border-b border-gray-700 flex justify-between items-center">
-        <h3 class="text-xl font-bold text-yellow-400">Initiative Order</h3>
-        <button id="close-initiative-sidebar" class="text-gray-400 hover:text-white">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
-      <div class="p-4 border-b border-gray-700">
-        <div class="flex items-center justify-between mb-2">
-          <span class="text-sm text-gray-400">Drag to reorder</span>
-          <button id="roll-initiative-btn" class="bg-yellow-600 hover:bg-yellow-700 text-white text-xs py-1 px-2 rounded">
-            Roll All
-          </button>
-        </div>
-      </div>
-      <div id="initiative-list" class="flex-1 overflow-y-auto p-2">
-        <!-- Initiative items will be inserted here -->
-      </div>
-      <div class="p-4 border-t border-gray-700">
-        <button id="apply-initiative-order" class="w-full bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded">
-          Apply Order
-        </button>
-      </div>
-    `;
-    
-    // Add the sidebar to the document
-    document.body.appendChild(sidebar);
-    
-    // Add event listeners
-    document.getElementById('close-initiative-sidebar').addEventListener('click', () => {
-      this.toggleInitiativeSidebar(false);
-    });
-    
-    document.getElementById('roll-initiative-btn').addEventListener('click', () => {
-      this.app.combat.rollAllInitiative();
-    });
-    
-    document.getElementById('apply-initiative-order').addEventListener('click', () => {
-      this.applyInitiativeOrder();
-      this.toggleInitiativeSidebar(false);
-    });
-    
-    // Create toggle button for the sidebar
-    this.createInitiativeSidebarToggle();
-  }
-  
-  /**
-   * Create the toggle button for the initiative sidebar
-   */
-  createInitiativeSidebarToggle() {
-    // Check if toggle already exists
-    if (document.getElementById('initiative-sidebar-toggle')) return;
-    
-    // Create the toggle button
-    const toggle = document.createElement('button');
-    toggle.id = 'initiative-sidebar-toggle';
-    toggle.className = 'fixed right-0 top-1/2 transform -translate-y-1/2 bg-yellow-600 hover:bg-yellow-700 text-white py-3 px-2 rounded-l-lg shadow-lg z-30';
-    toggle.innerHTML = `
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-      </svg>
-    `;
-    
-    // Add event listener
-    toggle.addEventListener('click', () => {
-      this.toggleInitiativeSidebar();
-    });
-    
-    // Add the toggle to the document
-    document.body.appendChild(toggle);
-  }
-  
-  /**
-   * Toggle the initiative sidebar
-   * @param {boolean} [show] - Force show or hide
-   */
-  toggleInitiativeSidebar(show) {
-    const sidebar = document.getElementById('initiative-sidebar');
-    if (!sidebar) return;
-    
-    const isVisible = !sidebar.classList.contains('translate-x-full');
-    
-    if (show === undefined) {
-      // Toggle
-      if (isVisible) {
-        sidebar.classList.add('translate-x-full');
-      } else {
-        this.updateInitiativeList();
-        sidebar.classList.remove('translate-x-full');
-      }
-    } else if (show) {
-      // Force show
-      this.updateInitiativeList();
-      sidebar.classList.remove('translate-x-full');
-    } else {
-      // Force hide
-      sidebar.classList.add('translate-x-full');
+
+    /**
+     * Get all initiative systems
+     * @returns {Array} Initiative systems
+     */
+    getSystems() {
+        return [...this.systems];
     }
-  }
-  
-  /**
-   * Update the initiative list in the sidebar
-   */
-  updateInitiativeList() {
-    const listElement = document.getElementById('initiative-list');
-    if (!listElement) return;
-    
-    // Clear the list
-    listElement.innerHTML = '';
-    
-    // Get all combatants
-    const allCombatants = [
-      ...Array.from(document.querySelectorAll('#heroes-list .combatant-card')),
-      ...Array.from(document.querySelectorAll('#monsters-list .combatant-card'))
-    ];
-    
-    // Sort by initiative
-    const sortedCombatants = this.getSortedCombatants(allCombatants);
-    
-    // Store the current initiative order
-    this.initiativeOrder = sortedCombatants.map(card => card.id);
-    
-    // Create the list items
-    sortedCombatants.forEach((card, index) => {
-      const name = card.querySelector('.combatant-name').textContent;
-      const initiative = card.querySelector('.initiative-input').value || '0';
-      const type = card.dataset.type;
-      const isActive = card.classList.contains('active-turn');
-      
-      const item = document.createElement('div');
-      item.className = `initiative-item p-2 mb-2 rounded-lg bg-gray-700 cursor-move flex items-center ${isActive ? 'border-2 border-yellow-400' : ''}`;
-      item.dataset.id = card.id;
-      item.dataset.index = index;
-      item.draggable = true;
-      
-      // Get DEX modifier for display
-      const hiddenData = card.querySelector('.hidden-data');
-      let dexMod = 0;
-      if (hiddenData && hiddenData.dataset.dex) {
-        const dex = parseInt(hiddenData.dataset.dex) || 10;
-        dexMod = Math.floor((dex - 10) / 2);
-      }
-      
-      item.innerHTML = `
-        <div class="flex-shrink-0 mr-2 text-center w-8 font-bold ${isActive ? 'text-yellow-400' : 'text-gray-300'}">
-          ${initiative}
-        </div>
-        <div class="flex-grow">
-          <div class="font-semibold ${type === 'hero' ? 'text-blue-300' : 'text-red-300'}">${name}</div>
-          <div class="text-xs text-gray-400">DEX: ${dexMod >= 0 ? '+' : ''}${dexMod}</div>
-        </div>
-        <div class="flex-shrink-0 ml-2">
-          <input type="number" class="initiative-adjust bg-gray-600 w-12 text-center rounded" value="${initiative}">
-        </div>
-      `;
-      
-      // Add drag and drop event listeners
-      item.addEventListener('dragstart', (e) => this.handleDragStart(e));
-      item.addEventListener('dragover', (e) => this.handleDragOver(e));
-      item.addEventListener('dragleave', (e) => this.handleDragLeave(e));
-      item.addEventListener('drop', (e) => this.handleDrop(e));
-      item.addEventListener('dragend', (e) => this.handleDragEnd(e));
-      
-      // Add initiative adjustment event listener
-      const initiativeInput = item.querySelector('.initiative-adjust');
-      initiativeInput.addEventListener('change', (e) => {
-        const newInitiative = e.target.value;
-        const cardInitiativeInput = card.querySelector('.initiative-input');
-        if (cardInitiativeInput) {
-          cardInitiativeInput.value = newInitiative;
-          this.updateInitiativeList(); // Refresh the list to reflect new order
+
+    /**
+     * Get an initiative system by ID
+     * @param {string} id - System ID
+     * @returns {Object|null} Initiative system or null if not found
+     */
+    getSystem(id) {
+        return this.systems.find(system => system.id === id) || null;
+    }
+
+    /**
+     * Get the current initiative system
+     * @returns {Object} Current initiative system
+     */
+    getCurrentSystem() {
+        return this.getSystem(this.currentSystem) || this.getSystem('standard');
+    }
+
+    /**
+     * Set the current initiative system
+     * @param {string} systemId - System ID
+     * @returns {boolean} Success status
+     */
+    setSystem(systemId) {
+        const system = this.getSystem(systemId);
+        if (!system) {
+            console.warn(`Initiative system not found: ${systemId}`);
+            return false;
         }
-      });
-      
-      listElement.appendChild(item);
-    });
-  }
-  
-  /**
-   * Get combatants sorted by initiative
-   * @param {Array} combatants - Array of combatant elements
-   * @returns {Array} - Sorted array of combatant elements
-   */
-  getSortedCombatants(combatants) {
-    return combatants.sort((a, b) => {
-      const aInit = parseInt(a.querySelector('.initiative-input').value) || 0;
-      const bInit = parseInt(b.querySelector('.initiative-input').value) || 0;
-      
-      // If initiatives are tied, check DEX modifier
-      if (aInit === bInit) {
-        const aHiddenData = a.querySelector('.hidden-data');
-        const bHiddenData = b.querySelector('.hidden-data');
         
-        const aDex = aHiddenData ? parseInt(aHiddenData.dataset.dex) || 10 : 10;
-        const bDex = bHiddenData ? parseInt(bHiddenData.dataset.dex) || 10 : 10;
+        this.currentSystem = systemId;
+        this.settings.set('initiativeSystem', systemId);
         
-        const aDexMod = Math.floor((aDex - 10) / 2);
-        const bDexMod = Math.floor((bDex - 10) / 2);
-        
-        return bDexMod - aDexMod;
-      }
-      
-      return bInit - aInit;
-    });
-  }
-  
-  /**
-   * Handle drag start event
-   * @param {DragEvent} e - The drag event
-   */
-  handleDragStart(e) {
-    this.draggedElement = e.target;
-    e.target.classList.add('bg-gray-600');
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', e.target.dataset.id);
-  }
-  
-  /**
-   * Handle drag over event
-   * @param {DragEvent} e - The drag event
-   */
-  handleDragOver(e) {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    
-    const target = e.target.closest('.initiative-item');
-    if (target && target !== this.draggedElement) {
-      this.draggedOverElement = target;
-      
-      // Add visual indicator
-      const allItems = document.querySelectorAll('.initiative-item');
-      allItems.forEach(item => {
-        if (item !== this.draggedElement) {
-          item.classList.remove('border-t-2', 'border-b-2', 'border-yellow-400');
+        return true;
+    }
+
+    /**
+     * Calculate initiative modifier from ability scores
+     * @param {Object} abilities - Ability scores object
+     * @returns {number} Initiative modifier
+     */
+    calculateInitiativeModifier(abilities) {
+        if (!abilities || !abilities.dex) {
+            return 0;
         }
-      });
-      
-      const draggedIndex = parseInt(this.draggedElement.dataset.index);
-      const targetIndex = parseInt(target.dataset.index);
-      
-      if (draggedIndex < targetIndex) {
-        target.classList.add('border-b-2', 'border-yellow-400');
-      } else {
-        target.classList.add('border-t-2', 'border-yellow-400');
-      }
+        
+        // Base initiative modifier is DEX modifier
+        let modifier = Math.floor((abilities.dex - 10) / 2);
+        
+        return modifier;
     }
-  }
-  
-  /**
-   * Handle drag leave event
-   * @param {DragEvent} e - The drag event
-   */
-  handleDragLeave(e) {
-    const target = e.target.closest('.initiative-item');
-    if (target) {
-      target.classList.remove('border-t-2', 'border-b-2', 'border-yellow-400');
+
+    /**
+     * Roll initiative for a combatant
+     * @param {Object} combatant - Combatant object
+     * @returns {Promise<Object>} Initiative result
+     */
+    async rollForCombatant(combatant) {
+        // Get initiative modifier
+        const modifier = combatant.initiativeModifier !== undefined ? 
+            combatant.initiativeModifier : 
+            this.calculateInitiativeModifier(combatant.abilities);
+        
+        // Roll initiative
+        const rollResult = await this.dice.rollInitiative(
+            combatant.name,
+            modifier,
+            { 
+                advantage: combatant.initiativeAdvantage, 
+                disadvantage: combatant.initiativeDisadvantage 
+            }
+        );
+        
+        // Return result
+        return {
+            combatant,
+            initiative: rollResult.total,
+            roll: rollResult,
+            modifier
+        };
     }
-  }
-  
-  /**
-   * Handle drop event
-   * @param {DragEvent} e - The drag event
-   */
-  handleDrop(e) {
-    e.preventDefault();
-    
-    const target = e.target.closest('.initiative-item');
-    if (!target || target === this.draggedElement) return;
-    
-    const draggedId = e.dataTransfer.getData('text/plain');
-    const draggedIndex = this.initiativeOrder.indexOf(draggedId);
-    const targetIndex = this.initiativeOrder.indexOf(target.dataset.id);
-    
-    if (draggedIndex !== -1 && targetIndex !== -1) {
-      // Reorder the initiative array
-      this.initiativeOrder.splice(draggedIndex, 1);
-      this.initiativeOrder.splice(targetIndex, 0, draggedId);
-      
-      // Update the UI
-      this.updateInitiativeList();
+
+    /**
+     * Roll group initiative
+     * @param {Array} combatants - Array of combatants
+     * @returns {Promise<Object>} Group initiative result
+     */
+    async rollGroupInitiative(combatants) {
+        // Group combatants by type
+        const groups = {};
+        
+        // Process each combatant
+        for (const combatant of combatants) {
+            // Determine group key
+            let groupKey;
+            
+            if (combatant.type === 'pc') {
+                // Each PC is its own group
+                groupKey = combatant.id;
+            } else {
+                // Group monsters by name (without numbers)
+                groupKey = combatant.name.replace(/\s+\d+$/, '');
+            }
+            
+            // Initialize group if it doesn't exist
+            if (!groups[groupKey]) {
+                groups[groupKey] = {
+                    name: groupKey,
+                    combatants: [],
+                    initiative: null,
+                    roll: null,
+                    modifier: 0
+                };
+            }
+            
+            // Add combatant to group
+            groups[groupKey].combatants.push(combatant);
+            
+            // Use highest modifier in the group
+            const modifier = combatant.initiativeModifier !== undefined ? 
+                combatant.initiativeModifier : 
+                this.calculateInitiativeModifier(combatant.abilities);
+            
+            if (modifier > groups[groupKey].modifier) {
+                groups[groupKey].modifier = modifier;
+            }
+        }
+        
+        // Roll initiative for each group
+        const results = [];
+        
+        for (const groupKey in groups) {
+            const group = groups[groupKey];
+            
+            // Roll initiative for this group
+            const rollResult = await this.dice.rollInitiative(
+                group.name,
+                group.modifier,
+                {} // No advantage/disadvantage for groups
+            );
+            
+            // Store initiative result
+            group.initiative = rollResult.total;
+            group.roll = rollResult;
+            
+            // Add to results
+            results.push(group);
+        }
+        
+        return {
+            groups,
+            results
+        };
     }
-  }
-  
-  /**
-   * Handle drag end event
-   * @param {DragEvent} e - The drag event
-   */
-  handleDragEnd(e) {
-    e.target.classList.remove('bg-gray-600');
-    
-    // Remove all drag indicators
-    const allItems = document.querySelectorAll('.initiative-item');
-    allItems.forEach(item => {
-      item.classList.remove('border-t-2', 'border-b-2', 'border-yellow-400');
-    });
-    
-    this.draggedElement = null;
-    this.draggedOverElement = null;
-  }
-  
-  /**
-   * Apply the current initiative order to the combat tracker
-   */
-  applyInitiativeOrder() {
-    // Update the app's initiative order
-    if (this.app.combat) {
-      this.app.combat.setInitiativeOrder(this.initiativeOrder);
-      this.app.logEvent("Initiative order manually adjusted.");
+
+    /**
+     * Roll side initiative
+     * @param {Array} combatants - Array of combatants
+     * @returns {Promise<Object>} Side initiative result
+     */
+    async rollSideInitiative(combatants) {
+        // Separate combatants into players and monsters
+        const players = combatants.filter(c => c.type === 'pc');
+        const monsters = combatants.filter(c => c.type === 'monster');
+        
+        // Calculate modifiers (use highest in each group)
+        let playerModifier = 0;
+        let monsterModifier = 0;
+        
+        for (const player of players) {
+            const modifier = player.initiativeModifier !== undefined ? 
+                player.initiativeModifier : 
+                this.calculateInitiativeModifier(player.abilities);
+            
+            if (modifier > playerModifier) {
+                playerModifier = modifier;
+            }
+        }
+        
+        for (const monster of monsters) {
+            const modifier = monster.initiativeModifier !== undefined ? 
+                monster.initiativeModifier : 
+                this.calculateInitiativeModifier(monster.abilities);
+            
+            if (modifier > monsterModifier) {
+                monsterModifier = modifier;
+            }
+        }
+        
+        // Roll initiative for each side
+        const playerRoll = await this.dice.rollInitiative(
+            'Players',
+            playerModifier,
+            {} // No advantage/disadvantage for sides
+        );
+        
+        const monsterRoll = await this.dice.rollInitiative(
+            'Monsters',
+            monsterModifier,
+            {} // No advantage/disadvantage for sides
+        );
+        
+        // Determine which side goes first
+        const playerInitiative = playerRoll.total;
+        const monsterInitiative = monsterRoll.total;
+        const playersFirst = playerInitiative >= monsterInitiative;
+        
+        return {
+            players: {
+                combatants: players,
+                initiative: playerInitiative,
+                roll: playerRoll,
+                modifier: playerModifier
+            },
+            monsters: {
+                combatants: monsters,
+                initiative: monsterInitiative,
+                roll: monsterRoll,
+                modifier: monsterModifier
+            },
+            playersFirst
+        };
     }
-  }
-  
-  /**
-   * Update the initiative display based on the current initiative type
-   */
-  updateInitiativeDisplay() {
-    const initiativeType = document.getElementById('initiative-type')?.value || 'dynamic';
-    const toggle = document.getElementById('initiative-sidebar-toggle');
-    
-    if (toggle) {
-      // Only show the toggle for normal initiative
-      if (initiativeType === 'normal') {
-        toggle.classList.remove('hidden');
-      } else {
-        toggle.classList.add('hidden');
-        this.toggleInitiativeSidebar(false); // Hide the sidebar
-      }
+
+    /**
+     * Sort combatants by initiative
+     * @param {Array} combatants - Array of combatants
+     * @returns {Array} Sorted combatants
+     */
+    sortByInitiative(combatants) {
+        return [...combatants].sort((a, b) => {
+            // Sort by initiative (descending)
+            if (b.initiative !== a.initiative) {
+                return b.initiative - a.initiative;
+            }
+            
+            // If initiative is tied, sort by dexterity if available
+            if (a.abilities && b.abilities && a.abilities.dex !== b.abilities.dex) {
+                return b.abilities.dex - a.abilities.dex;
+            }
+            
+            // If still tied, sort by name
+            return a.name.localeCompare(b.name);
+        });
     }
-  }
-  
-  /**
-   * Add initiative modifier display to a combatant card
-   * @param {HTMLElement} card - The combatant card element
-   */
-  addInitiativeModifierDisplay(card) {
-    if (!card) return;
-    
-    // Check if initiative modifier display already exists
-    if (card.querySelector('.initiative-modifier-display')) return;
-    
-    // Get the initiative input
-    const initiativeInput = card.querySelector('.initiative-input');
-    if (!initiativeInput) return;
-    
-    // Get the DEX modifier
-    const hiddenData = card.querySelector('.hidden-data');
-    let dexMod = 0;
-    if (hiddenData && hiddenData.dataset.dex) {
-      const dex = parseInt(hiddenData.dataset.dex) || 10;
-      dexMod = Math.floor((dex - 10) / 2);
+
+    /**
+     * Create initiative order based on the current system
+     * @param {Array} combatants - Array of combatants
+     * @returns {Promise<Array>} Initiative order
+     */
+    async createInitiativeOrder(combatants) {
+        switch (this.currentSystem) {
+            case 'group':
+                return this._createGroupInitiativeOrder(combatants);
+            case 'popcorn':
+                return this._createPopcornInitiativeOrder(combatants);
+            case 'side':
+                return this._createSideInitiativeOrder(combatants);
+            case 'standard':
+            default:
+                return this._createStandardInitiativeOrder(combatants);
+        }
     }
-    
-    // Create the modifier display
-    const modifierDisplay = document.createElement('div');
-    modifierDisplay.className = 'initiative-modifier-display text-xs text-gray-400 text-center';
-    modifierDisplay.textContent = `DEX: ${dexMod >= 0 ? '+' : ''}${dexMod}`;
-    
-    // Insert after the initiative input
-    initiativeInput.parentNode.insertBefore(modifierDisplay, initiativeInput.nextSibling);
-  }
+
+    /**
+     * Create standard initiative order
+     * @private
+     * @param {Array} combatants - Array of combatants
+     * @returns {Array} Initiative order
+     */
+    _createStandardInitiativeOrder(combatants) {
+        // Sort by initiative
+        return this.sortByInitiative(combatants);
+    }
+
+    /**
+     * Create group initiative order
+     * @private
+     * @param {Array} combatants - Array of combatants
+     * @returns {Promise<Array>} Initiative order
+     */
+    async _createGroupInitiativeOrder(combatants) {
+        // Roll group initiative
+        const { groups } = await this.rollGroupInitiative(combatants);
+        
+        // Create initiative order
+        const initiativeOrder = [];
+        
+        // Sort groups by initiative
+        const sortedGroups = Object.values(groups).sort((a, b) => b.initiative - a.initiative);
+        
+        // Add combatants to initiative order
+        for (const group of sortedGroups) {
+            // Sort combatants within group (PCs by initiative, monsters alphabetically)
+            const sortedCombatants = group.combatants.sort((a, b) => {
+                if (a.type === 'pc' && b.type === 'pc') {
+                    // Sort PCs by their individual initiative
+                    return b.initiative - a.initiative;
+                } else if (a.type === 'monster' && b.type === 'monster') {
+                    // Sort monsters alphabetically
+                    return a.name.localeCompare(b.name);
+                } else {
+                    // PCs before monsters
+                    return a.type === 'pc' ? -1 : 1;
+                }
+            });
+            
+            // Add to initiative order
+            initiativeOrder.push(...sortedCombatants);
+        }
+        
+        return initiativeOrder;
+    }
+
+    /**
+     * Create popcorn initiative order
+     * @private
+     * @param {Array} combatants - Array of combatants
+     * @returns {Array} Initiative order
+     */
+    _createPopcornInitiativeOrder(combatants) {
+        // For popcorn initiative, we start with standard initiative order
+        // but the actual order will be determined during combat
+        return this.sortByInitiative(combatants);
+    }
+
+    /**
+     * Create side initiative order
+     * @private
+     * @param {Array} combatants - Array of combatants
+     * @returns {Promise<Array>} Initiative order
+     */
+    async _createSideInitiativeOrder(combatants) {
+        // Roll side initiative
+        const { players, monsters, playersFirst } = await this.rollSideInitiative(combatants);
+        
+        // Create initiative order
+        const initiativeOrder = [];
+        
+        // Sort players and monsters
+        const sortedPlayers = this.sortByInitiative(players.combatants);
+        const sortedMonsters = this.sortByInitiative(monsters.combatants);
+        
+        // Alternate between sides
+        if (playersFirst) {
+            // Players go first
+            initiativeOrder.push(...sortedPlayers);
+            initiativeOrder.push(...sortedMonsters);
+        } else {
+            // Monsters go first
+            initiativeOrder.push(...sortedMonsters);
+            initiativeOrder.push(...sortedPlayers);
+        }
+        
+        return initiativeOrder;
+    }
+
+    /**
+     * Get initiative modifier string
+     * @param {number} modifier - Initiative modifier
+     * @returns {string} Formatted modifier string
+     */
+    getModifierString(modifier) {
+        if (modifier === 0) return '+0';
+        return modifier > 0 ? `+${modifier}` : `${modifier}`;
+    }
+
+    /**
+     * Format initiative roll result
+     * @param {Object} rollResult - Roll result
+     * @returns {string} Formatted roll result
+     */
+    formatRollResult(rollResult) {
+        if (!rollResult) return '';
+        
+        // For advantage/disadvantage
+        if (rollResult.results && rollResult.results[0] && rollResult.results[0].rolls) {
+            const [roll1, roll2] = rollResult.results[0].rolls;
+            const useRoll = rollResult.results[0].useRoll;
+            const isAdvantage = rollResult.advantage;
+            const isDisadvantage = rollResult.disadvantage;
+            
+            if (isAdvantage || isDisadvantage) {
+                return `${roll1}${roll1 === useRoll ? '*' : ''}, ${roll2}${roll2 === useRoll ? '*' : ''} ${isAdvantage ? '(adv)' : '(dis)'}`;
+            }
+        }
+        
+        // For normal rolls
+        return `${rollResult.total}`;
+    }
+
+    /**
+     * Check if a combatant has advantage on initiative
+     * @param {Object} combatant - Combatant object
+     * @returns {boolean} True if combatant has advantage
+     */
+    hasAdvantage(combatant) {
+        // Check for features that grant initiative advantage
+        
+        // Alert feat
+        if (combatant.features && combatant.features.some(f => 
+            f.name.toLowerCase() === 'alert' || 
+            f.description.toLowerCase().includes('advantage on initiative')
+        )) {
+            return true;
+        }
+        
+        // Barbarian's Feral Instinct
+        if (combatant.classes && combatant.classes.some(c => 
+            c.name.toLowerCase() === 'barbarian' && c.level >= 7
+        )) {
+            return true;
+        }
+        
+        // Custom initiative advantage flag
+        return combatant.initiativeAdvantage === true;
+    }
+
+    /**
+     * Check if a combatant has disadvantage on initiative
+     * @param {Object} combatant - Combatant object
+     * @returns {boolean} True if combatant has disadvantage
+     */
+    hasDisadvantage(combatant) {
+        // Check for conditions that impose disadvantage
+        if (combatant.conditions) {
+            const disadvantageConditions = ['poisoned', 'frightened'];
+            for (const condition of combatant.conditions) {
+                if (disadvantageConditions.includes(condition.id)) {
+                    return true;
+                }
+            }
+        }
+        
+        // Custom initiative disadvantage flag
+        return combatant.initiativeDisadvantage === true;
+    }
+
+    /**
+     * Get initiative bonus for a combatant
+     * @param {Object} combatant - Combatant object
+     * @returns {number} Initiative bonus
+     */
+    getInitiativeBonus(combatant) {
+        // Start with base modifier
+        let bonus = combatant.initiativeModifier !== undefined ? 
+            combatant.initiativeModifier : 
+            this.calculateInitiativeModifier(combatant.abilities);
+        
+        // Add bonuses from features
+        
+        // Alert feat (+5)
+        if (combatant.features && combatant.features.some(f => f.name.toLowerCase() === 'alert')) {
+            bonus += 5;
+        }
+        
+        // Jack of All Trades (half proficiency to initiative)
+        if (combatant.features && combatant.features.some(f => 
+            f.name.toLowerCase() === 'jack of all trades' || 
+            f.description.toLowerCase().includes('jack of all trades')
+        )) {
+            const profBonus = this._getProficiencyBonus(combatant);
+            bonus += Math.floor(profBonus / 2);
+        }
+        
+        // Remarkable Athlete (half proficiency to initiative)
+        if (combatant.features && combatant.features.some(f => 
+            f.name.toLowerCase() === 'remarkable athlete' || 
+            f.description.toLowerCase().includes('remarkable athlete')
+        )) {
+            const profBonus = this._getProficiencyBonus(combatant);
+            bonus += Math.floor(profBonus / 2);
+        }
+        
+        return bonus;
+    }
+
+    /**
+     * Get proficiency bonus for a combatant
+     * @private
+     * @param {Object} combatant - Combatant object
+     * @returns {number} Proficiency bonus
+     */
+    _getProficiencyBonus(combatant) {
+        // Use explicit proficiency bonus if available
+        if (combatant.proficiencyBonus !== undefined) {
+            return combatant.proficiencyBonus;
+        }
+        
+        // Calculate from level or CR
+        if (combatant.type === 'pc' && combatant.level) {
+            return Math.floor((combatant.level - 1) / 4) + 2;
+        } else if (combatant.cr) {
+            let cr = combatant.cr;
+            
+            // Convert string CR to number
+            if (typeof cr === 'string') {
+                if (cr === '1/8') cr = 0.125;
+                else if (cr === '1/4') cr = 0.25;
+                else if (cr === '1/2') cr = 0.5;
+                else cr = parseFloat(cr);
+            }
+            
+            return Math.max(2, Math.floor((cr - 1) / 4) + 2);
+        }
+        
+        // Default
+        return 2;
+    }
+
+    /**
+     * Get initiative tiebreaker value for a combatant
+     * @param {Object} combatant - Combatant object
+     * @returns {number} Tiebreaker value
+     */
+    getTiebreakerValue(combatant) {
+        // Use DEX as tiebreaker
+        if (combatant.abilities && combatant.abilities.dex) {
+            return combatant.abilities.dex;
+        }
+        
+        return 10; // Default DEX
+    }
+
+    /**
+     * Reroll initiative for a combatant
+     * @param {Object} combatant - Combatant object
+     * @returns {Promise<Object>} Initiative result
+     */
+    async rerollInitiative(combatant) {
+        return await this.rollForCombatant(combatant);
+    }
 }
+
+// Export the Initiative class
+export default Initiative;
