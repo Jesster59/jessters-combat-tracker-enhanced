@@ -259,6 +259,79 @@ class UIManager {
     }
     
     /**
+     * Render the initiative order
+     */
+    renderInitiativeOrder() {
+        const container = document.getElementById('initiative-container');
+        if (!container) return;
+        
+        const creatures = this.app.combat.getInitiativeOrder();
+        
+        if (creatures.length === 0) {
+            container.innerHTML = `
+                <div class="text-center text-gray-400 py-4">
+                    No initiative rolled yet
+                </div>
+            `;
+            return;
+        }
+        
+        container.innerHTML = '';
+        
+        creatures.forEach((creature, index) => {
+            const typeIcon = creature.type === 'hero' ? '👤' : '👹';
+            const isActive = this.app.state.combatStarted && this.app.state.currentTurn === creature.id;
+            
+            // Handle character image
+            let imageHtml = '';
+            if (creature.imageUrl) {
+                imageHtml = `<img src="${creature.imageUrl}" alt="${creature.name}" class="character-image w-6 h-6 mr-2">`;
+            }
+            
+            const itemElement = document.createElement('div');
+            itemElement.className = `initiative-item p-2 mb-1 rounded flex justify-between items-center ${isActive ? 'bg-blue-900' : 'bg-gray-700'}`;
+            
+            itemElement.innerHTML = `
+                <div class="flex items-center">
+                    <span class="w-6 h-6 flex items-center justify-center bg-gray-600 rounded-full text-sm mr-2">${index + 1}</span>
+                    ${imageHtml}
+                    <span>${typeIcon} ${creature.name}</span>
+                </div>
+                <div class="font-bold">${creature.initiative}</div>
+            `;
+            
+            container.appendChild(itemElement);
+        });
+    }
+    
+    /**
+     * Render the combat log
+     */
+    renderCombatLog() {
+        const container = document.getElementById('combat-log');
+        if (!container) return;
+        
+        const log = this.app.state.combatLog;
+        
+        if (log.length === 0) {
+            container.innerHTML = `<div class="text-gray-400">Combat log will appear here...</div>`;
+            return;
+        }
+        
+        container.innerHTML = '';
+        
+        log.forEach(entry => {
+            const entryElement = document.createElement('div');
+            entryElement.className = 'log-entry text-sm';
+            entryElement.textContent = entry;
+            container.appendChild(entryElement);
+        });
+        
+        // Scroll to bottom
+        container.scrollTop = container.scrollHeight;
+    }
+    
+    /**
      * Open the monster stat block modal
      * @param {string} creatureId - The ID of the creature
      */
@@ -485,6 +558,155 @@ class UIManager {
     }
     
     /**
+     * Open the initiative management modal
+     */
+    openInitiativeManagementModal() {
+        const creatures = this.app.combat.getAllCreatures();
+        
+        if (creatures.length === 0) {
+            this.app.showAlert('No creatures to manage initiative for.');
+            return;
+        }
+        
+        const modal = this.createModal({
+            title: 'Manage Initiative Order',
+            content: `
+                <div class="space-y-4">
+                    <p class="text-sm text-gray-400">Edit initiative values directly or use the up/down buttons to reorder.</p>
+                    
+                    <div id="initiative-list" class="space-y-2">
+                        ${creatures.map((creature, index) => `
+                            <div class="initiative-item bg-gray-700 p-2 rounded flex justify-between items-center" data-id="${creature.id}">
+                                <div class="flex items-center">
+                                    <span>${creature.type === 'hero' ? '👤' : '👹'} ${creature.name}</span>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <input type="number" class="initiative-input bg-gray-600 text-white w-16 px-2 py-1 rounded" 
+                                        value="${creature.initiative !== null ? creature.initiative : ''}" 
+                                        placeholder="Init">
+                                    <div class="flex flex-col">
+                                        <button class="move-up-btn text-xs bg-gray-600 hover:bg-gray-500 px-2 py-0.5 rounded-t ${index === 0 ? 'opacity-50 cursor-not-allowed' : ''}" 
+                                            ${index === 0 ? 'disabled' : ''}>▲</button>
+                                        <button class="move-down-btn text-xs bg-gray-600 hover:bg-gray-500 px-2 py-0.5 rounded-b ${index === creatures.length - 1 ? 'opacity-50 cursor-not-allowed' : ''}" 
+                                            ${index === creatures.length - 1 ? 'disabled' : ''}>▼</button>
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                    
+                    <div class="flex justify-end space-x-2">
+                        <button id="cancel-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
+                            Cancel
+                        </button>
+                        <button id="save-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                            Save Order
+                        </button>
+                    </div>
+                </div>
+            `,
+            width: 'max-w-lg'
+        });
+        
+        // Add event listeners
+        const cancelBtn = modal.querySelector('#cancel-btn');
+        const saveBtn = modal.querySelector('#save-btn');
+        const initiativeList = modal.querySelector('#initiative-list');
+        
+        // Add event listeners for move up/down buttons
+        initiativeList.querySelectorAll('.move-up-btn').forEach((btn, index) => {
+            if (index > 0) {
+                btn.addEventListener('click', () => {
+                    const item = btn.closest('.initiative-item');
+                    const prevItem = item.previousElementSibling;
+                    if (prevItem) {
+                        initiativeList.insertBefore(item, prevItem);
+                        updateMoveButtons();
+                    }
+                });
+            }
+        });
+        
+        initiativeList.querySelectorAll('.move-down-btn').forEach((btn, index) => {
+            if (index < creatures.length - 1) {
+                btn.addEventListener('click', () => {
+                    const item = btn.closest('.initiative-item');
+                    const nextItem = item.nextElementSibling;
+                    if (nextItem) {
+                        initiativeList.insertBefore(nextItem, item);
+                        updateMoveButtons();
+                    }
+                });
+            }
+        });
+        
+        // Function to update move buttons after reordering
+        function updateMoveButtons() {
+            const items = initiativeList.querySelectorAll('.initiative-item');
+            items.forEach((item, index) => {
+                const upBtn = item.querySelector('.move-up-btn');
+                const downBtn = item.querySelector('.move-down-btn');
+                
+                if (index === 0) {
+                    upBtn.disabled = true;
+                    upBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                } else {
+                    upBtn.disabled = false;
+                    upBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                }
+                
+                if (index === items.length - 1) {
+                    downBtn.disabled = true;
+                    downBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                } else {
+                    downBtn.disabled = false;
+                    downBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                }
+            });
+        }
+        
+        cancelBtn.addEventListener('click', () => {
+            this.closeModal(modal.parentNode);
+        });
+        
+        saveBtn.addEventListener('click', () => {
+            // Get the new order and initiative values
+            const initiativeItems = modal.querySelectorAll('.initiative-item');
+            const newOrder = [];
+            
+            initiativeItems.forEach(item => {
+                const id = item.dataset.id;
+                const initiativeInput = item.querySelector('.initiative-input');
+                const initiative = initiativeInput.value.trim() !== '' ? parseInt(initiativeInput.value) : null;
+                
+                newOrder.push({ id, initiative });
+            });
+            
+            // Update the initiative values
+            newOrder.forEach(item => {
+                const creature = this.app.combat.getCreatureById(item.id);
+                if (creature) {
+                    creature.initiative = item.initiative;
+                }
+            });
+            
+                        // Reorder the creatures array
+            this.app.combat.reorderCreatures(newOrder.map(item => item.id));
+            
+            // Update UI
+            this.app.ui.renderCreatures();
+            this.app.ui.renderInitiativeOrder();
+            this.app.updatePlayerView();
+            
+            // Close the modal
+            this.closeModal(modal.parentNode);
+            
+            // Log the event
+            this.app.logEvent('Initiative order updated manually.');
+        });
+    }
+    
+    /**
      * Show a creature context menu
      * @param {string} creatureId - The ID of the creature
      * @param {number} x - The x position of the menu
@@ -548,8 +770,6 @@ class UIManager {
             document.addEventListener('click', this.closeContextMenu);
         }, 0);
     }
-    
-    // ... rest of the UIManager class remains the same ...
     
     /**
      * Close the context menu
@@ -637,7 +857,7 @@ class UIManager {
                 img.src = url;
                 imagePreview.classList.remove('hidden');
                 
-                                // Handle image load error
+                // Handle image load error
                 img.onerror = () => {
                     img.src = 'data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2232%22%20height%3D%2232%22%20viewBox%3D%220%200%2032%2032%22%3E%3Cpath%20fill%3D%22%23D32F2F%22%20d%3D%22M16%202C8.268%202%202%208.268%202%2016s6.268%2014%2014%2014%2014-6.268%2014-14S23.732%202%2016%202zm0%2025.6c-6.408%200-11.6-5.192-11.6-11.6S9.592%204.4%2016%204.4%2027.6%209.592%2027.6%2016%2022.408%2027.6%2016%2027.6z%22%2F%3E%3Cpath%20fill%3D%22%23D32F2F%22%20d%3D%22M14.8%2010.4h2.4v8h-2.4v-8zm0%2010.4h2.4v2.4h-2.4v-2.4z%22%2F%3E%3C%2Fsvg%3E';
                 };
@@ -1068,6 +1288,8 @@ class UIManager {
                 <div class="space-y-4">
                     <div class="flex">
                         <input type="text" id="monster-search-input" class="flex-1 bg-gray-700 text-white px-3 py-2 rounded-l" placeholder="Search for monsters...">
+                        <button id="search-btn" class="bg-blue-600 hover:bg
+                                                <input type="text" id="monster-search-input" class="flex-1 bg-gray-700 text-white px-3 py-2 rounded-l" placeholder="Search for monsters...">
                         <button id="search-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-r">
                             Search
                         </button>
@@ -1240,7 +1462,7 @@ class UIManager {
         // Set the import script
         importScript.value = this.app.api.getDnDBeyondImportScript();
         
-                // Copy script button
+        // Copy script button
         copyScriptBtn.addEventListener('click', () => {
             importScript.select();
             document.execCommand('copy');
@@ -1322,155 +1544,6 @@ class UIManager {
                 console.error('JSON parsing error:', error);
                 console.log('Attempted to parse:', jsonText);
             }
-        });
-    }
-    
-    /**
-     * Open the initiative management modal
-     */
-    openInitiativeManagementModal() {
-        const creatures = this.app.combat.getAllCreatures();
-        
-        if (creatures.length === 0) {
-            this.app.showAlert('No creatures to manage initiative for.');
-            return;
-        }
-        
-        const modal = this.createModal({
-            title: 'Manage Initiative Order',
-            content: `
-                <div class="space-y-4">
-                    <p class="text-sm text-gray-400">Edit initiative values directly or use the up/down buttons to reorder.</p>
-                    
-                    <div id="initiative-list" class="space-y-2">
-                        ${creatures.map((creature, index) => `
-                            <div class="initiative-item bg-gray-700 p-2 rounded flex justify-between items-center" data-id="${creature.id}">
-                                <div class="flex items-center">
-                                    <span>${creature.type === 'hero' ? '👤' : '👹'} ${creature.name}</span>
-                                </div>
-                                <div class="flex items-center space-x-2">
-                                    <input type="number" class="initiative-input bg-gray-600 text-white w-16 px-2 py-1 rounded" 
-                                        value="${creature.initiative !== null ? creature.initiative : ''}" 
-                                        placeholder="Init">
-                                    <div class="flex flex-col">
-                                        <button class="move-up-btn text-xs bg-gray-600 hover:bg-gray-500 px-2 py-0.5 rounded-t ${index === 0 ? 'opacity-50 cursor-not-allowed' : ''}" 
-                                            ${index === 0 ? 'disabled' : ''}>▲</button>
-                                        <button class="move-down-btn text-xs bg-gray-600 hover:bg-gray-500 px-2 py-0.5 rounded-b ${index === creatures.length - 1 ? 'opacity-50 cursor-not-allowed' : ''}" 
-                                            ${index === creatures.length - 1 ? 'disabled' : ''}>▼</button>
-                                    </div>
-                                </div>
-                            </div>
-                        `).join('')}
-                    </div>
-                    
-                    <div class="flex justify-end space-x-2">
-                        <button id="cancel-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
-                            Cancel
-                        </button>
-                        <button id="save-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                            Save Order
-                        </button>
-                    </div>
-                </div>
-            `,
-            width: 'max-w-lg'
-        });
-        
-        // Add event listeners
-        const cancelBtn = modal.querySelector('#cancel-btn');
-        const saveBtn = modal.querySelector('#save-btn');
-        const initiativeList = modal.querySelector('#initiative-list');
-        
-        // Add event listeners for move up/down buttons
-        initiativeList.querySelectorAll('.move-up-btn').forEach((btn, index) => {
-            if (index > 0) {
-                btn.addEventListener('click', () => {
-                    const item = btn.closest('.initiative-item');
-                    const prevItem = item.previousElementSibling;
-                    if (prevItem) {
-                        initiativeList.insertBefore(item, prevItem);
-                        updateMoveButtons();
-                    }
-                });
-            }
-        });
-        
-        initiativeList.querySelectorAll('.move-down-btn').forEach((btn, index) => {
-            if (index < creatures.length - 1) {
-                btn.addEventListener('click', () => {
-                    const item = btn.closest('.initiative-item');
-                    const nextItem = item.nextElementSibling;
-                    if (nextItem) {
-                        initiativeList.insertBefore(nextItem, item);
-                        updateMoveButtons();
-                    }
-                });
-            }
-        });
-        
-        // Function to update move buttons after reordering
-        function updateMoveButtons() {
-            const items = initiativeList.querySelectorAll('.initiative-item');
-            items.forEach((item, index) => {
-                const upBtn = item.querySelector('.move-up-btn');
-                const downBtn = item.querySelector('.move-down-btn');
-                
-                if (index === 0) {
-                    upBtn.disabled = true;
-                    upBtn.classList.add('opacity-50', 'cursor-not-allowed');
-                } else {
-                    upBtn.disabled = false;
-                    upBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-                }
-                
-                if (index === items.length - 1) {
-                    downBtn.disabled = true;
-                    downBtn.classList.add('opacity-50', 'cursor-not-allowed');
-                } else {
-                    downBtn.disabled = false;
-                    downBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-                }
-            });
-        }
-        
-        cancelBtn.addEventListener('click', () => {
-            this.closeModal(modal.parentNode);
-        });
-        
-        saveBtn.addEventListener('click', () => {
-            // Get the new order and initiative values
-            const initiativeItems = modal.querySelectorAll('.initiative-item');
-            const newOrder = [];
-            
-            initiativeItems.forEach(item => {
-                const id = item.dataset.id;
-                const initiativeInput = item.querySelector('.initiative-input');
-                const initiative = initiativeInput.value.trim() !== '' ? parseInt(initiativeInput.value) : null;
-                
-                newOrder.push({ id, initiative });
-            });
-            
-            // Update the initiative values
-            newOrder.forEach(item => {
-                const creature = this.app.combat.getCreatureById(item.id);
-                if (creature) {
-                    creature.initiative = item.initiative;
-                }
-            });
-            
-            // Reorder the creatures array
-            this.app.combat.reorderCreatures(newOrder.map(item => item.id));
-            
-            // Update UI
-            this.app.ui.renderCreatures();
-            this.app.ui.renderInitiativeOrder();
-            this.app.updatePlayerView();
-            
-            // Close the modal
-            this.closeModal(modal.parentNode);
-            
-            // Log the event
-            this.app.logEvent('Initiative order updated manually.');
         });
     }
     
