@@ -180,6 +180,52 @@
                                 </button>
                             </div>
                             
+                            <!-- Combat Controls -->
+                            <div class="mb-4">
+                                <h2 class="text-xl font-bold mb-3 text-primary-300">Combat Controls</h2>
+                                <div class="flex flex-wrap gap-2 mb-4">
+                                    <div class="dropdown relative">
+                                        <button id="add-hero-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                                            Add Hero
+                                        </button>
+                                        <div class="hero-dropdown-menu hidden absolute left-0 mt-1 w-48 bg-gray-800 rounded-md shadow-lg z-10">
+                                            <a href="#" id="add-custom-hero-btn" class="block px-4 py-2 text-sm text-white hover:bg-gray-700">Custom Hero</a>
+                                            <a href="#" id="import-dndbeyond-btn" class="block px-4 py-2 text-sm text-white hover:bg-gray-700">Import from D&D Beyond</a>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="dropdown relative">
+                                        <button id="add-monster-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">
+                                            Add Monster
+                                        </button>
+                                        <div class="dropdown-menu hidden absolute left-0 mt-1 w-48 bg-gray-800 rounded-md shadow-lg z-10">
+                                            <a href="#" id="add-custom-monster-btn" class="block px-4 py-2 text-sm text-white hover:bg-gray-700">Custom Monster</a>
+                                            <a href="#" id="search-srd-monsters-btn" class="block px-4 py-2 text-sm text-white hover:bg-gray-700">Search SRD Monsters</a>
+                                        </div>
+                                    </div>
+                                    
+                                    <button id="roll-initiative-btn" class="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded">
+                                        Roll Initiative
+                                    </button>
+                                    
+                                    <button id="manage-initiative-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded">
+                                        Manage Initiative
+                                    </button>
+                                </div>
+                                
+                                <div class="flex flex-wrap gap-2">
+                                    <button id="start-combat-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
+                                        Start Combat
+                                    </button>
+                                    <button id="next-turn-btn" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded">
+                                        Next Turn
+                                    </button>
+                                    <button id="end-combat-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">
+                                        End Combat
+                                    </button>
+                                </div>
+                            </div>
+
                             <div class="flex flex-wrap gap-2">
                                 <button id="start-combat-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
                                     Start Combat
@@ -602,3 +648,4 @@
     </script>
 </body>
 </html>
+
