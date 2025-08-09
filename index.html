@@ -126,6 +126,20 @@
         .hero-dropdown-menu a:hover {
             background-color: #374151;
         }
+        
+        /* Stat block styles */
+        .stat-block hr {
+            margin: 0.5rem 0;
+        }
+
+        .stat-block .alert-message {
+            white-space: pre-line;
+        }
+
+        /* Make sure attack roll results are readable */
+        .alert-message {
+            white-space: pre-line;
+        }
     </style>
 </head>
 <body class="bg-gray-900 text-white">
@@ -178,54 +192,12 @@
                                 <button id="roll-initiative-btn" class="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded">
                                     Roll Initiative
                                 </button>
+                                
+                                <button id="manage-initiative-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded">
+                                    Manage Initiative
+                                </button>
                             </div>
                             
-                            <!-- Combat Controls -->
-                            <div class="mb-4">
-                                <h2 class="text-xl font-bold mb-3 text-primary-300">Combat Controls</h2>
-                                <div class="flex flex-wrap gap-2 mb-4">
-                                    <div class="dropdown relative">
-                                        <button id="add-hero-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                                            Add Hero
-                                        </button>
-                                        <div class="hero-dropdown-menu hidden absolute left-0 mt-1 w-48 bg-gray-800 rounded-md shadow-lg z-10">
-                                            <a href="#" id="add-custom-hero-btn" class="block px-4 py-2 text-sm text-white hover:bg-gray-700">Custom Hero</a>
-                                            <a href="#" id="import-dndbeyond-btn" class="block px-4 py-2 text-sm text-white hover:bg-gray-700">Import from D&D Beyond</a>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="dropdown relative">
-                                        <button id="add-monster-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">
-                                            Add Monster
-                                        </button>
-                                        <div class="dropdown-menu hidden absolute left-0 mt-1 w-48 bg-gray-800 rounded-md shadow-lg z-10">
-                                            <a href="#" id="add-custom-monster-btn" class="block px-4 py-2 text-sm text-white hover:bg-gray-700">Custom Monster</a>
-                                            <a href="#" id="search-srd-monsters-btn" class="block px-4 py-2 text-sm text-white hover:bg-gray-700">Search SRD Monsters</a>
-                                        </div>
-                                    </div>
-                                    
-                                    <button id="roll-initiative-btn" class="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded">
-                                        Roll Initiative
-                                    </button>
-                                    
-                                    <button id="manage-initiative-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded">
-                                        Manage Initiative
-                                    </button>
-                                </div>
-                                
-                                <div class="flex flex-wrap gap-2">
-                                    <button id="start-combat-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
-                                        Start Combat
-                                    </button>
-                                    <button id="next-turn-btn" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded">
-                                        Next Turn
-                                    </button>
-                                    <button id="end-combat-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">
-                                        End Combat
-                                    </button>
-                                </div>
-                            </div>
-
                             <div class="flex flex-wrap gap-2">
                                 <button id="start-combat-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
                                     Start Combat
@@ -357,6 +329,11 @@
                     <button class="edit-btn bg-blue-600 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded text-xs" data-creature-id="{{id}}">
                         Edit
                     </button>
+                    {{#if isMonster}}
+                    <button class="stat-block-btn bg-purple-600 hover:bg-purple-700 text-white font-bold py-1 px-2 rounded text-xs" data-creature-id="{{id}}">
+                        Stat Block
+                    </button>
+                    {{/if}}
                     <button class="damage-btn bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-2 rounded text-xs" data-creature-id="{{id}}">
                         Damage
                     </button>
@@ -572,6 +549,11 @@
                 window.app.combat.rollInitiativeForAll();
             });
             
+            // Manage initiative button
+            safeAddEventListener('#manage-initiative-btn', 'click', () => {
+                window.app.ui.openInitiativeManagementModal();
+            });
+            
             safeAddEventListener('#start-combat-btn', 'click', () => {
                 if (window.app.state.combatStarted) {
                     window.app.showAlert('Combat is already in progress.');
@@ -648,4 +630,3 @@
     </script>
 </body>
 </html>
-
