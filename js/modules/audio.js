@@ -48,6 +48,8 @@ class AudioManager {
         
         // Setup audio initialization on user interaction
         this.setupAudioInitialization();
+        
+        console.log("Audio Manager initialized");
     }
     
     /**
@@ -287,7 +289,7 @@ class AudioManager {
         }
     }
     
-    /**
+        /**
      * Toggle background music on/off
      */
     toggleMusic() {
@@ -388,6 +390,25 @@ class AudioManager {
         if (musicBtn) {
             musicBtn.className = `p-1 rounded ${this.musicEnabled ? 'text-white' : 'text-gray-400'} hover:text-white`;
         }
+    }
+    
+    /**
+     * Set sound enabled/disabled
+     * @param {boolean} enabled - Whether sound should be enabled
+     */
+    setEnabled(enabled) {
+        this.soundEnabled = enabled;
+        this.updateAudioControlsUI();
+        this.saveSettings();
+    }
+    
+    /**
+     * Set sound volume
+     * @param {number} volume - The volume level (0-1)
+     */
+    setVolume(volume) {
+        this.soundVolume = volume;
+        this.saveSettings();
     }
     
     /**
