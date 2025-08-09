@@ -1,62 +1,887 @@
-[
-  {
-    "name": "Blinded",
-    "description": "A blinded creature can't see and automatically fails any ability check that requires sight. Attack rolls against the creature have advantage, and the creature's attack rolls have disadvantage."
-  },
-  {
-    "name": "Charmed",
-    "description": "A charmed creature can't attack the charmer or target the charmer with harmful abilities or magical effects. The charmer has advantage on any ability check to interact socially with the creature."
-  },
-  {
-    "name": "Deafened",
-    "description": "A deafened creature can't hear and automatically fails any ability check that requires hearing."
-  },
-  {
-    "name": "Frightened",
-    "description": "A frightened creature has disadvantage on ability checks and attack rolls while the source of its fear is within line of sight. The creature can't willingly move closer to the source of its fear."
-  },
-  {
-    "name": "Grappled",
-    "description": "A grappled creature's speed becomes 0, and it can't benefit from any bonus to its speed. The condition ends if the grappler is incapacitated. The condition also ends if an effect removes the grappled creature from the reach of the grappler or grappling effect."
-  },
-  {
-    "name": "Incapacitated",
-    "description": "An incapacitated creature can't take actions or reactions."
-  },
-  {
-    "name": "Invisible",
-    "description": "An invisible creature is impossible to see without the aid of magic or a special sense. For the purpose of hiding, the creature is heavily obscured. The creature's location can be detected by any noise it makes or any tracks it leaves. Attack rolls against the creature have disadvantage, and the creature's attack rolls have advantage."
-  },
-  {
-    "name": "Paralyzed",
-    "description": "A paralyzed creature is incapacitated and can't move or speak. The creature automatically fails Strength and Dexterity saving throws. Attack rolls against the creature have advantage. Any attack that hits the creature is a critical hit if the attacker is within 5 feet of the creature."
-  },
-  {
-    "name": "Petrified",
-    "description": "A petrified creature is transformed, along with any nonmagical object it is wearing or carrying, into a solid inanimate substance (usually stone). Its weight increases by a factor of ten, and it ceases aging. The creature is incapacitated, can't move or speak, and is unaware of its surroundings. Attack rolls against the creature have advantage. The creature automatically fails Strength and Dexterity saving throws. The creature has resistance to all damage. The creature is immune to poison and disease, although a poison or disease already in its system is suspended, not neutralized."
-  },
-  {
-    "name": "Poisoned",
-    "description": "A poisoned creature has disadvantage on attack rolls and ability checks."
-  },
-  {
-    "name": "Prone",
-    "description": "A prone creature's only movement option is to crawl, unless it stands up and thereby ends the condition. The creature has disadvantage on attack rolls. An attack roll against the creature has advantage if the attacker is within 5 feet of the creature. Otherwise, the attack roll has disadvantage."
-  },
-  {
-    "name": "Restrained",
-    "description": "A restrained creature's speed becomes 0, and it can't benefit from any bonus to its speed. Attack rolls against the creature have advantage, and the creature's attack rolls have disadvantage. The creature has disadvantage on Dexterity saving throws."
-  },
-  {
-    "name": "Stunned",
-    "description": "A stunned creature is incapacitated, can't move, and can speak only falteringly. The creature automatically fails Strength and Dexterity saving throws. Attack rolls against the creature have advantage."
-  },
-  {
-    "name": "Unconscious",
-    "description": "An unconscious creature is incapacitated, can't move or speak, and is unaware of its surroundings. The creature drops whatever it's holding and falls prone. The creature automatically fails Strength and Dexterity saving throws. Attack rolls against the creature have advantage. Any attack that hits the creature is a critical hit if the attacker is within 5 feet of the creature."
-  },
-  {
-    "name": "Exhaustion",
-    "description": "Exhaustion is measured in six levels. An effect can give a creature one or more levels of exhaustion, as specified in the effect's description. 1: Disadvantage on ability checks. 2: Speed halved. 3: Disadvantage on attack rolls and saving throws. 4: Hit point maximum halved. 5: Speed reduced to 0. 6: Death."
-  }
-]
+{
+  "version": "2.3.1",
+  "conditions": [
+    {
+      "id": "blinded",
+      "name": "Blinded",
+      "icon": "eye-slash",
+      "color": "#6c757d",
+      "description": "A blinded creature can't see and automatically fails any ability check that requires sight. Attack rolls against the creature have advantage, and the creature's attack rolls have disadvantage.",
+      "rules": [
+        "Cannot see",
+        "Automatically fails ability checks requiring sight",
+        "Attack rolls against the creature have advantage",
+        "The creature's attack rolls have disadvantage"
+      ],
+      "saveType": null,
+      "saveDC": null,
+      "saveFrequency": null,
+      "duration": null,
+      "effects": [
+        {
+          "type": "attackRoll",
+          "target": "self",
+          "value": "disadvantage"
+        },
+        {
+          "type": "attackRoll",
+          "target": "others",
+          "value": "advantage"
+        }
+      ]
+    },
+    {
+      "id": "charmed",
+      "name": "Charmed",
+      "icon": "heart",
+      "color": "#e83e8c",
+      "description": "A charmed creature can't attack the charmer or target the charmer with harmful abilities or magical effects. The charmer has advantage on any ability check to interact socially with the creature.",
+      "rules": [
+        "Cannot attack the charmer",
+        "Cannot target the charmer with harmful abilities or magical effects",
+        "The charmer has advantage on social ability checks against the creature"
+      ],
+      "saveType": null,
+      "saveDC": null,
+      "saveFrequency": null,
+      "duration": null,
+      "effects": []
+    },
+    {
+      "id": "deafened",
+      "name": "Deafened",
+      "icon": "deaf",
+      "color": "#6c757d",
+      "description": "A deafened creature can't hear and automatically fails any ability check that requires hearing.",
+      "rules": [
+        "Cannot hear",
+        "Automatically fails ability checks requiring hearing"
+      ],
+      "saveType": null,
+      "saveDC": null,
+      "saveFrequency": null,
+      "duration": null,
+      "effects": []
+    },
+    {
+      "id": "frightened",
+      "name": "Frightened",
+      "icon": "ghost",
+      "color": "#fd7e14",
+      "description": "A frightened creature has disadvantage on ability checks and attack rolls while the source of its fear is within line of sight. The creature can't willingly move closer to the source of its fear.",
+      "rules": [
+        "Has disadvantage on ability checks and attack rolls while the source of fear is visible",
+        "Cannot willingly move closer to the source of fear"
+      ],
+      "saveType": null,
+      "saveDC": null,
+      "saveFrequency": null,
+      "duration": null,
+      "effects": [
+        {
+          "type": "abilityCheck",
+          "target": "self",
+          "value": "disadvantage"
+        },
+        {
+          "type": "attackRoll",
+          "target": "self",
+          "value": "disadvantage"
+        }
+      ]
+    },
+    {
+      "id": "grappled",
+      "name": "Grappled",
+      "icon": "hand-rock",
+      "color": "#6c757d",
+      "description": "A grappled creature's speed becomes 0, and it can't benefit from any bonus to its speed. The condition ends if the grappler is incapacitated. The condition also ends if an effect removes the grappled creature from the reach of the grappler or grappling effect.",
+      "rules": [
+        "Speed becomes 0",
+        "Cannot benefit from bonuses to speed",
+        "Condition ends if the grappler is incapacitated",
+        "Condition ends if the creature is moved out of reach"
+      ],
+      "saveType": null,
+      "saveDC": null,
+      "saveFrequency": null,
+      "duration": null,
+      "effects": [
+        {
+          "type": "speed",
+          "target": "self",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "id": "incapacitated",
+      "name": "Incapacitated",
+      "icon": "dizzy",
+      "color": "#dc3545",
+      "description": "An incapacitated creature can't take actions or reactions.",
+      "rules": [
+        "Cannot take actions",
+        "Cannot take reactions"
+      ],
+      "saveType": null,
+      "saveDC": null,
+      "saveFrequency": null,
+      "duration": null,
+      "effects": []
+    },
+    {
+      "id": "invisible",
+      "name": "Invisible",
+      "icon": "eye",
+      "color": "#17a2b8",
+      "description": "An invisible creature is impossible to see without the aid of magic or a special sense. For the purpose of hiding, the creature is heavily obscured. The creature's location can be detected by any noise it makes or any tracks it leaves. Attack rolls against the creature have disadvantage, and the creature's attack rolls have advantage.",
+      "rules": [
+        "Impossible to see without magic or special senses",
+        "Considered heavily obscured for hiding",
+        "Location can be detected by noise or tracks",
+        "Attack rolls against the creature have disadvantage",
+        "The creature's attack rolls have advantage"
+      ],
+      "saveType": null,
+      "saveDC": null,
+      "saveFrequency": null,
+      "duration": null,
+      "effects": [
+        {
+          "type": "attackRoll",
+          "target": "self",
+          "value": "advantage"
+        },
+        {
+          "type": "attackRoll",
+          "target": "others",
+          "value": "disadvantage"
+        }
+      ]
+    },
+    {
+      "id": "paralyzed",
+      "name": "Paralyzed",
+      "icon": "bolt",
+      "color": "#dc3545",
+      "description": "A paralyzed creature is incapacitated and can't move or speak. The creature automatically fails Strength and Dexterity saving throws. Attack rolls against the creature have advantage. Any attack that hits the creature is a critical hit if the attacker is within 5 feet of the creature.",
+      "rules": [
+        "Incapacitated (cannot take actions or reactions)",
+        "Cannot move or speak",
+        "Automatically fails Strength and Dexterity saving throws",
+        "Attack rolls against the creature have advantage",
+        "Attacks that hit are critical hits if the attacker is within 5 feet"
+      ],
+      "saveType": null,
+      "saveDC": null,
+      "saveFrequency": null,
+      "duration": null,
+      "effects": [
+        {
+          "type": "attackRoll",
+          "target": "others",
+          "value": "advantage"
+        },
+        {
+          "type": "savingThrow",
+          "target": "self",
+          "ability": "str",
+          "value": "fail"
+        },
+        {
+          "type": "savingThrow",
+          "target": "self",
+          "ability": "dex",
+          "value": "fail"
+        },
+        {
+          "type": "criticalHitRange",
+          "target": "others",
+          "range": 5,
+          "value": 20
+        }
+      ]
+    },
+    {
+      "id": "petrified",
+      "name": "Petrified",
+      "icon": "chess-rook",
+      "color": "#6c757d",
+      "description": "A petrified creature is transformed, along with any nonmagical object it is wearing or carrying, into a solid inanimate substance (usually stone). Its weight increases by a factor of ten, and it ceases aging. The creature is incapacitated, can't move or speak, and is unaware of its surroundings. Attack rolls against the creature have advantage. The creature automatically fails Strength and Dexterity saving throws. The creature has resistance to all damage. The creature is immune to poison and disease, although a poison or disease already in its system is suspended, not neutralized.",
+      "rules": [
+        "Transformed into solid substance (usually stone)",
+        "Weight increases tenfold",
+        "Ceases aging",
+        "Incapacitated (cannot take actions or reactions)",
+        "Cannot move or speak",
+        "Unaware of surroundings",
+        "Attack rolls against the creature have advantage",
+        "Automatically fails Strength and Dexterity saving throws",
+        "Has resistance to all damage",
+        "Immune to poison and disease"
+      ],
+      "saveType": null,
+      "saveDC": null,
+      "saveFrequency": null,
+      "duration": null,
+      "effects": [
+        {
+          "type": "attackRoll",
+          "target": "others",
+          "value": "advantage"
+        },
+        {
+          "type": "savingThrow",
+          "target": "self",
+          "ability": "str",
+          "value": "fail"
+        },
+        {
+          "type": "savingThrow",
+          "target": "self",
+          "ability": "dex",
+          "value": "fail"
+        },
+        {
+          "type": "damageResistance",
+          "target": "self",
+          "value": "all"
+        }
+      ]
+    },
+    {
+      "id": "poisoned",
+      "name": "Poisoned",
+      "icon": "skull-crossbones",
+      "color": "#28a745",
+      "description": "A poisoned creature has disadvantage on attack rolls and ability checks.",
+      "rules": [
+        "Has disadvantage on attack rolls",
+        "Has disadvantage on ability checks"
+      ],
+      "saveType": null,
+      "saveDC": null,
+      "saveFrequency": null,
+      "duration": null,
+      "effects": [
+        {
+          "type": "attackRoll",
+          "target": "self",
+          "value": "disadvantage"
+        },
+        {
+          "type": "abilityCheck",
+          "target": "self",
+          "value": "disadvantage"
+        }
+      ]
+    },
+    {
+      "id": "prone",
+      "name": "Prone",
+      "icon": "arrow-down",
+      "color": "#fd7e14",
+      "description": "A prone creature's only movement option is to crawl, unless it stands up and thereby ends the condition. The creature has disadvantage on attack rolls. An attack roll against the creature has advantage if the attacker is within 5 feet of the creature. Otherwise, the attack roll has disadvantage.",
+      "rules": [
+        "Can only crawl unless it stands up",
+        "Has disadvantage on attack rolls",
+        "Attack rolls against the creature have advantage if the attacker is within 5 feet",
+        "Attack rolls against the creature have disadvantage if the attacker is more than 5 feet away"
+      ],
+      "saveType": null,
+      "saveDC": null,
+      "saveFrequency": null,
+      "duration": null,
+      "effects": [
+        {
+          "type": "attackRoll",
+          "target": "self",
+          "value": "disadvantage"
+        },
+        {
+          "type": "attackRoll",
+          "target": "others",
+          "range": 5,
+          "value": "advantage"
+        },
+        {
+          "type": "attackRoll",
+          "target": "others",
+          "range": "beyond5",
+          "value": "disadvantage"
+        }
+      ]
+    },
+    {
+      "id": "restrained",
+      "name": "Restrained",
+      "icon": "compress-arrows-alt",
+      "color": "#6c757d",
+      "description": "A restrained creature's speed becomes 0, and it can't benefit from any bonus to its speed. Attack rolls against the creature have advantage, and the creature's attack rolls have disadvantage. The creature has disadvantage on Dexterity saving throws.",
+      "rules": [
+        "Speed becomes 0",
+        "Cannot benefit from bonuses to speed",
+        "Attack rolls against the creature have advantage",
+        "The creature's attack rolls have disadvantage",
+        "Has disadvantage on Dexterity saving throws"
+      ],
+      "saveType": null,
+      "saveDC": null,
+      "saveFrequency": null,
+      "duration": null,
+      "effects": [
+        {
+          "type": "speed",
+          "target": "self",
+          "value": 0
+        },
+        {
+          "type": "attackRoll",
+          "target": "self",
+          "value": "disadvantage"
+        },
+        {
+          "type": "attackRoll",
+          "target": "others",
+          "value": "advantage"
+        },
+        {
+          "type": "savingThrow",
+          "target": "self",
+          "ability": "dex",
+          "value": "disadvantage"
+        }
+      ]
+    },
+    {
+      "id": "stunned",
+      "name": "Stunned",
+      "icon": "dizzy",
+      "color": "#dc3545",
+      "description": "A stunned creature is incapacitated, can't move, and can speak only falteringly. The creature automatically fails Strength and Dexterity saving throws. Attack rolls against the creature have advantage.",
+      "rules": [
+        "Incapacitated (cannot take actions or reactions)",
+        "Cannot move",
+        "Can speak only falteringly",
+        "Automatically fails Strength and Dexterity saving throws",
+        "Attack rolls against the creature have advantage"
+      ],
+      "saveType": null,
+      "saveDC": null,
+      "saveFrequency": null,
+      "duration": null,
+      "effects": [
+        {
+          "type": "attackRoll",
+          "target": "others",
+          "value": "advantage"
+        },
+        {
+          "type": "savingThrow",
+          "target": "self",
+          "ability": "str",
+          "value": "fail"
+        },
+        {
+          "type": "savingThrow",
+          "target": "self",
+          "ability": "dex",
+          "value": "fail"
+        }
+      ]
+    },
+    {
+      "id": "unconscious",
+      "name": "Unconscious",
+      "icon": "bed",
+      "color": "#343a40",
+      "description": "An unconscious creature is incapacitated, can't move or speak, and is unaware of its surroundings. The creature drops whatever it's holding and falls prone. The creature automatically fails Strength and Dexterity saving throws. Attack rolls against the creature have advantage. Any attack that hits the creature is a critical hit if the attacker is within 5 feet of the creature.",
+      "rules": [
+        "Incapacitated (cannot take actions or reactions)",
+        "Cannot move or speak",
+        "Unaware of surroundings",
+        "Drops held items and falls prone",
+        "Automatically fails Strength and Dexterity saving throws",
+        "Attack rolls against the creature have advantage",
+        "Attacks that hit are critical hits if the attacker is within 5 feet"
+      ],
+      "saveType": null,
+      "saveDC": null,
+      "saveFrequency": null,
+      "duration": null,
+      "effects": [
+        {
+          "type": "attackRoll",
+          "target": "others",
+          "value": "advantage"
+        },
+        {
+          "type": "savingThrow",
+          "target": "self",
+          "ability": "str",
+          "value": "fail"
+        },
+        {
+          "type": "savingThrow",
+          "target": "self",
+          "ability": "dex",
+          "value": "fail"
+        },
+        {
+          "type": "criticalHitRange",
+          "target": "others",
+          "range": 5,
+          "value": 20
+        }
+      ]
+    },
+    {
+      "id": "exhaustion",
+      "name": "Exhaustion",
+      "icon": "tired",
+      "color": "#dc3545",
+      "description": "Exhaustion is measured in six levels. An effect can give a creature one or more levels of exhaustion, as specified in the effect's description. If an already exhausted creature suffers another effect that causes exhaustion, its current level of exhaustion increases by the amount specified in the effect's description. A creature suffers the effect of its current level of exhaustion as well as all lower levels. A creature that has died from exhaustion can't be restored to life until the exhaustion is removed.",
+      "rules": [
+        "Level 1: Disadvantage on ability checks",
+        "Level 2: Speed halved",
+        "Level 3: Disadvantage on attack rolls and saving throws",
+        "Level 4: Hit point maximum halved",
+        "Level 5: Speed reduced to 0",
+        "Level 6: Death"
+      ],
+      "saveType": null,
+      "saveDC": null,
+      "saveFrequency": null,
+      "duration": null,
+      "levels": [
+        {
+          "level": 1,
+          "effects": [
+            {
+              "type": "abilityCheck",
+              "target": "self",
+              "value": "disadvantage"
+            }
+          ]
+        },
+        {
+          "level": 2,
+          "effects": [
+            {
+              "type": "speed",
+              "target": "self",
+              "value": "half"
+            }
+          ]
+        },
+        {
+          "level": 3,
+          "effects": [
+            {
+              "type": "attackRoll",
+              "target": "self",
+              "value": "disadvantage"
+            },
+            {
+              "type": "savingThrow",
+              "target": "self",
+              "value": "disadvantage"
+            }
+          ]
+        },
+        {
+          "level": 4,
+          "effects": [
+            {
+              "type": "maxHp",
+              "target": "self",
+              "value": "half"
+            }
+          ]
+        },
+        {
+          "level": 5,
+          "effects": [
+            {
+              "type": "speed",
+              "target": "self",
+              "value": 0
+            }
+          ]
+        },
+        {
+          "level": 6,
+          "effects": [
+            {
+              "type": "death",
+              "target": "self"
+            }
+          ]
+        }
+      ],
+      "effects": []
+    },
+    {
+      "id": "concentrating",
+      "name": "Concentrating",
+      "icon": "brain",
+      "color": "#17a2b8",
+      "description": "Some spells require you to maintain concentration in order to keep their magic active. If you lose concentration, such a spell ends. If a spell must be maintained with concentration, that fact appears in its Duration entry, and the spell specifies how long you can concentrate on it. You can end concentration at any time (no action required). Normal activity, such as moving and attacking, doesn't interfere with concentration. The following factors can break concentration: Taking damage, being incapacitated or killed, casting another concentration spell.",
+      "rules": [
+        "Must make Constitution saving throw when taking damage (DC = 10 or half the damage taken, whichever is higher)",
+        "Automatically ends if incapacitated or killed",
+        "Ends if you cast another spell that requires concentration"
+      ],
+      "saveType": "con",
+      "saveDC": "damage",
+      "saveFrequency": "onDamage",
+      "duration": null,
+      "effects": []
+    },
+    {
+      "id": "blessed",
+      "name": "Blessed",
+      "icon": "pray",
+      "color": "#ffc107",
+      "description": "A blessed creature gains a bonus to attack rolls and saving throws.",
+      "rules": [
+        "Gains a bonus to attack rolls",
+        "Gains a bonus to saving throws"
+      ],
+      "saveType": null,
+      "saveDC": null,
+      "saveFrequency": null,
+      "duration": {
+        "type": "timed",
+        "value": 10,
+        "unit": "minutes"
+      },
+      "effects": [
+        {
+          "type": "attackRoll",
+          "target": "self",
+          "value": "+1d4"
+        },
+        {
+          "type": "savingThrow",
+          "target": "self",
+          "value": "+1d4"
+        }
+      ]
+    },
+    {
+      "id": "hasted",
+      "name": "Hasted",
+      "icon": "running",
+      "color": "#17a2b8",
+      "description": "A hasted creature's speed is doubled, it gains a +2 bonus to AC, it has advantage on Dexterity saving throws, and it gains an additional action on each of its turns. When the spell ends, the target can't move or take actions until after its next turn, as a wave of lethargy sweeps over it.",
+      "rules": [
+        "Speed is doubled",
+        "Gains +2 bonus to AC",
+        "Has advantage on Dexterity saving throws",
+        "Gains an additional action on each turn",
+        "When the effect ends, can't move or take actions until after its next turn"
+      ],
+      "saveType": null,
+      "saveDC": null,
+      "saveFrequency": null,
+      "duration": {
+        "type": "timed",
+        "value": 1,
+        "unit": "minutes"
+      },
+      "effects": [
+        {
+          "type": "speed",
+          "target": "self",
+          "value": "double"
+        },
+        {
+          "type": "ac",
+          "target": "self",
+          "value": "+2"
+        },
+        {
+          "type": "savingThrow",
+          "target": "self",
+          "ability": "dex",
+          "value": "advantage"
+        }
+      ],
+      "endEffect": {
+        "type": "lethargy",
+        "duration": 1
+      }
+    },
+    {
+      "id": "slowed",
+      "name": "Slowed",
+      "icon": "hourglass-half",
+      "color": "#6c757d",
+      "description": "A slowed creature's speed is halved, it takes a -2 penalty to AC and Dexterity saving throws, and it can't use reactions. On its turn, it can use either an action or a bonus action, not both. Regardless of the creature's abilities or magic items, it can't make more than one melee or ranged attack during its turn.",
+      "rules": [
+        "Speed is halved",
+        "Takes a -2 penalty to AC",
+        "Takes a -2 penalty to Dexterity saving throws",
+        "Can't use reactions",
+        "Can use either an action or a bonus action on its turn, not both",
+        "Can't make more than one melee or ranged attack during its turn"
+      ],
+      "saveType": "wis",
+      "saveDC": 15,
+      "saveFrequency": "endOfTurn",
+      "duration": {
+        "type": "timed",
+        "value": 1,
+        "unit": "minutes"
+      },
+      "effects": [
+        {
+          "type": "speed",
+          "target": "self",
+          "value": "half"
+        },
+        {
+          "type": "ac",
+          "target": "self",
+          "value": "-2"
+        },
+        {
+          "type": "savingThrow",
+          "target": "self",
+          "ability": "dex",
+          "value": "-2"
+        }
+      ]
+    },
+    {
+      "id": "invisible",
+      "name": "Invisible",
+      "icon": "eye-slash",
+      "color": "#17a2b8",
+      "description": "An invisible creature is impossible to see without the aid of magic or a special sense. For the purpose of hiding, the creature is heavily obscured. The creature's location can be detected by any noise it makes or any tracks it leaves. Attack rolls against the creature have disadvantage, and the creature's attack rolls have advantage.",
+      "rules": [
+        "Impossible to see without magic or special senses",
+        "Considered heavily obscured for hiding",
+        "Location can be detected by noise or tracks",
+        "Attack rolls against the creature have disadvantage",
+        "The creature's attack rolls have advantage"
+      ],
+      "saveType": null,
+      "saveDC": null,
+      "saveFrequency": null,
+      "duration": {
+        "type": "timed",
+        "value": 1,
+        "unit": "hours"
+      },
+      "effects": [
+        {
+          "type": "attackRoll",
+          "target": "self",
+          "value": "advantage"
+        },
+        {
+          "type": "attackRoll",
+          "target": "others",
+          "value": "disadvantage"
+        }
+      ]
+    },
+    {
+      "id": "baned",
+      "name": "Baned",
+      "icon": "minus-circle",
+      "color": "#dc3545",
+      "description": "A baned creature has a penalty on attack rolls and saving throws.",
+      "rules": [
+        "Has a penalty on attack rolls",
+        "Has a penalty on saving throws"
+      ],
+      "saveType": "cha",
+      "saveDC": 15,
+      "saveFrequency": "endOfTurn",
+      "duration": {
+        "type": "timed",
+        "value": 1,
+        "unit": "minutes"
+      },
+      "effects": [
+        {
+          "type": "attackRoll",
+          "target": "self",
+          "value": "-1d4"
+        },
+        {
+          "type": "savingThrow",
+          "target": "self",
+          "value": "-1d4"
+        }
+      ]
+    },
+    {
+      "id": "raging",
+      "name": "Raging",
+      "icon": "fire",
+      "color": "#dc3545",
+      "description": "A raging creature has advantage on Strength checks and Strength saving throws, gains a bonus to damage with melee weapons that use Strength, and has resistance to bludgeoning, piercing, and slashing damage.",
+      "rules": [
+        "Has advantage on Strength checks",
+        "Has advantage on Strength saving throws",
+        "Gains a bonus to damage with melee weapons that use Strength",
+        "Has resistance to bludgeoning, piercing, and slashing damage"
+      ],
+      "saveType": null,
+      "saveDC": null,
+      "saveFrequency": null,
+      "duration": {
+        "type": "timed",
+        "value": 1,
+        "unit": "minutes"
+      },
+      "effects": [
+        {
+          "type": "abilityCheck",
+          "target": "self",
+          "ability": "str",
+          "value": "advantage"
+        },
+        {
+          "type": "savingThrow",
+          "target": "self",
+          "ability": "str",
+          "value": "advantage"
+        },
+        {
+          "type": "damage",
+          "target": "self",
+          "damageType": "melee",
+          "value": "+2"
+        },
+        {
+          "type": "damageResistance",
+          "target": "self",
+          "value": ["bludgeoning", "piercing", "slashing"]
+        }
+      ]
+    },
+    {
+      "id": "dodging",
+      "name": "Dodging",
+      "icon": "person-running",
+      "color": "#17a2b8",
+      "description": "A dodging creature has advantage on Dexterity saving throws, and attack rolls against it have disadvantage if it can see the attacker.",
+      "rules": [
+        "Has advantage on Dexterity saving throws",
+        "Attack rolls against it have disadvantage if it can see the attacker"
+      ],
+      "saveType": null,
+      "saveDC": null,
+      "saveFrequency": null,
+      "duration": {
+        "type": "untilNextTurn",
+        "value": null,
+        "unit": null
+      },
+      "effects": [
+        {
+          "type": "savingThrow",
+          "target": "self",
+          "ability": "dex",
+          "value": "advantage"
+        },
+        {
+          "type": "attackRoll",
+          "target": "others",
+          "value": "disadvantage",
+          "condition": "canSee"
+        }
+      ]
+    },
+    {
+      "id": "marked",
+      "name": "Marked",
+      "icon": "bullseye",
+      "color": "#dc3545",
+      "description": "A marked creature has been singled out by an attacker. The marker has advantage on attack rolls against the marked creature.",
+      "rules": [
+        "The marker has advantage on attack rolls against the marked creature"
+      ],
+      "saveType": null,
+      "saveDC": null,
+      "saveFrequency": null,
+      "duration": {
+        "type": "untilNextTurn",
+        "value": null,
+        "unit": null
+      },
+      "effects": [
+        {
+          "type": "attackRoll",
+          "target": "marker",
+          "value": "advantage"
+        }
+      ]
+    },
+    {
+      "id": "inspired",
+      "name": "Inspired",
+      "icon": "music",
+      "color": "#ffc107",
+      "description": "An inspired creature can add a bonus die to one ability check, attack roll, or saving throw it makes.",
+      "rules": [
+        "Can add a bonus die to one ability check, attack roll, or saving throw"
+      ],
+      "saveType": null,
+      "saveDC": null,
+      "saveFrequency": null,
+      "duration": {
+        "type": "timed",
+        "value": 10,
+        "unit": "minutes"
+      },
+      "effects": [
+        {
+          "type": "bardic",
+          "target": "self",
+          "value": "+1d6"
+        }
+      ]
+    },
+    {
+      "id": "hexed",
+      "name": "Hexed",
+      "icon": "hat-wizard",
+      "color": "#6f42c1",
+      "description": "A hexed creature has disadvantage on ability checks made with a specific ability score, and takes extra necrotic damage when hit by the caster.",
+      "rules": [
+        "Has disadvantage on ability checks made with a specific ability score",
+        "Takes extra necrotic damage when hit by the caster"
+      ],
+      "saveType": null,
+      "saveDC": null,
+      "saveFrequency": null,
+      "duration": {
+        "type": "concentration",
+        "value": 1,
+        "unit": "hours"
+      },
+      "effects": [
+        {
+          "type": "abilityCheck",
+          "target": "self",
+          "ability": "variable",
+          "value": "disadvantage"
+        },
+        {
+          "type": "damage",
+          "target": "self",
+          "source": "caster",
+          "damageType": "necrotic",
+          "value": "+1d6"
+        }
+      ]
+    }
+  ]
+}
