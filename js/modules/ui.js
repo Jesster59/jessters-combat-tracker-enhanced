@@ -12,6 +12,8 @@ class UIManager {
             theme: 'default',
             customBackground: ''
         };
+        this.hotbarActions = [];
+        console.log("UI Manager initialized");
     }
     
     /**
@@ -21,8 +23,14 @@ class UIManager {
         // Load templates
         this.loadTemplates();
         
+        // Load player view settings
+        this.loadPlayerViewSettings();
+        
         // Add event listeners for dynamic elements
         this.addDynamicEventListeners();
+        
+        // Create hotbar
+        this.createHotbar();
         
         console.log("UI Manager initialized");
     }
@@ -39,6 +47,23 @@ class UIManager {
             const id = template.id.replace('-template', '');
             this.templates[id] = template.innerHTML;
         });
+    }
+    
+    /**
+     * Load player view settings
+     */
+    loadPlayerViewSettings() {
+        const settings = this.app.storage.loadData('playerViewSettings', null);
+        if (settings) {
+            this.playerViewSettings = { ...this.playerViewSettings, ...settings };
+        }
+    }
+    
+    /**
+     * Save player view settings
+     */
+    savePlayerViewSettings() {
+        this.app.storage.saveData('playerViewSettings', this.playerViewSettings);
     }
     
     /**
@@ -111,6 +136,43 @@ class UIManager {
                 if (creature) {
                     this.rollMonsterAttack(creature, actionName);
                 }
+            }
+            
+            // Death save button
+            if (event.target.closest('.death-save-btn')) {
+                const btn = event.target.closest('.death-save-btn');
+                const creatureId = btn.dataset.creatureId;
+                this.app.combat.handleDeathSavingThrow(creatureId);
+            }
+            
+            // Concentration check button
+            if (event.target.closest('.concentration-check-btn')) {
+                const btn = event.target.closest('.concentration-check-btn');
+                const creatureId = btn.dataset.creatureId;
+                const dc = parseInt(btn.dataset.dc) || 10;
+                this.app.combat.checkConcentration(creatureId, dc * 2); // DC = damage/2, so multiply by 2
+            }
+            
+            // Legendary action button
+            if (event.target.closest('.legendary-action-btn')) {
+                const btn = event.target.closest('.legendary-action-btn');
+                const creatureId = btn.dataset.creatureId;
+                const used = parseInt(btn.dataset.used) || 0;
+                this.app.combat.trackLegendaryActions(creatureId, used);
+            }
+            
+            // Lair action button
+            if (event.target.closest('.lair-action-btn')) {
+                const btn = event.target.closest('.lair-action-btn');
+                const lairActionId = btn.dataset.lairActionId;
+                this.app.combat.useLairAction(lairActionId);
+            }
+            
+            // Hotbar action button
+            if (event.target.closest('.hotbar-action-btn')) {
+                const btn = event.target.closest('.hotbar-action-btn');
+                const actionIndex = parseInt(btn.dataset.actionIndex);
+                this.executeHotbarAction(actionIndex);
             }
         });
         
@@ -185,6 +247,76 @@ class UIManager {
                 `;
             }
             
+            // Handle concentration
+            let concentrationHtml = '';
+            if (creature.concentration) {
+                concentrationHtml = `
+                    <div class="mt-2 flex items-center">
+                        <span class="bg-purple-600 text-purple-100 px-2 py-0.5 rounded-full text-xs">
+                            Concentrating: ${creature.concentration.spell}
+                        </span>
+                        <button class="concentration-check-btn ml-2 bg-purple-700 hover:bg-purple-800 text-white text-xs py-0.5 px-2 rounded" 
+                            data-creature-id="${creature.id}" data-dc="10">
+                            Check (DC 10)
+                        </button>
+                    </div>
+                `;
+            }
+            
+            // Handle death saves for heroes
+            let deathSavesHtml = '';
+            if (creature.type === 'hero' && creature.currentHp === 0 && creature.deathSaves) {
+                deathSavesHtml = `
+                    <div class="mt-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs text-gray-400">Death Saves:</span>
+                            <button class="death-save-btn bg-red-600 hover:bg-red-700 text-white text-xs py-0.5 px-2 rounded" 
+                                data-creature-id="${creature.id}">
+                                Roll
+                            </button>
+                        </div>
+                        <div class="flex space-x-1 mt-1">
+                            <div class="flex space-x-0.5">
+                                ${Array(3).fill(0).map((_, i) => `
+                                    <span class="w-4 h-4 flex items-center justify-center ${i < creature.deathSaves.successes ? 'bg-green-600' : 'bg-gray-700'} rounded-full text-xs">
+                                        ${i < creature.deathSaves.successes ? '✓' : ''}
+                                    </span>
+                                `).join('')}
+                            </div>
+                            <span class="text-xs mx-1">|</span>
+                            <div class="flex space-x-0.5">
+                                ${Array(3).fill(0).map((_, i) => `
+                                    <span class="w-4 h-4 flex items-center justify-center ${i < creature.deathSaves.failures ? 'bg-red-600' : 'bg-gray-700'} rounded-full text-xs">
+                                        ${i < creature.deathSaves.failures ? '✗' : ''}
+                                    </span>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Handle legendary actions for monsters
+            let legendaryActionsHtml = '';
+            if (creature.type === 'monster' && creature.legendaryActions) {
+                legendaryActionsHtml = `
+                    <div class="mt-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs text-gray-400">Legendary Actions:</span>
+                            <div class="flex space-x-1">
+                                ${Array(creature.legendaryActions.max).fill(0).map((_, i) => `
+                                    <button class="legendary-action-btn w-6 h-6 flex items-center justify-center 
+                                        ${i < creature.legendaryActions.used ? 'bg-gray-600' : 'bg-gray-800 hover:bg-gray-700'} rounded" 
+                                        data-creature-id="${creature.id}" data-used="${i + 1}">
+                                        ${i + 1}
+                                    </button>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
             const cardElement = document.createElement('div');
             cardElement.className = 'creature-card bg-gray-700 rounded-lg shadow mb-4 p-3';
             cardElement.dataset.id = creature.id;
@@ -247,6 +379,9 @@ class UIManager {
                 </div>
                 
                 ${monsterDetailsHtml}
+                ${concentrationHtml}
+                ${deathSavesHtml}
+                ${legendaryActionsHtml}
             `;
             
             container.appendChild(cardElement);
@@ -258,7 +393,7 @@ class UIManager {
         });
     }
     
-    /**
+        /**
      * Render the initiative order
      */
     renderInitiativeOrder() {
@@ -278,6 +413,35 @@ class UIManager {
         
         container.innerHTML = '';
         
+        // Add lair actions if any
+        if (this.app.combat.lairActions && this.app.combat.lairActions.length > 0) {
+            this.app.combat.lairActions.forEach(lairAction => {
+                const isActive = this.app.state.combatStarted && 
+                                 this.app.state.currentTurn === null && 
+                                 !lairAction.used;
+                
+                const itemElement = document.createElement('div');
+                itemElement.className = `initiative-item p-2 mb-1 rounded flex justify-between items-center ${isActive ? 'bg-red-900' : 'bg-gray-700'}`;
+                
+                itemElement.innerHTML = `
+                    <div class="flex items-center">
+                        <span class="w-6 h-6 flex items-center justify-center bg-red-800 rounded-full text-sm mr-2">L</span>
+                        <span>⚡ ${lairAction.name}</span>
+                    </div>
+                    <div class="flex items-center">
+                        <div class="font-bold mr-2">${lairAction.initiative}</div>
+                        <button class="lair-action-btn bg-red-700 hover:bg-red-800 text-white text-xs py-1 px-2 rounded ${lairAction.used ? 'opacity-50 cursor-not-allowed' : ''}" 
+                            data-lair-action-id="${lairAction.id}" ${lairAction.used ? 'disabled' : ''}>
+                            ${lairAction.used ? 'Used' : 'Use'}
+                        </button>
+                    </div>
+                `;
+                
+                container.appendChild(itemElement);
+            });
+        }
+        
+        // Add creatures
         creatures.forEach((creature, index) => {
             const typeIcon = creature.type === 'hero' ? '👤' : '👹';
             const isActive = this.app.state.combatStarted && this.app.state.currentTurn === creature.id;
@@ -470,7 +634,10 @@ class UIManager {
                         </div>
                     ` : ''}
                     
-                    <div class="flex justify-end mt-4">
+                    <div class="flex justify-between mt-4">
+                        <button id="add-to-hotbar-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded">
+                            Add to Hotbar
+                        </button>
                         <button id="close-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
                             Close
                         </button>
@@ -485,6 +652,20 @@ class UIManager {
         closeBtn.addEventListener('click', () => {
             this.closeModal(modal.parentNode);
         });
+        
+        // Add to hotbar button
+        const addToHotbarBtn = modal.querySelector('#add-to-hotbar-btn');
+        if (addToHotbarBtn) {
+            addToHotbarBtn.addEventListener('click', () => {
+                this.addToHotbar({
+                    type: 'statBlock',
+                    creatureId: creature.id,
+                    label: creature.name.substring(0, 1),
+                    tooltip: `${creature.name} Stat Block`
+                });
+                this.app.showAlert(`Added ${creature.name} to the hotbar.`);
+            });
+        }
         
         // Add event listeners for attack rolls
         modal.querySelectorAll('.roll-attack-btn').forEach(btn => {
@@ -555,6 +736,15 @@ class UIManager {
         
         // Log the event
         this.app.logEvent(`${monster.name} uses ${actionName}: ${attackTotal} to hit${damageRoll ? `, ${damageRoll.total} ${damageType} damage` : ''}`);
+        
+        // Play sound
+        if (isCrit) {
+            this.app.audio.play('criticalHit');
+        } else if (isFumble) {
+            this.app.audio.play('miss');
+        } else {
+            this.app.audio.play('hit');
+        }
     }
     
     /**
@@ -690,7 +880,7 @@ class UIManager {
                 }
             });
             
-                        // Reorder the creatures array
+            // Reorder the creatures array
             this.app.combat.reorderCreatures(newOrder.map(item => item.id));
             
             // Update UI
@@ -742,13 +932,72 @@ class UIManager {
             { text: 'Apply Healing', icon: '❤️', action: () => this.app.damage.openHealModal(creatureId) },
             { text: 'Add Condition', icon: '⚠️', action: () => this.app.conditions.openAddConditionModal(creatureId) },
             { text: 'Manage Conditions', icon: '📋', action: () => this.app.conditions.openManageConditionsModal(creatureId) },
-            { text: 'Set Image URL', icon: '🖼️', action: () => this.openSetImageModal(creatureId) },
-            { text: 'Remove from Combat', icon: '❌', action: () => {
+            { text: 'Set Image URL', icon: '🖼️', action: () => this.openSetImageModal(creatureId) }
+        );
+        
+        // Add concentration option
+        if (creature.concentration) {
+            items.push({ 
+                text: `End Concentration (${creature.concentration.spell})`, 
+                icon: '🧠', 
+                action: () => {
+                    creature.concentration = null;
+                    this.app.logEvent(`${creature.name} is no longer concentrating.`);
+                    this.app.ui.renderCreatures();
+                }
+            });
+        } else {
+            items.push({ 
+                text: 'Add Concentration Spell', 
+                icon: '🧠', 
+                action: () => this.openAddConcentrationModal(creatureId) 
+            });
+        }
+        
+        // Add death save option for unconscious heroes
+        if (creature.type === 'hero' && creature.currentHp === 0) {
+            items.push({ 
+                text: 'Roll Death Save', 
+                icon: '💀', 
+                action: () => this.app.combat.handleDeathSavingThrow(creatureId) 
+            });
+        }
+        
+        // Add legendary action option for monsters
+        if (creature.type === 'monster') {
+            if (creature.legendaryActions) {
+                items.push({ 
+                    text: 'Reset Legendary Actions', 
+                    icon: '⚜️', 
+                    action: () => {
+                        creature.legendaryActions.used = 0;
+                        this.app.logEvent(`${creature.name}'s legendary actions reset.`);
+                        this.app.ui.renderCreatures();
+                    }
+                });
+            } else {
+                items.push({ 
+                    text: 'Add Legendary Actions', 
+                    icon: '⚜️', 
+                    action: () => {
+                        creature.legendaryActions = { max: 3, used: 0 };
+                        this.app.logEvent(`${creature.name} now has legendary actions.`);
+                        this.app.ui.renderCreatures();
+                    }
+                });
+            }
+        }
+        
+        // Add remove option
+        items.push({ 
+            text: 'Remove from Combat', 
+            icon: '❌', 
+            action: () => {
                 this.app.showConfirm(`Are you sure you want to remove ${creature.name} from combat?`, () => {
                     this.app.combat.removeCreature(creatureId);
                 });
-            }}
-        );
+            }
+        });
         
         // Create menu items
         items.forEach(item => {
@@ -812,6 +1061,10 @@ class UIManager {
                             <input type="number" id="edit-current-hp" class="w-full bg-gray-700 text-white px-3 py-2 rounded" min="0" value="${creature.currentHp || 0}">
                         </div>
                         <div>
+                            <label class="block text-gray-300 mb-2">AC:</label>
+                            <input type="number" id="edit-ac" class="w-full bg-gray-700 text-white px-3 py-2 rounded" min="1" value="${creature.ac || 10}">
+                        </div>
+                                             <div>
                             <label class="block text-gray-300 mb-2">AC:</label>
                             <input type="number" id="edit-ac" class="w-full bg-gray-700 text-white px-3 py-2 rounded" min="1" value="${creature.ac || 10}">
                         </div>
@@ -996,7 +1249,7 @@ class UIManager {
         });
         
         cancelBtn.addEventListener('click', () => {
-            this.closeModal(modal);
+            this.closeModal(modal.parentNode);
         });
         
         saveBtn.addEventListener('click', () => {
@@ -1010,6 +1263,73 @@ class UIManager {
             
             // Log the event
             this.app.logEvent(`Image updated for ${creature.name}.`);
+        });
+    }
+    
+    /**
+     * Open the add concentration modal for a creature
+     * @param {string} creatureId - The ID of the creature
+     */
+    openAddConcentrationModal(creatureId) {
+        const creature = this.app.combat.getCreatureById(creatureId);
+        if (!creature) return;
+        
+        const modal = this.createModal({
+            title: `Add Concentration Spell for ${creature.name}`,
+            content: `
+                <div class="space-y-4">
+                    <div class="mb-4">
+                        <label class="block text-gray-300 mb-2">Spell Name:</label>
+                        <input type="text" id="spell-name-input" class="w-full bg-gray-700 text-white px-3 py-2 rounded" 
+                            placeholder="e.g., Bless, Hold Person, etc.">
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="block text-gray-300 mb-2">Duration (rounds):</label>
+                        <input type="number" id="spell-duration-input" class="w-full bg-gray-700 text-white px-3 py-2 rounded" 
+                            placeholder="Leave blank for 'Until dispelled'">
+                        <p class="text-sm text-gray-400 mt-1">
+                            Leave blank for spells that last until concentration is broken.
+                        </p>
+                    </div>
+                    
+                    <div class="flex justify-end space-x-2">
+                        <button id="cancel-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
+                            Cancel
+                        </button>
+                        <button id="save-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                            Add Spell
+                        </button>
+                    </div>
+                </div>
+            `,
+            width: 'max-w-md'
+        });
+        
+        // Add event listeners
+        const spellNameInput = modal.querySelector('#spell-name-input');
+        const spellDurationInput = modal.querySelector('#spell-duration-input');
+        const cancelBtn = modal.querySelector('#cancel-btn');
+        const saveBtn = modal.querySelector('#save-btn');
+        
+        cancelBtn.addEventListener('click', () => {
+            this.closeModal(modal.parentNode);
+        });
+        
+        saveBtn.addEventListener('click', () => {
+            const spellName = spellNameInput.value.trim();
+            const duration = spellDurationInput.value.trim() !== '' ? parseInt(spellDurationInput.value) : null;
+            
+            if (!spellName) {
+                this.app.showAlert('Please enter a spell name.');
+                return;
+            }
+            
+            // Add concentration
+            this.app.combat.addConcentrationSpell(creatureId, spellName, duration);
+            
+            // Close the modal
+            this.closeModal(modal.parentNode);
         });
     }
     
@@ -1288,8 +1608,6 @@ class UIManager {
                 <div class="space-y-4">
                     <div class="flex">
                         <input type="text" id="monster-search-input" class="flex-1 bg-gray-700 text-white px-3 py-2 rounded-l" placeholder="Search for monsters...">
-                        <button id="search-btn" class="bg-blue-600 hover:bg
-                                                <input type="text" id="monster-search-input" class="flex-1 bg-gray-700 text-white px-3 py-2 rounded-l" placeholder="Search for monsters...">
                         <button id="search-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-r">
                             Search
                         </button>
@@ -1349,6 +1667,8 @@ class UIManager {
             // Create results HTML
             searchResults.innerHTML = `
                 <div class="grid grid-cols-1 gap-2">
+                    ${monsters.map(monster => `
+                        <div class="monster-result bg-gray-700 hover:bg-gray-600 p-3 rounded cursor-pointer" data-slug="${monster.slug}">
                     ${monsters.map(monster => `
                         <div class="monster-result bg-gray-700 hover:bg-gray-600 p-3 rounded cursor-pointer" data-slug="${monster.slug}">
                             <div class="flex justify-between items-center">
@@ -1548,6 +1868,384 @@ class UIManager {
     }
     
     /**
+     * Open the encounter builder modal
+     */
+    openEncounterBuilderModal() {
+        const modal = this.createModal({
+            title: 'Encounter Builder',
+            content: `
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-semibold">Build Your Encounter</h3>
+                        <div>
+                            <button id="save-encounter-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-3 rounded text-sm">
+                                Save Current
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <h4 class="font-semibold mb-2">Add Creatures</h4>
+                            <div class="space-y-2">
+                                <button id="add-hero-to-encounter" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                                    Add Hero
+                                </button>
+                                <button id="add-monster-to-encounter" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">
+                                    Add Monster
+                                </button>
+                                <button id="add-group-to-encounter" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded">
+                                    Add Monster Group
+                                </button>
+                            </div>
+                            
+                            <div class="mt-4">
+                                <h4 class="font-semibold mb-2">Current Encounter</h4>
+                                <div id="encounter-creatures" class="bg-gray-700 rounded p-2 max-h-64 overflow-y-auto">
+                                    <div class="text-gray-400 text-center py-2">No creatures added yet</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <h4 class="font-semibold mb-2">Saved Encounters</h4>
+                            <div id="saved-encounters" class="bg-gray-700 rounded p-2 max-h-80 overflow-y-auto">
+                                <div class="text-gray-400 text-center py-2">No saved encounters</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex justify-end mt-4">
+                        <button id="close-encounter-builder-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
+                            Close
+                        </button>
+                    </div>
+                </div>
+            `,
+            width: 'max-w-4xl'
+        });
+        
+        // Load saved encounters
+        this.loadSavedEncounters(modal.querySelector('#saved-encounters'));
+        
+        // Add event listeners
+        modal.querySelector('#add-hero-to-encounter').addEventListener('click', () => {
+            this.openAddHeroModal(true); // true = for encounter builder
+        });
+        
+        modal.querySelector('#add-monster-to-encounter').addEventListener('click', () => {
+            this.openAddMonsterModal(true); // true = for encounter builder
+        });
+        
+        modal.querySelector('#add-group-to-encounter').addEventListener('click', () => {
+            this.openAddMonsterGroupModal();
+        });
+        
+        modal.querySelector('#save-encounter-btn').addEventListener('click', () => {
+            this.openSaveEncounterModal();
+        });
+        
+        modal.querySelector('#close-encounter-builder-btn').addEventListener('click', () => {
+            this.closeModal(modal.parentNode);
+        });
+    }
+    
+    /**
+     * Load saved encounters into the encounter builder
+     * @param {HTMLElement} container - The container to load encounters into
+     */
+    loadSavedEncounters(container) {
+        const encounters = this.app.storage.loadData('encounters', []);
+        
+        if (encounters.length === 0) {
+            container.innerHTML = `<div class="text-gray-400 text-center py-2">No saved encounters</div>`;
+            return;
+        }
+        
+        container.innerHTML = encounters.map(encounter => `
+            <div class="encounter-item bg-gray-600 hover:bg-gray-500 p-2 mb-2 rounded">
+                <div class="flex justify-between items-center">
+                    <div class="font-semibold">${encounter.name}</div>
+                    <div class="flex space-x-1">
+                        <button class="load-encounter-btn bg-blue-600 hover:bg-blue-700 text-white text-xs py-1 px-2 rounded" data-encounter-id="${encounter.id}">
+                            Load
+                        </button>
+                        <button class="delete-encounter-btn bg-red-600 hover:bg-red-700 text-white text-xs py-1 px-2 rounded" data-encounter-id="${encounter.id}">
+                            Delete
+                        </button>
+                    </div>
+                </div>
+                <div class="text-sm text-gray-300 mt-1">
+                    ${encounter.creatures.length} creatures
+                    <span class="text-xs text-gray-400">
+                        (${encounter.creatures.filter(c => c.type === 'hero').length} heroes, 
+                        ${encounter.creatures.filter(c => c.type === 'monster').length} monsters)
+                    </span>
+                </div>
+                ${encounter.description ? `<div class="text-sm text-gray-400 mt-1">${encounter.description}</div>` : ''}
+            </div>
+        `).join('');
+        
+        // Add event listeners
+        container.querySelectorAll('.load-encounter-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const encounterId = btn.dataset.encounterId;
+                this.app.storage.loadEncounter(encounterId);
+                this.closeModal(container.closest('.modal-backdrop'));
+            });
+        });
+        
+        container.querySelectorAll('.delete-encounter-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const encounterId = btn.dataset.encounterId;
+                const encounterName = encounters.find(e => e.id === encounterId)?.name || 'Unknown';
+                
+                this.app.showConfirm(`Are you sure you want to delete the encounter "${encounterName}"?`, () => {
+                    this.app.storage.deleteEncounter(encounterId);
+                    this.loadSavedEncounters(container);
+                });
+            });
+        });
+    }
+    
+    /**
+     * Open the save encounter modal
+     */
+    openSaveEncounterModal() {
+        const creatures = this.app.combat.getAllCreatures();
+        
+        if (creatures.length === 0) {
+            this.app.showAlert('No creatures to save.');
+            return;
+        }
+        
+        const modal = this.createModal({
+            title: 'Save Encounter',
+            content: `
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-gray-300 mb-2">Encounter Name:</label>
+                        <input type="text" id="encounter-name" class="w-full bg-gray-700 text-white px-3 py-2 rounded" required>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-gray-300 mb-2">Description (optional):</label>
+                        <textarea id="encounter-description" class="w-full bg-gray-700 text-white px-3 py-2 rounded h-20" placeholder="Enter a description for this encounter..."></textarea>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-gray-300 mb-2">Creatures in this encounter:</label>
+                        <div class="bg-gray-800 p-2 rounded max-h-40 overflow-y-auto">
+                            <ul class="list-disc list-inside">
+                                ${creatures.map(c => `
+                                    <li>${c.type === 'hero' ? '👤' : '👹'} ${c.name} (HP: ${c.maxHp}, AC: ${c.ac})</li>
+                                `).join('')}
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="flex justify-end space-x-2">
+                        <button id="cancel-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
+                            Cancel
+                        </button>
+                        <button id="save-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                            Save Encounter
+                        </button>
+                    </div>
+                </div>
+            `,
+            width: 'max-w-md'
+        });
+        
+        // Add event listeners
+        const nameInput = modal.querySelector('#encounter-name');
+        const descriptionInput = modal.querySelector('#encounter-description');
+        const cancelBtn = modal.querySelector('#cancel-btn');
+        const saveBtn = modal.querySelector('#save-btn');
+        
+        cancelBtn.addEventListener('click', () => {
+            this.closeModal(modal.parentNode);
+        });
+        
+        saveBtn.addEventListener('click', () => {
+            const name = nameInput.value.trim();
+            const description = descriptionInput.value.trim();
+            
+            if (!name) {
+                this.app.showAlert('Please enter a name for the encounter.');
+                return;
+            }
+            
+            // Save the encounter
+            const encounterId = this.app.storage.saveEncounter(name, description);
+            
+            if (encounterId) {
+                this.app.showAlert(`Encounter "${name}" saved successfully.`);
+                this.closeModal(modal.parentNode);
+            }
+        });
+    }
+    
+    /**
+     * Open the add monster group modal
+     */
+    openAddMonsterGroupModal() {
+        const modal = this.createModal({
+            title: 'Add Monster Group',
+            content: `
+                <div class="space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-gray-300 mb-2">Monster Name:</label>
+                            <input type="text" id="monster-name" class="w-full bg-gray-700 text-white px-3 py-2 rounded" required>
+                        </div>
+                        <div>
+                            <label class="block text-gray-300 mb-2">Number of Monsters:</label>
+                            <input type="number" id="monster-count" class="w-full bg-gray-700 text-white px-3 py-2 rounded" min="1" value="4">
+                        </div>
+                        <div>
+                            <label class="block text-gray-300 mb-2">Initiative Bonus:</label>
+                            <input type="number" id="monster-initiative" class="w-full bg-gray-700 text-white px-3 py-2 rounded" value="0">
+                        </div>
+                        <div>
+                            <label class="block text-gray-300 mb-2">HP per Monster:</label>
+                            <input type="number" id="monster-hp" class="w-full bg-gray-700 text-white px-3 py-2 rounded" min="1" value="10" required>
+                        </div>
+                        <div>
+                            <label class="block text-gray-300 mb-2">AC:</label>
+                            <input type="number" id="monster-ac" class="w-full bg-gray-700 text-white px-3 py-2 rounded" min="1" value="10" required>
+                        </div>
+                        <div>
+                            <label class="block text-gray-300 mb-2">HP Variation (%):</label>
+                            <input type="number" id="hp-variation" class="w-full bg-gray-700 text-white px-3 py-2 rounded" min="0" max="50" value="10">
+                            <p class="text-xs text-gray-400 mt-1">Randomizes HP by ±X% for variety</p>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-gray-300 mb-2">Naming Style:</label>
+                        <div class="flex space-x-4">
+                            <label class="flex items-center">
+                                <input type="radio" name="naming-style" value="number" class="mr-2" checked>
+                                <span>Numbered (Goblin 1, Goblin 2)</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="radio" name="naming-style" value="letter" class="mr-2">
+                                <span>Lettered (Goblin A, Goblin B)</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="flex justify-end space-x-2">
+                        <button id="cancel-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
+                            Cancel
+                        </button>
+                        <button id="add-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                            Add Group
+                        </button>
+                    </div>
+                </div>
+            `,
+            width: 'max-w-2xl'
+        });
+        
+        // Add event listeners
+        const nameInput = modal.querySelector('#monster-name');
+        const countInput = modal.querySelector('#monster-count');
+        const initiativeInput = modal.querySelector('#monster-initiative');
+        const hpInput = modal.querySelector('#monster-hp');
+        const acInput = modal.querySelector('#monster-ac');
+        const hpVariationInput = modal.querySelector('#hp-variation');
+        const namingStyleInputs = modal.querySelectorAll('input[name="naming-style"]');
+        const cancelBtn = modal.querySelector('#cancel-btn');
+        const addBtn = modal.querySelector('#add-btn');
+        
+        cancelBtn.addEventListener('click', () => {
+            this.closeModal(modal.parentNode);
+        });
+        
+        addBtn.addEventListener('click', () => {
+            // Validate inputs
+            const name = nameInput.value.trim();
+            const count = parseInt(countInput.value) || 4;
+            const initiativeBonus = parseInt(initiativeInput.value) || 0;
+            const hp = parseInt(hpInput.value) || 10;
+            const ac = parseInt(acInput.value) || 10;
+            const hpVariation = parseInt(hpVariationInput.value) || 0;
+            
+            // Get naming style
+            let namingStyle = 'number';
+            namingStyleInputs.forEach(input => {
+                if (input.checked) {
+                    namingStyle = input.value;
+                }
+            });
+            
+            if (!name) {
+                this.app.showAlert('Please enter a name for the monsters.');
+                return;
+            }
+            
+            if (count < 1) {
+                this.app.showAlert('Number of monsters must be at least 1.');
+                return;
+            }
+            
+            if (hp < 1) {
+                this.app.showAlert('HP must be at least 1.');
+                return;
+            }
+            
+            if (ac < 1) {
+                this.app.showAlert('AC must be at least 1.');
+                return;
+            }
+            
+            // Create the monsters
+            for (let i = 0; i < count; i++) {
+                // Generate suffix based on naming style
+                let suffix;
+                if (namingStyle === 'letter') {
+                    suffix = String.fromCharCode(65 + i); // A, B, C, ...
+                } else {
+                    suffix = (i + 1).toString(); // 1, 2, 3, ...
+                }
+                
+                // Calculate HP with variation
+                let monsterHp = hp;
+                if (hpVariation > 0) {
+                    const variation = hp * (hpVariation / 100);
+                    const min = Math.max(1, Math.floor(hp - variation));
+                    const max = Math.ceil(hp + variation);
+                    monsterHp = Math.floor(Math.random() * (max - min + 1)) + min;
+                }
+                
+                const monster = {
+                    id: this.app.utils.generateUUID(),
+                    name: `${name} ${suffix}`,
+                    type: 'monster',
+                    maxHp: monsterHp,
+                    currentHp: monsterHp,
+                    ac: ac,
+                    initiativeBonus: initiativeBonus,
+                    initiative: null,
+                    conditions: [],
+                    source: 'Group'
+                };
+                
+                // Add the monster to combat
+                this.app.combat.addCreature(monster);
+            }
+            
+            // Close the modal
+            this.closeModal(modal.parentNode);
+            
+            // Log the event
+            this.app.logEvent(`Added ${count} ${name} monsters to combat.`);
+        });
+    }
+    
+    /**
      * Create a modal
      * @param {Object} options - Modal options
      * @param {string} options.title - The modal title
@@ -1558,7 +2256,7 @@ class UIManager {
     createModal(options) {
         // Create the modal backdrop
         const backdrop = document.createElement('div');
-        backdrop.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+        backdrop.className = 'modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
         
         // Create the modal
         const modal = document.createElement('div');
@@ -1702,6 +2400,7 @@ class UIManager {
             this.closeModal(modal.parentNode);
         });
         
+        okBtn.addEventListener('click
         okBtn.addEventListener('click', () => {
             this.closeModal(modal.parentNode);
             onConfirm();
@@ -1994,5 +2693,350 @@ class UIManager {
             default:
                 return "none";
         }
+    }
+    
+    /**
+     * Open the player view settings modal
+     */
+    openPlayerViewSettingsModal() {
+        const modal = this.createModal({
+            title: 'Player View Settings',
+            content: `
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-gray-300 mb-2">HP Display Style:</label>
+                        <select id="hp-display-style" class="w-full bg-gray-700 text-white px-3 py-2 rounded">
+                            <option value="descriptive" ${this.playerViewSettings.hpDisplay === 'descriptive' ? 'selected' : ''}>Descriptive (Healthy, Bloodied, etc.)</option>
+                            <option value="exact" ${this.playerViewSettings.hpDisplay === 'exact' ? 'selected' : ''}>Exact Numbers for Heroes</option>
+                            <option value="hidden" ${this.playerViewSettings.hpDisplay === 'hidden' ? 'selected' : ''}>Hidden</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-gray-300 mb-2">Background Theme:</label>
+                        <select id="background-theme" class="w-full bg-gray-700 text-white px-3 py-2 rounded">
+                            <option value="default" ${this.playerViewSettings.theme === 'default' ? 'selected' : ''}>Default (Dark)</option>
+                            <option value="dungeon" ${this.playerViewSettings.theme === 'dungeon' ? 'selected' : ''}>Dungeon</option>
+                            <option value="forest" ${this.playerViewSettings.theme === 'forest' ? 'selected' : ''}>Forest</option>
+                            <option value="castle" ${this.playerViewSettings.theme === 'castle' ? 'selected' : ''}>Castle</option>
+                            <option value="tavern" ${this.playerViewSettings.theme === 'tavern' ? 'selected' : ''}>Tavern</option>
+                            <option value="custom" ${this.playerViewSettings.theme === 'custom' ? 'selected' : ''}>Custom URL</option>
+                        </select>
+                    </div>
+                    
+                    <div id="custom-background-container" class="${this.playerViewSettings.theme === 'custom' ? '' : 'hidden'}">
+                        <label class="block text-gray-300 mb-2">Custom Background URL:</label>
+                        <input type="text" id="custom-background-url" class="w-full bg-gray-700 text-white px-3 py-2 rounded" 
+                            value="${this.playerViewSettings.customBackground || ''}">
+                        <p class="text-xs text-gray-400 mt-1">Enter the URL of an image to use as the background</p>
+                    </div>
+                    
+                    <div class="flex justify-end space-x-2">
+                        <button id="cancel-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
+                            Cancel
+                        </button>
+                        <button id="save-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                            Save Settings
+                        </button>
+                    </div>
+                </div>
+            `,
+            width: 'max-w-md'
+        });
+        
+        // Add event listeners
+        const hpDisplayStyle = modal.querySelector('#hp-display-style');
+        const backgroundTheme = modal.querySelector('#background-theme');
+        const customBackgroundContainer = modal.querySelector('#custom-background-container');
+        const customBackgroundUrl = modal.querySelector('#custom-background-url');
+        const cancelBtn = modal.querySelector('#cancel-btn');
+        const saveBtn = modal.querySelector('#save-btn');
+        
+        // Show/hide custom background URL input
+        backgroundTheme.addEventListener('change', () => {
+            if (backgroundTheme.value === 'custom') {
+                customBackgroundContainer.classList.remove('hidden');
+            } else {
+                customBackgroundContainer.classList.add('hidden');
+            }
+        });
+        
+        cancelBtn.addEventListener('click', () => {
+            this.closeModal(modal.parentNode);
+        });
+        
+        saveBtn.addEventListener('click', () => {
+            // Update settings
+            this.playerViewSettings.hpDisplay = hpDisplayStyle.value;
+            this.playerViewSettings.theme = backgroundTheme.value;
+            this.playerViewSettings.customBackground = customBackgroundUrl.value.trim();
+            
+            // Save settings
+            this.savePlayerViewSettings();
+            
+            // Update player view if open
+            if (this.app.state.playerViewWindow && !this.app.state.playerViewWindow.closed) {
+                this.app.updatePlayerView();
+            }
+            
+            // Close modal
+            this.closeModal(modal.parentNode);
+            
+            // Log event
+            this.app.logEvent('Player view settings updated.');
+        });
+    }
+    
+    /**
+     * Create the hotbar
+     */
+    createHotbar() {
+        // Check if hotbar already exists
+        if (document.getElementById('action-hotbar')) return;
+        
+        // Load hotbar actions
+        this.hotbarActions = this.app.storage.loadData('hotbarActions', []);
+        
+        // Create hotbar container
+        const hotbar = document.createElement('div');
+        hotbar.id = 'action-hotbar';
+        hotbar.className = 'fixed bottom-4 right-4 bg-gray-800 rounded-lg shadow-lg p-2 z-30';
+        
+        // Create hotbar content
+        hotbar.innerHTML = `
+            <div class="flex space-x-2">
+                ${Array(5).fill(0).map((_, index) => {
+                    const action = this.hotbarActions[index];
+                    return `
+                        <div class="hotbar-slot" data-slot="${index}">
+                            <button class="hotbar-action-btn w-12 h-12 bg-gray-700 hover:bg-gray-600 rounded flex items-center justify-center text-white font-bold" 
+                                data-action-index="${index}" title="${action ? action.tooltip || '' : 'Empty slot'}">
+                                ${action ? action.label : '+'}
+                            </button>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        `;
+        
+        // Add to document
+        document.body.appendChild(hotbar);
+        
+        // Add event listeners
+        hotbar.querySelectorAll('.hotbar-action-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const actionIndex = parseInt(btn.dataset.actionIndex);
+                this.executeHotbarAction(actionIndex);
+            });
+            
+            // Right-click to edit
+            btn.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                const actionIndex = parseInt(btn.dataset.actionIndex);
+                this.editHotbarAction(actionIndex);
+            });
+        });
+    }
+    
+    /**
+     * Add an action to the hotbar
+     * @param {Object} action - The action to add
+     */
+    addToHotbar(action) {
+        // Find an empty slot or use the first slot
+        let slotIndex = this.hotbarActions.findIndex(a => !a);
+        if (slotIndex === -1) slotIndex = 0;
+        
+        // Add the action
+        this.hotbarActions[slotIndex] = action;
+        
+        // Save hotbar actions
+        this.app.storage.saveData('hotbarActions', this.hotbarActions);
+        
+        // Update hotbar UI
+        this.updateHotbarUI();
+    }
+    
+    /**
+     * Execute a hotbar action
+     * @param {number} index - The index of the action to execute
+     */
+    executeHotbarAction(index) {
+        const action = this.hotbarActions[index];
+        if (!action) {
+            this.editHotbarAction(index);
+            return;
+        }
+        
+        switch (action.type) {
+            case 'statBlock':
+                const creature = this.app.combat.getCreatureById(action.creatureId);
+                if (creature) {
+                    this.openStatBlockModal(action.creatureId);
+                } else {
+                    this.app.showAlert('Creature not found.');
+                    this.hotbarActions[index] = null;
+                    this.app.storage.saveData('hotbarActions', this.hotbarActions);
+                    this.updateHotbarUI();
+                }
+                break;
+            case 'diceRoll':
+                this.app.dice.rollAndDisplay(action.dice);
+                break;
+            case 'customAction':
+                if (action.callback && typeof action.callback === 'function') {
+                    action.callback();
+                }
+                break;
+            default:
+                this.app.showAlert('Unknown action type.');
+        }
+    }
+    
+    /**
+     * Edit a hotbar action
+     * @param {number} index - The index of the action to edit
+     */
+    editHotbarAction(index) {
+        const action = this.hotbarActions[index];
+        
+        const modal = this.createModal({
+            title: action ? 'Edit Hotbar Action' : 'Add Hotbar Action',
+            content: `
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-gray-300 mb-2">Action Type:</label>
+                        <select id="action-type" class="w-full bg-gray-700 text-white px-3 py-2 rounded">
+                            <option value="diceRoll" ${action && action.type === 'diceRoll' ? 'selected' : ''}>Dice Roll</option>
+                            <option value="empty" ${!action ? 'selected' : ''}>Empty Slot</option>
+                        </select>
+                    </div>
+                    
+                    <div id="dice-roll-options" class="${action && action.type === 'diceRoll' ? '' : 'hidden'}">
+                        <label class="block text-gray-300 mb-2">Dice Expression:</label>
+                        <input type="text" id="dice-expression" class="w-full bg-gray-700 text-white px-3 py-2 rounded" 
+                            value="${action && action.type === 'diceRoll' ? action.dice : '1d20'}" placeholder="e.g., 1d20+5, 2d6">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-gray-300 mb-2">Label (1-2 characters):</label>
+                        <input type="text" id="action-label" class="w-full bg-gray-700 text-white px-3 py-2 rounded" maxlength="2"
+                            value="${action ? action.label : ''}" placeholder="e.g., D, 20">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-gray-300 mb-2">Tooltip:</label>
+                        <input type="text" id="action-tooltip" class="w-full bg-gray-700 text-white px-3 py-2 rounded"
+                            value="${action && action.tooltip ? action.tooltip : ''}" placeholder="e.g., Roll d20">
+                    </div>
+                    
+                    <div class="flex justify-end space-x-2">
+                        ${action ? `
+                        <button id="remove-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">
+                            Remove
+                        </button>
+                        ` : ''}
+                        <button id="cancel-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
+                            Cancel
+                        </button>
+                        <button id="save-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                            Save
+                        </button>
+                    </div>
+                </div>
+            `,
+            width: 'max-w-md'
+        });
+        
+        // Add event listeners
+        const actionType = modal.querySelector('#action-type');
+        const diceRollOptions = modal.querySelector('#dice-roll-options');
+        const diceExpression = modal.querySelector('#dice-expression');
+        const actionLabel = modal.querySelector('#action-label');
+        const actionTooltip = modal.querySelector('#action-tooltip');
+        const cancelBtn = modal.querySelector('#cancel-btn');
+        const saveBtn = modal.querySelector('#save-btn');
+        const removeBtn = modal.querySelector('#remove-btn');
+        
+        // Show/hide options based on action type
+        actionType.addEventListener('change', () => {
+            if (actionType.value === 'diceRoll') {
+                diceRollOptions.classList.remove('hidden');
+            } else {
+                diceRollOptions.classList.add('hidden');
+            }
+        });
+        
+        cancelBtn.addEventListener('click', () => {
+            this.closeModal(modal.parentNode);
+        });
+        
+        if (removeBtn) {
+            removeBtn.addEventListener('click', () => {
+                this.hotbarActions[index] = null;
+                this.app.storage.saveData('hotbarActions', this.hotbarActions);
+                this.updateHotbarUI();
+                this.closeModal(modal.parentNode);
+            });
+        }
+        
+        saveBtn.addEventListener('click', () => {
+            if (actionType.value === 'empty') {
+                this.hotbarActions[index] = null;
+            } else if (actionType.value === 'diceRoll') {
+                const dice = diceExpression.value.trim();
+                const label = actionLabel.value.trim() || 'D';
+                const tooltip = actionTooltip.value.trim() || `Roll ${dice}`;
+                
+                if (!dice) {
+                    this.app.showAlert('Please enter a dice expression.');
+                    return;
+                }
+                
+                this.hotbarActions[index] = {
+                    type: 'diceRoll',
+                    dice: dice,
+                    label: label,
+                    tooltip: tooltip
+                };
+            }
+            
+            // Save hotbar actions
+            this.app.storage.saveData('hotbarActions', this.hotbarActions);
+            
+            // Update hotbar UI
+            this.updateHotbarUI();
+            
+            // Close modal
+            this.closeModal(modal.parentNode);
+        });
+    }
+    
+    /**
+     * Update the hotbar UI
+     */
+    updateHotbarUI() {
+        const hotbar = document.getElementById('action-hotbar');
+        if (!hotbar) return;
+        
+        const slots = hotbar.querySelectorAll('.hotbar-action-btn');
+        slots.forEach((slot, index) => {
+            const action = this.hotbarActions[index];
+            if (action) {
+                slot.textContent = action.label || '+';
+                slot.title = action.tooltip || '';
+            } else {
+                slot.textContent = '+';
+                slot.title = 'Empty slot';
+            }
+        });
+    }
+    
+    /**
+     * Update theme elements based on current theme
+     */
+    updateThemeElements() {
+        const theme = this.app.settings.getSetting('theme', 'theme-default');
+        document.documentElement.className = theme;
     }
 }
