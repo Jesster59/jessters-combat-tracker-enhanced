@@ -6,6 +6,8 @@ class CombatManager {
     constructor(app) {
         this.app = app;
         this.creatures = [];
+        this.lairActions = [];
+        this.lastRoundLairActionsReset = 0;
         console.log("Combat Manager initialized");
     }
     
@@ -280,6 +282,22 @@ class CombatManager {
         
         // Log the event
         this.app.logEvent(`${this.creatures[nextIndex].name}'s turn.`);
+        
+        // Reset legendary actions for monsters at the start of their turn
+        if (this.creatures[nextIndex].type === 'monster' && this.creatures[nextIndex].legendaryActions) {
+            this.creatures[nextIndex].legendaryActions.used = 0;
+        }
+        
+        // Process death saving throws for unconscious heroes
+        if (this.creatures[nextIndex].type === 'hero' && this.creatures[nextIndex].currentHp === 0) {
+            // Check if they're stable
+            const isStable = this.creatures[nextIndex].conditions?.some(c => 
+                (typeof c === 'string' ? c : c.name) === 'Stable');
+            
+            if (!isStable) {
+                this.app.showAlert(`${this.creatures[nextIndex].name} is unconscious and must make a death saving throw.`, 'Death Save Required');
+            }
+        }
     }
     
     /**
@@ -319,6 +337,12 @@ class CombatManager {
                 this.app.logEvent(`${creature.name} is no longer ${expiredConditions.join(', ')}.`);
             }
         });
+        
+        // Reset lair actions
+        if (this.lairActions && this.lairActions.length > 0) {
+            this.lairActions.forEach(la => la.used = false);
+            this.lastRoundLairActionsReset = this.app.state.roundNumber;
+        }
     }
     
     /**
@@ -351,12 +375,27 @@ class CombatManager {
         
         // Check if the creature is unconscious
         if (creature.currentHp === 0) {
-            this.app.logEvent(`${creature.name} is unconscious!`);
+            if (creature.type === 'hero') {
+                this.app.logEvent(`${creature.name} is unconscious and must start making death saving throws!`);
+                
+                // Initialize death saves
+                creature.deathSaves = {
+                    successes: 0,
+                    failures: 0
+                };
+            } else {
+                this.app.logEvent(`${creature.name} is unconscious!`);
+            }
             
             // Add unconscious condition if not already present
             if (!creature.conditions.some(c => (typeof c === 'string' ? c : c.name) === 'Unconscious')) {
                 this.addCondition(id, { name: 'Unconscious', roundsLeft: null });
             }
+        }
+        
+        // Check concentration if the creature is concentrating
+        if (creature.concentration && amount > 0) {
+            this.checkConcentration(id, amount);
         }
     }
     
@@ -385,6 +424,12 @@ class CombatManager {
         // Remove unconscious condition if HP > 0
         if (creature.currentHp > 0) {
             this.removeCondition(id, 'Unconscious');
+            
+            // Remove death saves if they were making them
+            if (creature.deathSaves) {
+                creature.deathSaves = null;
+                this.app.logEvent(`${creature.name} is no longer making death saving throws.`);
+            }
         }
     }
     
@@ -488,5 +533,184 @@ class CombatManager {
         
         // Replace the creatures array with the new order
         this.creatures = newOrder;
+    }
+    
+    /**
+     * Add concentration spell to a creature
+     * @param {string} creatureId - The ID of the creature
+     * @param {string} spellName - The name of the spell
+     * @param {number|null} duration - The duration in rounds (null for until dispelled)
+     */
+    addConcentrationSpell(creatureId, spellName, duration) {
+        const creature = this.getCreatureById(creatureId);
+        if (!creature) return;
+        
+        // If already concentrating, remove the old spell
+        if (creature.concentration) {
+            this.app.logEvent(`${creature.name} is no longer concentrating on ${creature.concentration.spell}.`);
+        }
+        
+        // Set new concentration
+        creature.concentration = {
+            spell: spellName,
+            duration: duration,
+            startRound: this.app.state.roundNumber
+        };
+        
+        this.app.logEvent(`${creature.name} is now concentrating on ${spellName}.`);
+        this.app.ui.renderCreatures();
+    }
+    
+    /**
+     * Check concentration after taking damage
+     * @param {string} creatureId - The ID of the creature
+     * @param {number} damageAmount - The amount of damage taken
+     */
+    checkConcentration(creatureId, damageAmount) {
+        const creature = this.getCreatureById(creatureId);
+        if (!creature || !creature.concentration) return;
+        
+        // DC is 10 or half the damage taken, whichever is higher
+        const dc = Math.max(10, Math.floor(damageAmount / 2));
+        
+        // Roll concentration check (Constitution save)
+        const conMod = Math.floor((creature.con - 10) / 2) || 0;
+        const roll = this.app.dice.roll(20);
+        const total = roll.total + conMod;
+        
+        this.app.logEvent(`${creature.name} makes a concentration check (DC ${dc}): ${roll.total} + ${conMod} = ${total}`);
+        
+        if (total < dc) {
+            this.app.logEvent(`${creature.name} loses concentration on ${creature.concentration.spell}!`);
+            creature.concentration = null;
+        } else {
+            this.app.logEvent(`${creature.name} maintains concentration on ${creature.concentration.spell}.`);
+        }
+        
+        this.app.ui.renderCreatures();
+    }
+    
+    /**
+     * Track legendary actions for a creature
+     * @param {string} creatureId - The ID of the creature
+     * @param {number} used - Number of legendary actions used
+     */
+    trackLegendaryActions(creatureId, used = 0) {
+        const creature = this.getCreatureById(creatureId);
+        if (!creature || creature.type !== 'monster') return;
+        
+        // Initialize legendary actions if not present
+        if (!creature.legendaryActions) {
+            creature.legendaryActions = {
+                max: 3, // Default, can be overridden
+                used: 0
+            };
+        }
+        
+        // Update used legendary actions
+        creature.legendaryActions.used = used;
+        
+        // Reset at the start of the creature's turn
+        if (this.app.state.currentTurn === creatureId) {
+            creature.legendaryActions.used = 0;
+        }
+        
+        this.app.ui.renderCreatures();
+    }
+    
+    /**
+     * Add a lair action
+     * @param {string} name - The name of the lair action
+     * @param {string} description - The description of the lair action
+     * @param {number} initiative - The initiative count for the lair action
+     */
+    addLairAction(name, description, initiative = 20) {
+        if (!this.lairActions) this.lairActions = [];
+        
+        this.lairActions.push({
+            id: this.app.utils.generateUUID(),
+            name: name,
+            description: description,
+            initiative: initiative,
+            used: false
+        });
+        
+        this.app.logEvent(`Lair action "${name}" added at initiative ${initiative}.`);
+        this.app.ui.renderInitiativeOrder();
+    }
+    
+    /**
+     * Use a lair action
+     * @param {string} lairActionId - The ID of the lair action
+     */
+    useLairAction(lairActionId) {
+        if (!this.lairActions) return;
+        
+        const lairAction = this.lairActions.find(la => la.id === lairActionId);
+        if (!lairAction) return;
+        
+        lairAction.used = true;
+        this.app.logEvent(`Lair action "${lairAction.name}" used.`);
+        
+        // Reset at the start of a new round
+        if (this.app.state.roundNumber > this.lastRoundLairActionsReset) {
+            this.lairActions.forEach(la => la.used = false);
+            this.lastRoundLairActionsReset = this.app.state.roundNumber;
+        }
+    }
+    
+    /**
+     * Handle death saving throw for a creature
+     * @param {string} creatureId - The ID of the creature
+     * @param {Object} roll - The roll result (optional)
+     */
+    handleDeathSavingThrow(creatureId, roll = null) {
+        const creature = this.getCreatureById(creatureId);
+        if (!creature || creature.type !== 'hero' || creature.currentHp > 0) return;
+        
+        // Initialize death saves if not present
+        if (!creature.deathSaves) {
+            creature.deathSaves = {
+                successes: 0,
+                failures: 0
+            };
+        }
+        
+        // Roll if not provided
+        if (!roll) {
+            roll = this.app.dice.roll(20);
+        }
+        
+        // Process the roll
+        if (roll.total === 20) {
+            // Critical success: regain 1 hit point
+            creature.currentHp = 1;
+            creature.deathSaves = null;
+            this.app.logEvent(`${creature.name} rolled a natural 20 on death save and regains consciousness with 1 HP!`);
+        } else if (roll.total === 1) {
+            // Critical failure: two failures
+            creature.deathSaves.failures += 2;
+            this.app.logEvent(`${creature.name} rolled a natural 1 on death save and suffers two failures!`);
+        } else if (roll.total >= 10) {
+            // Success
+            creature.deathSaves.successes++;
+            this.app.logEvent(`${creature.name} succeeded on a death save (${roll.total}). Successes: ${creature.deathSaves.successes}, Failures: ${creature.deathSaves.failures}`);
+        } else {
+            // Failure
+            creature.deathSaves.failures++;
+            this.app.logEvent(`${creature.name} failed a death save (${roll.total}). Successes: ${creature.deathSaves.successes}, Failures: ${creature.deathSaves.failures}`);
+        }
+        
+        // Check for stabilization or death
+        if (creature.deathSaves.successes >= 3) {
+            creature.deathSaves = null;
+            this.addCondition(creatureId, 'Stable');
+            this.app.logEvent(`${creature.name} is now stable!`);
+        } else if (creature.deathSaves.failures >= 3) {
+            this.addCondition(creatureId, 'Dead');
+            this.app.logEvent(`${creature.name} has died!`);
+        }
+        
+        this.app.ui.renderCreatures();
     }
 }
