@@ -1,191 +1,163 @@
 /**
  * Settings module for Jesster's Combat Tracker
- * Handles application configuration and user preferences
+ * Handles application settings and preferences
  */
 class Settings {
     constructor(storage) {
-        // Store reference to the storage module
+        // Store reference to storage module
         this.storage = storage;
         
         // Default settings
         this.defaults = {
             // General settings
-            theme: 'dark',
+            theme: 'auto',
             fontSize: 'medium',
-            soundEnabled: true,
-            musicEnabled: false,
-            volume: 0.5,
-            musicVolume: 0.3,
-            confirmations: true,
-            autoSave: true,
-            autoSaveInterval: 5, // minutes
+            language: 'en',
+            confirmBeforeDelete: true,
+            autosaveInterval: 60, // seconds
             
             // Combat settings
-            initiativeSystem: 'standard', // standard, group, popcorn, side
-            showModifiers: true,
-            criticalHitRule: 'double', // double, max
-            autoEndTurn: false,
-            turnTimer: false,
+            initiativeSystem: 'standard',
+            groupSimilarMonsters: true,
+            showDefeatedCombatants: true,
+            highlightActiveTurn: true,
+            autoRollMonsterInitiative: true,
+            autoRollNPCInitiative: true,
+            advantageMode: 'query', // query, advantage, disadvantage, normal
+            
+            // Timer settings
+            turnTimerEnabled: false,
             turnTimerDuration: 60, // seconds
             turnTimerWarning: 10, // seconds
             turnTimerAutoEnd: false,
-            
-            // Monster settings
-            monsterHpMode: 'average', // average, roll, max
-            monsterGroupInitiative: true,
-            monsterNameNumbers: true,
-            autoGenerateMonsterImages: false,
-            monsterImageStyle: 'fantasy',
-            
-            // Player view settings
-            playerViewEnabled: false,
-            playerViewTheme: 'dungeon',
-            playerViewHpMode: 'descriptive', // exact, descriptive, hidden
-            playerViewShowAC: true,
-            playerViewShowConditions: true,
-            playerViewShowTimer: false,
+            turnTimerSound: true,
             
             // Dice settings
-            diceAnimations: true,
-            diceSound: true,
-            advantageMode: 'query', // query, advantage, disadvantage, normal
-            showDiceFormulas: true,
+            diceAnimationsEnabled: true,
+            diceSoundEnabled: true,
             keepDiceHistory: true,
-            maxDiceHistory: 20,
+            maxDiceHistory: 50,
+            
+            // Audio settings
+            soundsEnabled: true,
+            musicEnabled: false,
+            volume: 0.7,
+            musicVolume: 0.3,
+            
+            // Display settings
+            showHPValues: true,
+            showHPPercentage: true,
+            showACValues: true,
+            showInitiativeValues: true,
+            showConditionIcons: true,
             
             // API settings
-            useOpen5e: true,
-            useDndBeyond: false,
-            dndBeyondKey: '',
-            geminiApiKey: '',
+            openAIApiKey: '',
             
             // Advanced settings
             debugMode: false,
             experimentalFeatures: false,
-            cloudSync: false,
-            dataRetention: 30, // days
+            dataExportFormat: 'json',
             
-            // Accessibility settings
-            highContrast: false,
-            reducedMotion: false,
-            largeTargets: false,
-            screenReaderHints: false
+            // User preferences
+            recentEncounters: [],
+            pinnedEncounters: [],
+            lastView: 'combat',
+            sidebarCollapsed: false,
+            notesPanelWidth: 300,
+            statBlocksEnabled: true
         };
         
-        // Current settings (will be loaded from storage)
-        this.current = { ...this.defaults };
+        // Current settings
+        this.settings = { ...this.defaults };
         
-        // Initialize settings
-        this.init();
+        // Load settings
+        this._loadSettings();
         
         console.log("Settings module initialized");
     }
 
     /**
-     * Initialize settings
+     * Load settings from storage
+     * @private
      */
-    async init() {
-        // Load settings from storage
-        const savedSettings = await this.storage.load('settings', { useLocalStorage: true });
-        
-        if (savedSettings) {
-            // Merge saved settings with defaults (to ensure new settings are included)
-            this.current = { ...this.defaults, ...savedSettings };
+    async _loadSettings() {
+        try {
+            const savedSettings = await this.storage.load('settings', { useLocalStorage: true });
+            if (savedSettings) {
+                // Merge saved settings with defaults
+                this.settings = { ...this.defaults, ...savedSettings };
+            }
+        } catch (error) {
+            console.error('Error loading settings:', error);
         }
-        
-        // Save merged settings back to storage
-        await this.save();
     }
 
     /**
-     * Save current settings to storage
-     * @returns {Promise<boolean>} Success status
+     * Save settings to storage
+     * @private
      */
-    async save() {
-        return await this.storage.save('settings', this.current, { useLocalStorage: true });
+    async _saveSettings() {
+        try {
+            await this.storage.save('settings', this.settings, { useLocalStorage: true });
+        } catch (error) {
+            console.error('Error saving settings:', error);
+        }
     }
 
     /**
      * Get a setting value
      * @param {string} key - Setting key
-     * @param {any} defaultValue - Default value if setting is not found
-     * @returns {any} Setting value
+     * @param {*} defaultValue - Default value if setting is not found
+     * @returns {*} Setting value
      */
-    get(key, defaultValue = null) {
-        return this.current[key] !== undefined ? this.current[key] : defaultValue;
+    get(key, defaultValue = undefined) {
+        if (this.settings[key] !== undefined) {
+            return this.settings[key];
+        }
+        
+        return defaultValue !== undefined ? defaultValue : this.defaults[key];
     }
 
     /**
      * Set a setting value
      * @param {string} key - Setting key
-     * @param {any} value - Setting value
+     * @param {*} value - Setting value
      * @returns {Promise<boolean>} Success status
      */
     async set(key, value) {
-        this.current[key] = value;
-        return await this.save();
+        // Update setting
+        this.settings[key] = value;
+        
+        // Save settings
+        await this._saveSettings();
+        
+        return true;
     }
 
     /**
-     * Update multiple settings at once
-     * @param {Object} settings - Settings object
-     * @returns {Promise<boolean>} Success status
-     */
-    async update(settings) {
-        this.current = { ...this.current, ...settings };
-        return await this.save();
-    }
-
-    /**
-     * Reset settings to defaults
-     * @returns {Promise<boolean>} Success status
-     */
-    async reset() {
-        this.current = { ...this.defaults };
-        return await this.save();
-    }
-
-    /**
-     * Reset a specific setting to its default value
+     * Reset a setting to its default value
      * @param {string} key - Setting key
      * @returns {Promise<boolean>} Success status
      */
-    async resetSetting(key) {
+    async reset(key) {
         if (this.defaults[key] !== undefined) {
-            this.current[key] = this.defaults[key];
-            return await this.save();
+            this.settings[key] = this.defaults[key];
+            await this._saveSettings();
+            return true;
         }
+        
         return false;
     }
 
     /**
-     * Export settings as JSON
-     * @returns {string} JSON string
-     */
-    exportSettings() {
-        return JSON.stringify(this.current, null, 2);
-    }
-
-    /**
-     * Import settings from JSON
-     * @param {string} json - JSON string
+     * Reset all settings to defaults
      * @returns {Promise<boolean>} Success status
      */
-    async importSettings(json) {
-        try {
-            const settings = JSON.parse(json);
-            // Validate settings before importing
-            if (typeof settings !== 'object' || settings === null) {
-                throw new Error('Invalid settings format');
-            }
-            
-            // Merge with defaults to ensure all required settings exist
-            this.current = { ...this.defaults, ...settings };
-            return await this.save();
-        } catch (error) {
-            console.error('Error importing settings:', error);
-            return false;
-        }
+    async resetAll() {
+        this.settings = { ...this.defaults };
+        await this._saveSettings();
+        return true;
     }
 
     /**
@@ -193,7 +165,7 @@ class Settings {
      * @returns {Object} All settings
      */
     getAll() {
-        return { ...this.current };
+        return { ...this.settings };
     }
 
     /**
@@ -210,416 +182,1127 @@ class Settings {
      * @returns {boolean} True if setting exists
      */
     has(key) {
-        return this.current[key] !== undefined;
+        return this.settings[key] !== undefined || this.defaults[key] !== undefined;
     }
 
     /**
-     * Get settings by category
-     * @param {string} category - Category name (general, combat, monster, etc.)
-     * @returns {Object} Category settings
+     * Get theme setting
+     * @returns {string} Theme (light, dark, auto)
      */
-    getCategory(category) {
-        const categorySettings = {};
-        
-        // Define which settings belong to each category
-        const categories = {
-            general: [
-                'theme', 'fontSize', 'soundEnabled', 'musicEnabled', 
-                'volume', 'musicVolume', 'confirmations', 'autoSave', 
-                'autoSaveInterval'
-            ],
-            combat: [
-                'initiativeSystem', 'showModifiers', 'criticalHitRule',
-                'autoEndTurn', 'turnTimer', 'turnTimerDuration',
-                'turnTimerWarning', 'turnTimerAutoEnd'
-            ],
-            monster: [
-                'monsterHpMode', 'monsterGroupInitiative', 'monsterNameNumbers',
-                'autoGenerateMonsterImages', 'monsterImageStyle'
-            ],
-            playerView: [
-                'playerViewEnabled', 'playerViewTheme', 'playerViewHpMode',
-                'playerViewShowAC', 'playerViewShowConditions', 'playerViewShowTimer'
-            ],
-            dice: [
-                'diceAnimations', 'diceSound', 'advantageMode',
-                'showDiceFormulas', 'keepDiceHistory', 'maxDiceHistory'
-            ],
-            api: [
-                'useOpen5e', 'useDndBeyond', 'dndBeyondKey', 'geminiApiKey'
-            ],
-            advanced: [
-                'debugMode', 'experimentalFeatures', 'cloudSync', 'dataRetention'
-            ],
-            accessibility: [
-                'highContrast', 'reducedMotion', 'largeTargets', 'screenReaderHints'
-            ]
-        };
-        
-        // Get settings for the specified category
-        if (categories[category]) {
-            categories[category].forEach(key => {
-                categorySettings[key] = this.current[key];
-            });
+    getTheme() {
+        return this.get('theme');
+    }
+
+    /**
+     * Set theme setting
+     * @param {string} theme - Theme (light, dark, auto)
+     * @returns {Promise<boolean>} Success status
+     */
+    async setTheme(theme) {
+        if (['light', 'dark', 'auto'].includes(theme)) {
+            return await this.set('theme', theme);
         }
-        
-        return categorySettings;
+        return false;
     }
 
     /**
-     * Apply theme based on current settings
+     * Get font size setting
+     * @returns {string} Font size (small, medium, large)
      */
-    applyTheme() {
-        // Remove any existing theme classes
-        document.body.classList.remove('theme-dark', 'theme-light', 'theme-custom');
-        
-        // Add the current theme class
-        document.body.classList.add(`theme-${this.current.theme}`);
-        
-        // Apply high contrast if enabled
-        if (this.current.highContrast) {
-            document.body.classList.add('high-contrast');
-        } else {
-            document.body.classList.remove('high-contrast');
+    getFontSize() {
+        return this.get('fontSize');
+    }
+
+    /**
+     * Set font size setting
+     * @param {string} fontSize - Font size (small, medium, large)
+     * @returns {Promise<boolean>} Success status
+     */
+    async setFontSize(fontSize) {
+        if (['small', 'medium', 'large'].includes(fontSize)) {
+            return await this.set('fontSize', fontSize);
         }
-        
-        // Apply font size
-        document.body.classList.remove('font-small', 'font-medium', 'font-large');
-        document.body.classList.add(`font-${this.current.fontSize}`);
-        
-        // Apply reduced motion if enabled
-        if (this.current.reducedMotion) {
-            document.body.classList.add('reduced-motion');
-        } else {
-            document.body.classList.remove('reduced-motion');
-        }
-        
-        // Apply large targets if enabled
-        if (this.current.largeTargets) {
-            document.body.classList.add('large-targets');
-        } else {
-            document.body.classList.remove('large-targets');
-        }
+        return false;
     }
 
     /**
-     * Get D&D Beyond API key
-     * @returns {string} API key
+     * Get language setting
+     * @returns {string} Language code
      */
-    getDndBeyondKey() {
-        return this.current.dndBeyondKey || '';
+    getLanguage() {
+        return this.get('language');
     }
 
     /**
-     * Get Gemini API key
-     * @returns {string} API key
+     * Set language setting
+     * @param {string} language - Language code
+     * @returns {Promise<boolean>} Success status
      */
-    getGeminiApiKey() {
-        return this.current.geminiApiKey || '';
+    async setLanguage(language) {
+        return await this.set('language', language);
     }
 
     /**
-     * Check if debug mode is enabled
-     * @returns {boolean} True if debug mode is enabled
+     * Check if confirm before delete is enabled
+     * @returns {boolean} True if enabled
      */
-    isDebugMode() {
-        return this.current.debugMode === true;
+    shouldConfirmBeforeDelete() {
+        return this.get('confirmBeforeDelete');
     }
 
     /**
-     * Check if experimental features are enabled
-     * @returns {boolean} True if experimental features are enabled
+     * Set confirm before delete setting
+     * @param {boolean} enabled - Whether to confirm before delete
+     * @returns {Promise<boolean>} Success status
      */
-    areExperimentalFeaturesEnabled() {
-        return this.current.experimentalFeatures === true;
+    async setConfirmBeforeDelete(enabled) {
+        return await this.set('confirmBeforeDelete', !!enabled);
     }
 
     /**
-     * Check if cloud sync is enabled
-     * @returns {boolean} True if cloud sync is enabled
+     * Get autosave interval
+     * @returns {number} Autosave interval in seconds
      */
-    isCloudSyncEnabled() {
-        return this.current.cloudSync === true;
+    getAutosaveInterval() {
+        return this.get('autosaveInterval');
     }
 
     /**
-     * Get the data retention period in days
-     * @returns {number} Data retention period in days
+     * Set autosave interval
+     * @param {number} interval - Autosave interval in seconds
+     * @returns {Promise<boolean>} Success status
      */
-    getDataRetentionDays() {
-        return this.current.dataRetention || 30;
+    async setAutosaveInterval(interval) {
+        return await this.set('autosaveInterval', Math.max(0, interval));
     }
 
     /**
-     * Check if sounds are enabled
-     * @returns {boolean} True if sounds are enabled
-     */
-    areSoundsEnabled() {
-        return this.current.soundEnabled === true;
-    }
-
-    /**
-     * Check if music is enabled
-     * @returns {boolean} True if music is enabled
-     */
-    isMusicEnabled() {
-        return this.current.musicEnabled === true;
-    }
-
-    /**
-     * Get the volume level
-     * @returns {number} Volume level (0-1)
-     */
-    getVolume() {
-        return this.current.volume;
-    }
-
-    /**
-     * Get the music volume level
-     * @returns {number} Music volume level (0-1)
-     */
-    getMusicVolume() {
-        return this.current.musicVolume;
-    }
-
-    /**
-     * Check if confirmations are enabled
-     * @returns {boolean} True if confirmations are enabled
-     */
-    areConfirmationsEnabled() {
-        return this.current.confirmations === true;
-    }
-
-    /**
-     * Check if auto-save is enabled
-     * @returns {boolean} True if auto-save is enabled
-     */
-    isAutoSaveEnabled() {
-        return this.current.autoSave === true;
-    }
-
-    /**
-     * Get the auto-save interval in minutes
-     * @returns {number} Auto-save interval in minutes
-     */
-    getAutoSaveInterval() {
-        return this.current.autoSaveInterval || 5;
-    }
-
-    /**
-     * Get the initiative system
+     * Get initiative system
      * @returns {string} Initiative system
      */
     getInitiativeSystem() {
-        return this.current.initiativeSystem || 'standard';
+        return this.get('initiativeSystem');
     }
 
     /**
-     * Check if modifiers should be shown
-     * @returns {boolean} True if modifiers should be shown
+     * Set initiative system
+     * @param {string} system - Initiative system
+     * @returns {Promise<boolean>} Success status
      */
-    shouldShowModifiers() {
-        return this.current.showModifiers === true;
+    async setInitiativeSystem(system) {
+        if (['standard', 'group', 'popcorn', 'side'].includes(system)) {
+            return await this.set('initiativeSystem', system);
+        }
+        return false;
     }
 
     /**
-     * Get the critical hit rule
-     * @returns {string} Critical hit rule
+     * Check if group similar monsters is enabled
+     * @returns {boolean} True if enabled
      */
-    getCriticalHitRule() {
-        return this.current.criticalHitRule || 'double';
+    shouldGroupSimilarMonsters() {
+        return this.get('groupSimilarMonsters');
     }
 
     /**
-     * Check if turn should end automatically
-     * @returns {boolean} True if turn should end automatically
+     * Set group similar monsters setting
+     * @param {boolean} enabled - Whether to group similar monsters
+     * @returns {Promise<boolean>} Success status
      */
-    shouldAutoEndTurn() {
-        return this.current.autoEndTurn === true;
+    async setGroupSimilarMonsters(enabled) {
+        return await this.set('groupSimilarMonsters', !!enabled);
+    }
+
+    /**
+     * Check if show defeated combatants is enabled
+     * @returns {boolean} True if enabled
+     */
+    shouldShowDefeatedCombatants() {
+        return this.get('showDefeatedCombatants');
+    }
+
+    /**
+     * Set show defeated combatants setting
+     * @param {boolean} enabled - Whether to show defeated combatants
+     * @returns {Promise<boolean>} Success status
+     */
+    async setShowDefeatedCombatants(enabled) {
+        return await this.set('showDefeatedCombatants', !!enabled);
+    }
+
+    /**
+     * Check if highlight active turn is enabled
+     * @returns {boolean} True if enabled
+     */
+    shouldHighlightActiveTurn() {
+        return this.get('highlightActiveTurn');
+    }
+
+    /**
+     * Set highlight active turn setting
+     * @param {boolean} enabled - Whether to highlight active turn
+     * @returns {Promise<boolean>} Success status
+     */
+    async setHighlightActiveTurn(enabled) {
+        return await this.set('highlightActiveTurn', !!enabled);
+    }
+
+    /**
+     * Check if auto roll monster initiative is enabled
+     * @returns {boolean} True if enabled
+     */
+    shouldAutoRollMonsterInitiative() {
+        return this.get('autoRollMonsterInitiative');
+    }
+
+    /**
+     * Set auto roll monster initiative setting
+     * @param {boolean} enabled - Whether to auto roll monster initiative
+     * @returns {Promise<boolean>} Success status
+     */
+    async setAutoRollMonsterInitiative(enabled) {
+        return await this.set('autoRollMonsterInitiative', !!enabled);
+    }
+
+    /**
+     * Check if auto roll NPC initiative is enabled
+     * @returns {boolean} True if enabled
+     */
+    shouldAutoRollNPCInitiative() {
+        return this.get('autoRollNPCInitiative');
+    }
+
+    /**
+     * Set auto roll NPC initiative setting
+     * @param {boolean} enabled - Whether to auto roll NPC initiative
+     * @returns {Promise<boolean>} Success status
+     */
+    async setAutoRollNPCInitiative(enabled) {
+        return await this.set('autoRollNPCInitiative', !!enabled);
+    }
+
+    /**
+     * Get advantage mode
+     * @returns {string} Advantage mode
+     */
+    getAdvantageMode() {
+        return this.get('advantageMode');
+    }
+
+    /**
+     * Set advantage mode
+     * @param {string} mode - Advantage mode
+     * @returns {Promise<boolean>} Success status
+     */
+    async setAdvantageMode(mode) {
+        if (['query', 'advantage', 'disadvantage', 'normal'].includes(mode)) {
+            return await this.set('advantageMode', mode);
+        }
+        return false;
     }
 
     /**
      * Check if turn timer is enabled
-     * @returns {boolean} True if turn timer is enabled
+     * @returns {boolean} True if enabled
      */
     isTurnTimerEnabled() {
-        return this.current.turnTimer === true;
+        return this.get('turnTimerEnabled');
     }
 
     /**
-     * Get the turn timer duration in seconds
+     * Set turn timer enabled setting
+     * @param {boolean} enabled - Whether turn timer is enabled
+     * @returns {Promise<boolean>} Success status
+     */
+    async setTurnTimerEnabled(enabled) {
+        return await this.set('turnTimerEnabled', !!enabled);
+    }
+
+    /**
+     * Get turn timer duration
      * @returns {number} Turn timer duration in seconds
      */
     getTurnTimerDuration() {
-        return this.current.turnTimerDuration || 60;
+        return this.get('turnTimerDuration');
     }
 
     /**
-     * Get the turn timer warning threshold in seconds
+     * Set turn timer duration
+     * @param {number} duration - Turn timer duration in seconds
+     * @returns {Promise<boolean>} Success status
+     */
+    async setTurnTimerDuration(duration) {
+        return await this.set('turnTimerDuration', Math.max(5, duration));
+    }
+
+    /**
+     * Get turn timer warning threshold
      * @returns {number} Turn timer warning threshold in seconds
      */
     getTurnTimerWarning() {
-        return this.current.turnTimerWarning || 10;
+        return this.get('turnTimerWarning');
     }
 
     /**
-     * Check if turn timer should end turn automatically
-     * @returns {boolean} True if turn timer should end turn automatically
+     * Set turn timer warning threshold
+     * @param {number} warning - Turn timer warning threshold in seconds
+     * @returns {Promise<boolean>} Success status
+     */
+    async setTurnTimerWarning(warning) {
+        return await this.set('turnTimerWarning', Math.max(1, warning));
+    }
+
+    /**
+     * Check if turn timer auto end is enabled
+     * @returns {boolean} True if enabled
      */
     shouldTurnTimerAutoEnd() {
-        return this.current.turnTimerAutoEnd === true;
+        return this.get('turnTimerAutoEnd');
     }
 
     /**
-     * Get the monster HP mode
-     * @returns {string} Monster HP mode
+     * Set turn timer auto end setting
+     * @param {boolean} enabled - Whether turn timer auto end is enabled
+     * @returns {Promise<boolean>} Success status
      */
-    getMonsterHpMode() {
-        return this.current.monsterHpMode || 'average';
+    async setTurnTimerAutoEnd(enabled) {
+        return await this.set('turnTimerAutoEnd', !!enabled);
     }
 
     /**
-     * Check if monster group initiative is enabled
-     * @returns {boolean} True if monster group initiative is enabled
+     * Check if turn timer sound is enabled
+     * @returns {boolean} True if enabled
      */
-    isMonsterGroupInitiativeEnabled() {
-        return this.current.monsterGroupInitiative === true;
+    isTurnTimerSoundEnabled() {
+        return this.get('turnTimerSound');
     }
 
     /**
-     * Check if monster names should include numbers
-     * @returns {boolean} True if monster names should include numbers
+     * Set turn timer sound setting
+     * @param {boolean} enabled - Whether turn timer sound is enabled
+     * @returns {Promise<boolean>} Success status
      */
-    shouldNumberMonsterNames() {
-        return this.current.monsterNameNumbers === true;
-    }
-
-    /**
-     * Check if monster images should be generated automatically
-     * @returns {boolean} True if monster images should be generated automatically
-     */
-    shouldAutoGenerateMonsterImages() {
-        return this.current.autoGenerateMonsterImages === true;
-    }
-
-    /**
-     * Get the monster image style
-     * @returns {string} Monster image style
-     */
-    getMonsterImageStyle() {
-        return this.current.monsterImageStyle || 'fantasy';
-    }
-
-    /**
-     * Check if player view is enabled
-     * @returns {boolean} True if player view is enabled
-     */
-    isPlayerViewEnabled() {
-        return this.current.playerViewEnabled === true;
-    }
-
-    /**
-     * Get the player view theme
-     * @returns {string} Player view theme
-     */
-    getPlayerViewTheme() {
-        return this.current.playerViewTheme || 'dungeon';
-    }
-
-    /**
-     * Get the player view HP mode
-     * @returns {string} Player view HP mode
-     */
-    getPlayerViewHpMode() {
-        return this.current.playerViewHpMode || 'descriptive';
-    }
-
-    /**
-     * Check if player view should show AC
-     * @returns {boolean} True if player view should show AC
-     */
-    shouldPlayerViewShowAC() {
-        return this.current.playerViewShowAC === true;
-    }
-
-    /**
-     * Check if player view should show conditions
-     * @returns {boolean} True if player view should show conditions
-     */
-    shouldPlayerViewShowConditions() {
-        return this.current.playerViewShowConditions === true;
-    }
-
-    /**
-     * Check if player view should show timer
-     * @returns {boolean} True if player view should show timer
-     */
-    shouldPlayerViewShowTimer() {
-        return this.current.playerViewShowTimer === true;
+    async setTurnTimerSound(enabled) {
+        return await this.set('turnTimerSound', !!enabled);
     }
 
     /**
      * Check if dice animations are enabled
-     * @returns {boolean} True if dice animations are enabled
+     * @returns {boolean} True if enabled
      */
     areDiceAnimationsEnabled() {
-        return this.current.diceAnimations === true;
+        return this.get('diceAnimationsEnabled');
+    }
+
+    /**
+     * Set dice animations setting
+     * @param {boolean} enabled - Whether dice animations are enabled
+     * @returns {Promise<boolean>} Success status
+     */
+    async setDiceAnimationsEnabled(enabled) {
+        return await this.set('diceAnimationsEnabled', !!enabled);
     }
 
     /**
      * Check if dice sound is enabled
-     * @returns {boolean} True if dice sound is enabled
+     * @returns {boolean} True if enabled
      */
     isDiceSoundEnabled() {
-        return this.current.diceSound === true;
+        return this.get('diceSoundEnabled');
     }
 
     /**
-     * Get the advantage mode
-     * @returns {string} Advantage mode
+     * Set dice sound setting
+     * @param {boolean} enabled - Whether dice sound is enabled
+     * @returns {Promise<boolean>} Success status
      */
-    getAdvantageMode() {
-        return this.current.advantageMode || 'query';
+    async setDiceSoundEnabled(enabled) {
+        return await this.set('diceSoundEnabled', !!enabled);
     }
 
     /**
-     * Check if dice formulas should be shown
-     * @returns {boolean} True if dice formulas should be shown
-     */
-    shouldShowDiceFormulas() {
-        return this.current.showDiceFormulas === true;
-    }
-
-    /**
-     * Check if dice history should be kept
-     * @returns {boolean} True if dice history should be kept
+     * Check if keep dice history is enabled
+     * @returns {boolean} True if enabled
      */
     shouldKeepDiceHistory() {
-        return this.current.keepDiceHistory === true;
+        return this.get('keepDiceHistory');
     }
 
     /**
-     * Get the maximum dice history size
+     * Set keep dice history setting
+     * @param {boolean} enabled - Whether to keep dice history
+     * @returns {Promise<boolean>} Success status
+     */
+    async setKeepDiceHistory(enabled) {
+        return await this.set('keepDiceHistory', !!enabled);
+    }
+
+    /**
+     * Get maximum dice history size
      * @returns {number} Maximum dice history size
      */
     getMaxDiceHistory() {
-        return this.current.maxDiceHistory || 20;
+        return this.get('maxDiceHistory');
     }
 
     /**
-     * Check if Open5e API should be used
-     * @returns {boolean} True if Open5e API should be used
+     * Set maximum dice history size
+     * @param {number} size - Maximum dice history size
+     * @returns {Promise<boolean>} Success status
      */
-    shouldUseOpen5e() {
-        return this.current.useOpen5e === true;
+    async setMaxDiceHistory(size) {
+        return await this.set('maxDiceHistory', Math.max(10, size));
     }
 
     /**
-     * Check if D&D Beyond integration should be used
-     * @returns {boolean} True if D&D Beyond integration should be used
+     * Check if sounds are enabled
+     * @returns {boolean} True if enabled
      */
-    shouldUseDndBeyond() {
-        return this.current.useDndBeyond === true;
+    areSoundsEnabled() {
+        return this.get('soundsEnabled');
+    }
+
+    /**
+     * Set sounds enabled setting
+     * @param {boolean} enabled - Whether sounds are enabled
+     * @returns {Promise<boolean>} Success status
+     */
+    async setSoundsEnabled(enabled) {
+        return await this.set('soundsEnabled', !!enabled);
+    }
+
+    /**
+     * Check if music is enabled
+     * @returns {boolean} True if enabled
+     */
+    isMusicEnabled() {
+        return this.get('musicEnabled');
+    }
+
+    /**
+     * Set music enabled setting
+     * @param {boolean} enabled - Whether music is enabled
+     * @returns {Promise<boolean>} Success status
+     */
+    async setMusicEnabled(enabled) {
+        return await this.set('musicEnabled', !!enabled);
+    }
+
+    /**
+     * Get volume level
+     * @returns {number} Volume level (0-1)
+     */
+    getVolume() {
+        return this.get('volume');
+    }
+
+    /**
+     * Set volume level
+     * @param {number} volume - Volume level (0-1)
+     * @returns {Promise<boolean>} Success status
+     */
+    async setVolume(volume) {
+        return await this.set('volume', Math.max(0, Math.min(1, volume)));
+    }
+
+    /**
+     * Get music volume level
+     * @returns {number} Music volume level (0-1)
+     */
+    getMusicVolume() {
+        return this.get('musicVolume');
+    }
+
+    /**
+     * Set music volume level
+     * @param {number} volume - Music volume level (0-1)
+     * @returns {Promise<boolean>} Success status
+     */
+    async setMusicVolume(volume) {
+        return await this.set('musicVolume', Math.max(0, Math.min(1, volume)));
+    }
+
+    /**
+     * Check if show HP values is enabled
+     * @returns {boolean} True if enabled
+     */
+    shouldShowHPValues() {
+        return this.get('showHPValues');
+    }
+
+    /**
+     * Set show HP values setting
+     * @param {boolean} enabled - Whether to show HP values
+     * @returns {Promise<boolean>} Success status
+     */
+    async setShowHPValues(enabled) {
+        return await this.set('showHPValues', !!enabled);
+    }
+
+    /**
+     * Check if show HP percentage is enabled
+     * @returns {boolean} True if enabled
+     */
+    shouldShowHPPercentage() {
+        return this.get('showHPPercentage');
+    }
+
+    /**
+     * Set show HP percentage setting
+     * @param {boolean} enabled - Whether to show HP percentage
+     * @returns {Promise<boolean>} Success status
+     */
+    async setShowHPPercentage(enabled) {
+        return await this.set('showHPPercentage', !!enabled);
+    }
+
+    /**
+     * Check if show AC values is enabled
+     * @returns {boolean} True if enabled
+     */
+    shouldShowACValues() {
+        return this.get('showACValues');
+    }
+
+    /**
+     * Set show AC values setting
+     * @param {boolean} enabled - Whether to show AC values
+     * @returns {Promise<boolean>} Success status
+     */
+    async setShowACValues(enabled) {
+        return await this.set('showACValues', !!enabled);
+    }
+
+    /**
+     * Check if show initiative values is enabled
+     * @returns {boolean} True if enabled
+     */
+    shouldShowInitiativeValues() {
+        return this.get('showInitiativeValues');
+    }
+
+    /**
+     * Set show initiative values setting
+     * @param {boolean} enabled - Whether to show initiative values
+     * @returns {Promise<boolean>} Success status
+     */
+    async setShowInitiativeValues(enabled) {
+        return await this.set('showInitiativeValues', !!enabled);
+    }
+
+    /**
+     * Check if show condition icons is enabled
+     * @returns {boolean} True if enabled
+     */
+    shouldShowConditionIcons() {
+        return this.get('showConditionIcons');
+    }
+
+    /**
+     * Set show condition icons setting
+     * @param {boolean} enabled - Whether to show condition icons
+     * @returns {Promise<boolean>} Success status
+     */
+    async setShowConditionIcons(enabled) {
+        return await this.set('showConditionIcons', !!enabled);
+    }
+
+    /**
+     * Get OpenAI API key
+     * @returns {string} OpenAI API key
+     */
+    getOpenAIApiKey() {
+        return this.get('openAIApiKey');
+    }
+
+    /**
+     * Set OpenAI API key
+     * @param {string} apiKey - OpenAI API key
+     * @returns {Promise<boolean>} Success status
+     */
+    async setOpenAIApiKey(apiKey) {
+        return await this.set('openAIApiKey', apiKey);
+    }
+
+    /**
+     * Check if debug mode is enabled
+     * @returns {boolean} True if enabled
+     */
+    isDebugModeEnabled() {
+        return this.get('debugMode');
+    }
+
+    /**
+     * Set debug mode setting
+     * @param {boolean} enabled - Whether debug mode is enabled
+     * @returns {Promise<boolean>} Success status
+     */
+    async setDebugMode(enabled) {
+        return await this.set('debugMode', !!enabled);
+    }
+
+    /**
+     * Check if experimental features are enabled
+     * @returns {boolean} True if enabled
+     */
+    areExperimentalFeaturesEnabled() {
+        return this.get('experimentalFeatures');
+    }
+
+    /**
+     * Set experimental features setting
+     * @param {boolean} enabled - Whether experimental features are enabled
+     * @returns {Promise<boolean>} Success status
+     */
+    async setExperimentalFeatures(enabled) {
+        return await this.set('experimentalFeatures', !!enabled);
+    }
+
+    /**
+     * Get data export format
+     * @returns {string} Data export format
+     */
+    getDataExportFormat() {
+        return this.get('dataExportFormat');
+    }
+
+    /**
+     * Set data export format
+     * @param {string} format - Data export format
+     * @returns {Promise<boolean>} Success status
+     */
+    async setDataExportFormat(format) {
+        if (['json', 'csv'].includes(format)) {
+            return await this.set('dataExportFormat', format);
+        }
+        return false;
+    }
+
+    /**
+     * Get recent encounters
+     * @returns {Array} Recent encounters
+     */
+    getRecentEncounters() {
+        return this.get('recentEncounters');
+    }
+
+    /**
+     * Add encounter to recent encounters
+     * @param {string} encounterId - Encounter ID
+     * @returns {Promise<boolean>} Success status
+     */
+    async addRecentEncounter(encounterId) {
+        const recentEncounters = this.getRecentEncounters();
+        
+        // Remove if already exists
+        const index = recentEncounters.indexOf(encounterId);
+        if (index !== -1) {
+            recentEncounters.splice(index, 1);
+        }
+        
+        // Add to beginning
+        recentEncounters.unshift(encounterId);
+        
+        // Limit to 10 recent encounters
+        if (recentEncounters.length > 10) {
+            recentEncounters.pop();
+        }
+        
+        return await this.set('recentEncounters', recentEncounters);
+    }
+
+    /**
+     * Get pinned encounters
+     * @returns {Array} Pinned encounters
+     */
+    getPinnedEncounters() {
+        return this.get('pinnedEncounters');
+    }
+
+    /**
+     * Pin an encounter
+     * @param {string} encounterId - Encounter ID
+     * @returns {Promise<boolean>} Success status
+     */
+    async pinEncounter(encounterId) {
+        const pinnedEncounters = this.getPinnedEncounters();
+        
+        // Check if already pinned
+        if (pinnedEncounters.includes(encounterId)) {
+            return true;
+        }
+        
+        // Add to pinned encounters
+        pinnedEncounters.push(encounterId);
+        
+        return await this.set('pinnedEncounters', pinnedEncounters);
+    }
+
+    /**
+     * Unpin an encounter
+     * @param {string} encounterId - Encounter ID
+     * @returns {Promise<boolean>} Success status
+     */
+    async unpinEncounter(encounterId) {
+        const pinnedEncounters = this.getPinnedEncounters();
+        
+        // Remove from pinned encounters
+        const index = pinnedEncounters.indexOf(encounterId);
+        if (index !== -1) {
+            pinnedEncounters.splice(index, 1);
+            return await this.set('pinnedEncounters', pinnedEncounters);
+        }
+        
+        return false;
+    }
+
+    /**
+     * Get last view
+     * @returns {string} Last view
+     */
+    getLastView() {
+        return this.get('lastView');
+    }
+
+    /**
+     * Set last view
+     * @param {string} view - View name
+     * @returns {Promise<boolean>} Success status
+     */
+    async setLastView(view) {
+        return await this.set('lastView', view);
+    }
+
+    /**
+     * Check if sidebar is collapsed
+     * @returns {boolean} True if collapsed
+     */
+    isSidebarCollapsed() {
+        return this.get('sidebarCollapsed');
+    }
+
+    /**
+     * Set sidebar collapsed setting
+     * @param {boolean} collapsed - Whether sidebar is collapsed
+     * @returns {Promise<boolean>} Success status
+     */
+    async setSidebarCollapsed(collapsed) {
+        return await this.set('sidebarCollapsed', !!collapsed);
+    }
+
+    /**
+     * Get notes panel width
+     * @returns {number} Notes panel width in pixels
+     */
+    getNotesPanelWidth() {
+        return this.get('notesPanelWidth');
+    }
+
+    /**
+     * Set notes panel width
+     * @param {number} width - Notes panel width in pixels
+     * @returns {Promise<boolean>} Success status
+     */
+    async setNotesPanelWidth(width) {
+        return await this.set('notesPanelWidth', Math.max(200, Math.min(600, width)));
+    }
+
+    /**
+     * Check if stat blocks are enabled
+     * @returns {boolean} True if enabled
+     */
+    areStatBlocksEnabled() {
+        return this.get('statBlocksEnabled');
+    }
+
+    /**
+     * Set stat blocks enabled setting
+     * @param {boolean} enabled - Whether stat blocks are enabled
+     * @returns {Promise<boolean>} Success status
+     */
+    async setStatBlocksEnabled(enabled) {
+        return await this.set('statBlocksEnabled', !!enabled);
+    }
+
+    /**
+     * Export settings to JSON
+     * @returns {string} JSON string
+     */
+    exportToJSON() {
+        return JSON.stringify(this.settings, null, 2);
+    }
+
+    /**
+     * Import settings from JSON
+     * @param {string} json - JSON string
+     * @returns {Promise<boolean>} Success status
+     */
+    async importFromJSON(json) {
+        try {
+            const importedSettings = JSON.parse(json);
+            
+            // Validate settings
+            if (typeof importedSettings !== 'object') {
+                throw new Error('Invalid settings format');
+            }
+            
+            // Merge with current settings
+            this.settings = { ...this.settings, ...importedSettings };
+            
+            // Save settings
+            await this._saveSettings();
+            
+            return true;
+        } catch (error) {
+            console.error('Error importing settings:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Apply theme to document
+     */
+    applyTheme() {
+        const theme = this.getTheme();
+        const isDark = theme === 'dark' || (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        
+        // Set data-theme attribute on document element
+        document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+        
+        // Add/remove dark-theme class on body
+        if (isDark) {
+            document.body.classList.add('dark-theme');
+        } else {
+            document.body.classList.remove('dark-theme');
+        }
+    }
+
+    /**
+     * Apply font size to document
+     */
+    applyFontSize() {
+        const fontSize = this.getFontSize();
+        
+        // Remove existing font size classes
+        document.body.classList.remove('font-small', 'font-medium', 'font-large');
+        
+        // Add new font size class
+        document.body.classList.add(`font-${fontSize}`);
+    }
+
+    /**
+     * Apply all settings to document
+     */
+    applySettings() {
+        this.applyTheme();
+        this.applyFontSize();
+    }
+
+    /**
+     * Get settings categories
+     * @returns {Array} Settings categories
+     */
+    getSettingsCategories() {
+        return [
+            {
+                id: 'general',
+                name: 'General',
+                icon: 'settings',
+                settings: ['theme', 'fontSize', 'language', 'confirmBeforeDelete', 'autosaveInterval']
+            },
+            {
+                id: 'combat',
+                name: 'Combat',
+                icon: 'swords',
+                settings: ['initiativeSystem', 'groupSimilarMonsters', 'showDefeatedCombatants', 'highlightActiveTurn', 'autoRollMonsterInitiative', 'autoRollNPCInitiative', 'advantageMode']
+            },
+            {
+                id: 'timer',
+                name: 'Timer',
+                icon: 'clock',
+                settings: ['turnTimerEnabled', 'turnTimerDuration', 'turnTimerWarning', 'turnTimerAutoEnd', 'turnTimerSound']
+            },
+            {
+                id: 'dice',
+                name: 'Dice',
+                icon: 'dice',
+                settings: ['diceAnimationsEnabled', 'diceSoundEnabled', 'keepDiceHistory', 'maxDiceHistory']
+            },
+            {
+                id: 'audio',
+                name: 'Audio',
+                icon: 'volume',
+                settings: ['soundsEnabled', 'musicEnabled', 'volume', 'musicVolume']
+            },
+            {
+                id: 'display',
+                name: 'Display',
+                icon: 'monitor',
+                settings: ['showHPValues', 'showHPPercentage', 'showACValues', 'showInitiativeValues', 'showConditionIcons', 'statBlocksEnabled']
+            },
+            {
+                id: 'api',
+                name: 'API',
+                icon: 'cloud',
+                settings: ['openAIApiKey']
+            },
+            {
+                id: 'advanced',
+                name: 'Advanced',
+                icon: 'tool',
+                settings: ['debugMode', 'experimentalFeatures', 'dataExportFormat']
+            }
+        ];
+    }
+
+    /**
+     * Get setting metadata
+     * @param {string} key - Setting key
+     * @returns {Object|null} Setting metadata or null if not found
+     */
+    getSettingMetadata(key) {
+        const metadata = {
+                        theme: {
+                type: 'select',
+                label: 'Theme',
+                description: 'Application color theme',
+                options: [
+                    { value: 'light', label: 'Light' },
+                    { value: 'dark', label: 'Dark' },
+                    { value: 'auto', label: 'Auto (System)' }
+                ]
+            },
+            fontSize: {
+                type: 'select',
+                label: 'Font Size',
+                description: 'Application font size',
+                options: [
+                    { value: 'small', label: 'Small' },
+                    { value: 'medium', label: 'Medium' },
+                    { value: 'large', label: 'Large' }
+                ]
+            },
+            language: {
+                type: 'select',
+                label: 'Language',
+                description: 'Application language',
+                options: [
+                    { value: 'en', label: 'English' },
+                    { value: 'es', label: 'Español' },
+                    { value: 'fr', label: 'Français' },
+                    { value: 'de', label: 'Deutsch' }
+                ]
+            },
+            confirmBeforeDelete: {
+                type: 'boolean',
+                label: 'Confirm Before Delete',
+                description: 'Show confirmation dialog before deleting items'
+            },
+            autosaveInterval: {
+                type: 'number',
+                label: 'Autosave Interval',
+                description: 'Time between automatic saves (in seconds)',
+                min: 0,
+                max: 3600,
+                step: 10
+            },
+            initiativeSystem: {
+                type: 'select',
+                label: 'Initiative System',
+                description: 'System used for initiative order',
+                options: [
+                    { value: 'standard', label: 'Standard' },
+                    { value: 'group', label: 'Group' },
+                    { value: 'popcorn', label: 'Popcorn' },
+                    { value: 'side', label: 'Side Initiative' }
+                ]
+            },
+            groupSimilarMonsters: {
+                type: 'boolean',
+                label: 'Group Similar Monsters',
+                description: 'Group monsters of the same type in the initiative order'
+            },
+            showDefeatedCombatants: {
+                type: 'boolean',
+                label: 'Show Defeated Combatants',
+                description: 'Show defeated combatants in the initiative order'
+            },
+            highlightActiveTurn: {
+                type: 'boolean',
+                label: 'Highlight Active Turn',
+                description: 'Highlight the active combatant\'s turn'
+            },
+            autoRollMonsterInitiative: {
+                type: 'boolean',
+                label: 'Auto-Roll Monster Initiative',
+                description: 'Automatically roll initiative for monsters'
+            },
+            autoRollNPCInitiative: {
+                type: 'boolean',
+                label: 'Auto-Roll NPC Initiative',
+                description: 'Automatically roll initiative for NPCs'
+            },
+            advantageMode: {
+                type: 'select',
+                label: 'Advantage Mode',
+                description: 'Default advantage mode for rolls',
+                options: [
+                    { value: 'query', label: 'Ask Each Time' },
+                    { value: 'advantage', label: 'Always Advantage' },
+                    { value: 'disadvantage', label: 'Always Disadvantage' },
+                    { value: 'normal', label: 'Normal Roll' }
+                ]
+            },
+            turnTimerEnabled: {
+                type: 'boolean',
+                label: 'Enable Turn Timer',
+                description: 'Enable timer for combatant turns'
+            },
+            turnTimerDuration: {
+                type: 'number',
+                label: 'Turn Timer Duration',
+                description: 'Duration of turn timer (in seconds)',
+                min: 5,
+                max: 300,
+                step: 5
+            },
+            turnTimerWarning: {
+                type: 'number',
+                label: 'Turn Timer Warning',
+                description: 'Time remaining when warning is shown (in seconds)',
+                min: 1,
+                max: 60,
+                step: 1
+            },
+            turnTimerAutoEnd: {
+                type: 'boolean',
+                label: 'Auto-End Turn',
+                description: 'Automatically end turn when timer expires'
+            },
+            turnTimerSound: {
+                type: 'boolean',
+                label: 'Turn Timer Sound',
+                description: 'Play sound when turn timer expires'
+            },
+            diceAnimationsEnabled: {
+                type: 'boolean',
+                label: 'Dice Animations',
+                description: 'Show animations when rolling dice'
+            },
+            diceSoundEnabled: {
+                type: 'boolean',
+                label: 'Dice Sound',
+                description: 'Play sound when rolling dice'
+            },
+            keepDiceHistory: {
+                type: 'boolean',
+                label: 'Keep Dice History',
+                description: 'Save history of dice rolls'
+            },
+            maxDiceHistory: {
+                type: 'number',
+                label: 'Max Dice History',
+                description: 'Maximum number of dice rolls to keep in history',
+                min: 10,
+                max: 200,
+                step: 10
+            },
+            soundsEnabled: {
+                type: 'boolean',
+                label: 'Enable Sounds',
+                description: 'Enable sound effects'
+            },
+            musicEnabled: {
+                type: 'boolean',
+                label: 'Enable Music',
+                description: 'Enable background music'
+            },
+            volume: {
+                type: 'range',
+                label: 'Sound Volume',
+                description: 'Volume level for sound effects',
+                min: 0,
+                max: 1,
+                step: 0.1
+            },
+            musicVolume: {
+                type: 'range',
+                label: 'Music Volume',
+                description: 'Volume level for background music',
+                min: 0,
+                max: 1,
+                step: 0.1
+            },
+            showHPValues: {
+                type: 'boolean',
+                label: 'Show HP Values',
+                description: 'Show hit point values for combatants'
+            },
+            showHPPercentage: {
+                type: 'boolean',
+                label: 'Show HP Percentage',
+                description: 'Show hit point percentage for combatants'
+            },
+            showACValues: {
+                type: 'boolean',
+                label: 'Show AC Values',
+                description: 'Show armor class values for combatants'
+            },
+            showInitiativeValues: {
+                type: 'boolean',
+                label: 'Show Initiative Values',
+                description: 'Show initiative values for combatants'
+            },
+            showConditionIcons: {
+                type: 'boolean',
+                label: 'Show Condition Icons',
+                description: 'Show icons for conditions on combatants'
+            },
+            openAIApiKey: {
+                type: 'password',
+                label: 'OpenAI API Key',
+                description: 'API key for OpenAI integration'
+            },
+            debugMode: {
+                type: 'boolean',
+                label: 'Debug Mode',
+                description: 'Enable debug logging and features'
+            },
+            experimentalFeatures: {
+                type: 'boolean',
+                label: 'Experimental Features',
+                description: 'Enable experimental features'
+            },
+            dataExportFormat: {
+                type: 'select',
+                label: 'Data Export Format',
+                description: 'Format for exporting data',
+                options: [
+                    { value: 'json', label: 'JSON' },
+                    { value: 'csv', label: 'CSV' }
+                ]
+            },
+            statBlocksEnabled: {
+                type: 'boolean',
+                label: 'Enable Stat Blocks',
+                description: 'Show detailed stat blocks for monsters and characters'
+            }
+        };
+        
+        return metadata[key] || null;
+    }
+
+    /**
+     * Listen for system theme changes
+     */
+    listenForThemeChanges() {
+        // Only listen if theme is set to auto
+        if (this.getTheme() !== 'auto') return;
+        
+        // Listen for system theme changes
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+            this.applyTheme();
+        });
     }
 }
 
