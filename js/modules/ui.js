@@ -1,3042 +1,1667 @@
 /**
- * UI Manager for Jesster's Combat Tracker
- * Handles all UI-related functionality
+ * UI module for Jesster's Combat Tracker
+ * Handles user interface components, rendering, and interactions
  */
-class UIManager {
-    constructor(app) {
-        this.app = app;
-        this.modals = [];
-        this.templates = {};
-        this.playerViewSettings = {
-            hpDisplay: 'descriptive', // 'descriptive', 'exact', 'hidden'
-            theme: 'default',
-            customBackground: ''
-        };
-        this.hotbarActions = [];
-        console.log("UI Manager initialized");
+class UI {
+    constructor(settings) {
+        // Store reference to the settings module
+        this.settings = settings;
+        
+        // UI state
+        this.activeTab = 'combat';
+        this.modalStack = [];
+        this.toastQueue = [];
+        this.isProcessingToasts = false;
+        this.draggedElement = null;
+        this.dropTarget = null;
+        this.resizeObservers = [];
+        this.tooltips = [];
+        
+        // UI elements cache
+        this.elements = {};
+        
+        // Event handlers
+        this.eventHandlers = {};
+        
+        console.log("UI module initialized");
     }
-    
+
     /**
-     * Initialize the UI manager
+     * Initialize the UI
+     * @param {Object} appElements - Main app elements
      */
-    async init() {
-        // Load templates
-        this.loadTemplates();
-        
-        // Load player view settings
-        this.loadPlayerViewSettings();
-        
-        // Add event listeners for dynamic elements
-        this.addDynamicEventListeners();
-        
-        // Create hotbar
-        this.createHotbar();
-        
-        console.log("UI Manager initialized");
-    }
-    
-    /**
-     * Load HTML templates
-     */
-    loadTemplates() {
-        // Get all templates
-        const templateElements = document.querySelectorAll('template');
-        
-        // Store each template by ID
-        templateElements.forEach(template => {
-            const id = template.id.replace('-template', '');
-            this.templates[id] = template.innerHTML;
-        });
-    }
-    
-    /**
-     * Load player view settings
-     */
-    loadPlayerViewSettings() {
-        const settings = this.app.storage.loadData('playerViewSettings', null);
-        if (settings) {
-            this.playerViewSettings = { ...this.playerViewSettings, ...settings };
-        }
-    }
-    
-    /**
-     * Save player view settings
-     */
-    savePlayerViewSettings() {
-        this.app.storage.saveData('playerViewSettings', this.playerViewSettings);
-    }
-    
-    /**
-     * Add event listeners for dynamically created elements
-     */
-    addDynamicEventListeners() {
-        // Use event delegation for dynamically created elements
-        document.addEventListener('click', (event) => {
-            // Edit button
-            if (event.target.closest('.edit-btn')) {
-                const btn = event.target.closest('.edit-btn');
-                const creatureId = btn.dataset.creatureId;
-                this.openEditCreatureModal(creatureId);
-            }
-            
-            // Stat Block button
-            if (event.target.closest('.stat-block-btn')) {
-                const btn = event.target.closest('.stat-block-btn');
-                const creatureId = btn.dataset.creatureId;
-                this.openStatBlockModal(creatureId);
-            }
-            
-            // Damage button
-            if (event.target.closest('.damage-btn')) {
-                const btn = event.target.closest('.damage-btn');
-                const creatureId = btn.dataset.creatureId;
-                this.app.damage.openDamageModal(creatureId);
-            }
-            
-            // Heal button
-            if (event.target.closest('.heal-btn')) {
-                const btn = event.target.closest('.heal-btn');
-                const creatureId = btn.dataset.creatureId;
-                this.app.damage.openHealModal(creatureId);
-            }
-            
-            // Remove button
-            if (event.target.closest('.remove-btn')) {
-                const btn = event.target.closest('.remove-btn');
-                const creatureId = btn.dataset.creatureId;
-                const creature = this.app.combat.getCreatureById(creatureId);
-                
-                if (creature) {
-                    this.app.showConfirm(`Are you sure you want to remove ${creature.name} from combat?`, () => {
-                        this.app.combat.removeCreature(creatureId);
-                    });
-                }
-            }
-            
-            // Creature card (for context menu)
-            if (event.target.closest('.creature-card')) {
-                const card = event.target.closest('.creature-card');
-                // Only handle right-click in a separate handler
-                if (!event.target.closest('.edit-btn') && 
-                    !event.target.closest('.stat-block-btn') &&
-                    !event.target.closest('.damage-btn') && 
-                    !event.target.closest('.heal-btn') && 
-                    !event.target.closest('.remove-btn')) {
-                    // Handle left-click on creature card
-                    // For example, show details or select the creature
-                }
-            }
-            
-            // Roll attack button
-            if (event.target.closest('.roll-attack-btn')) {
-                const btn = event.target.closest('.roll-attack-btn');
-                const creatureId = btn.dataset.creatureId;
-                const actionName = btn.dataset.actionName;
-                const creature = this.app.combat.getCreatureById(creatureId);
-                if (creature) {
-                    this.rollMonsterAttack(creature, actionName);
-                }
-            }
-            
-            // Death save button
-            if (event.target.closest('.death-save-btn')) {
-                const btn = event.target.closest('.death-save-btn');
-                const creatureId = btn.dataset.creatureId;
-                this.app.combat.handleDeathSavingThrow(creatureId);
-            }
-            
-            // Concentration check button
-            if (event.target.closest('.concentration-check-btn')) {
-                const btn = event.target.closest('.concentration-check-btn');
-                const creatureId = btn.dataset.creatureId;
-                const dc = parseInt(btn.dataset.dc) || 10;
-                this.app.combat.checkConcentration(creatureId, dc * 2); // DC = damage/2, so multiply by 2
-            }
-            
-            // Legendary action button
-            if (event.target.closest('.legendary-action-btn')) {
-                const btn = event.target.closest('.legendary-action-btn');
-                const creatureId = btn.dataset.creatureId;
-                const used = parseInt(btn.dataset.used) || 0;
-                this.app.combat.trackLegendaryActions(creatureId, used);
-            }
-            
-            // Lair action button
-            if (event.target.closest('.lair-action-btn')) {
-                const btn = event.target.closest('.lair-action-btn');
-                const lairActionId = btn.dataset.lairActionId;
-                this.app.combat.useLairAction(lairActionId);
-            }
-            
-            // Hotbar action button
-            if (event.target.closest('.hotbar-action-btn')) {
-                const btn = event.target.closest('.hotbar-action-btn');
-                const actionIndex = parseInt(btn.dataset.actionIndex);
-                this.executeHotbarAction(actionIndex);
-            }
-        });
-        
-        // Context menu for creature cards
-        document.addEventListener('contextmenu', (event) => {
-            const card = event.target.closest('.creature-card');
-            if (card) {
-                event.preventDefault();
-                const creatureId = card.dataset.id;
-                this.showCreatureContextMenu(creatureId, event.clientX, event.clientY);
-            }
-        });
-    }
-    
-    /**
-     * Render all creatures
-     */
-    renderCreatures() {
-        const container = document.getElementById('creatures-container');
-        if (!container) return;
-        
-        const creatures = this.app.combat.getAllCreatures();
-        
-        if (creatures.length === 0) {
-            container.innerHTML = `
-                <div class="text-center text-gray-400 py-8">
-                    No creatures added yet. Click "Add Hero" or "Add Monster" to begin.
-                </div>
-            `;
-            return;
-        }
-        
-        container.innerHTML = '';
-        
-        creatures.forEach(creature => {
-            const hpPercentage = Math.max(0, Math.min(100, (creature.currentHp / creature.maxHp) * 100));
-            const typeIcon = creature.type === 'hero' ? '👤' : '👹';
-            
-            // Handle conditions
-            let conditionsHtml = '';
-            if (creature.conditions && creature.conditions.length > 0) {
-                conditionsHtml = creature.conditions.map(condition => {
-                    const name = typeof condition === 'string' ? condition : condition.name;
-                    const rounds = typeof condition === 'string' ? null : condition.roundsLeft;
-                    return `<span class="bg-yellow-600 text-yellow-100 px-1 py-0.5 rounded-full text-xs">${name}${rounds !== null ? ` (${rounds})` : ''}</span>`;
-                }).join(' ');
-            } else {
-                conditionsHtml = '<span class="text-gray-400 text-xs">None</span>';
-            }
-            
-            // Handle character image
-            let imageHtml = '';
-            if (creature.imageUrl) {
-                imageHtml = `<img src="${creature.imageUrl}" alt="${creature.name}" class="character-image mr-2">`;
-            }
-            
-            // Handle source badge
-            let sourceHtml = '';
-            if (creature.source) {
-                sourceHtml = `<span class="ml-2 text-xs bg-gray-600 text-gray-300 px-2 py-1 rounded">${creature.source}</span>`;
-            }
-            
-            // Handle monster details
-            let monsterDetailsHtml = '';
-            if (creature.cr) {
-                monsterDetailsHtml = `
-                    <div class="mt-2 text-xs text-gray-400">
-                        <span>CR ${creature.cr}</span>
-                        ${creature.size ? ` • <span>${creature.size}</span>` : ''}
-                        ${creature.alignment ? ` • <span>${creature.alignment}</span>` : ''}
-                    </div>
-                `;
-            }
-            
-            // Handle concentration
-            let concentrationHtml = '';
-            if (creature.concentration) {
-                concentrationHtml = `
-                    <div class="mt-2 flex items-center">
-                        <span class="bg-purple-600 text-purple-100 px-2 py-0.5 rounded-full text-xs">
-                            Concentrating: ${creature.concentration.spell}
-                        </span>
-                        <button class="concentration-check-btn ml-2 bg-purple-700 hover:bg-purple-800 text-white text-xs py-0.5 px-2 rounded" 
-                            data-creature-id="${creature.id}" data-dc="10">
-                            Check (DC 10)
-                        </button>
-                    </div>
-                `;
-            }
-            
-            // Handle death saves for heroes
-            let deathSavesHtml = '';
-            if (creature.type === 'hero' && creature.currentHp === 0 && creature.deathSaves) {
-                deathSavesHtml = `
-                    <div class="mt-2">
-                        <div class="flex items-center justify-between">
-                            <span class="text-xs text-gray-400">Death Saves:</span>
-                            <button class="death-save-btn bg-red-600 hover:bg-red-700 text-white text-xs py-0.5 px-2 rounded" 
-                                data-creature-id="${creature.id}">
-                                Roll
-                            </button>
-                        </div>
-                        <div class="flex space-x-1 mt-1">
-                            <div class="flex space-x-0.5">
-                                ${Array(3).fill(0).map((_, i) => `
-                                    <span class="w-4 h-4 flex items-center justify-center ${i < creature.deathSaves.successes ? 'bg-green-600' : 'bg-gray-700'} rounded-full text-xs">
-                                        ${i < creature.deathSaves.successes ? '✓' : ''}
-                                    </span>
-                                `).join('')}
-                            </div>
-                            <span class="text-xs mx-1">|</span>
-                            <div class="flex space-x-0.5">
-                                ${Array(3).fill(0).map((_, i) => `
-                                    <span class="w-4 h-4 flex items-center justify-center ${i < creature.deathSaves.failures ? 'bg-red-600' : 'bg-gray-700'} rounded-full text-xs">
-                                        ${i < creature.deathSaves.failures ? '✗' : ''}
-                                    </span>
-                                `).join('')}
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }
-            
-            // Handle legendary actions for monsters
-            let legendaryActionsHtml = '';
-            if (creature.type === 'monster' && creature.legendaryActions) {
-                legendaryActionsHtml = `
-                    <div class="mt-2">
-                        <div class="flex items-center justify-between">
-                            <span class="text-xs text-gray-400">Legendary Actions:</span>
-                            <div class="flex space-x-1">
-                                ${Array(creature.legendaryActions.max).fill(0).map((_, i) => `
-                                    <button class="legendary-action-btn w-6 h-6 flex items-center justify-center 
-                                        ${i < creature.legendaryActions.used ? 'bg-gray-600' : 'bg-gray-800 hover:bg-gray-700'} rounded" 
-                                        data-creature-id="${creature.id}" data-used="${i + 1}">
-                                        ${i + 1}
-                                    </button>
-                                `).join('')}
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }
-            
-            const cardElement = document.createElement('div');
-            cardElement.className = 'creature-card bg-gray-700 rounded-lg shadow mb-4 p-3';
-            cardElement.dataset.id = creature.id;
-            
-            cardElement.innerHTML = `
-                <div class="flex justify-between items-center mb-2">
-                    <div class="flex items-center">
-                        ${imageHtml}
-                        <span class="text-xl font-bold">${typeIcon} ${creature.name}</span>
-                        ${sourceHtml}
-                    </div>
-                    <div class="flex space-x-1">
-                        <button class="edit-btn bg-blue-600 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded text-xs" data-creature-id="${creature.id}">
-                            Edit
-                        </button>
-                        ${creature.type === 'monster' && (creature.actions || creature.specialAbilities) ? `
-                        <button class="stat-block-btn bg-purple-600 hover:bg-purple-700 text-white font-bold py-1 px-2 rounded text-xs" data-creature-id="${creature.id}">
-                            Stat Block
-                        </button>
-                        ` : ''}
-                        <button class="damage-btn bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-2 rounded text-xs" data-creature-id="${creature.id}">
-                            Damage
-                        </button>
-                        <button class="heal-btn bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-2 rounded text-xs" data-creature-id="${creature.id}">
-                            Heal
-                        </button>
-                        <button class="remove-btn bg-gray-600 hover:bg-gray-700 text-white font-bold py-1 px-2 rounded text-xs" data-creature-id="${creature.id}">
-                            Remove
-                        </button>
-                    </div>
-                </div>
-                
-                <div class="grid grid-cols-2 gap-2 mb-2">
-                    <div>
-                        <div class="text-xs text-gray-400">HP</div>
-                        <div class="flex items-center">
-                            <span class="font-semibold">${creature.currentHp}/${creature.maxHp}</span>
-                            <div class="ml-2 flex-1 hp-bar bg-gray-600">
-                                <div class="bg-green-600 h-full" style="width: ${hpPercentage}%"></div>
-                            </div>
-                        </div>
-                    </div>
-                    <div>
-                        <div class="text-xs text-gray-400">AC</div>
-                        <div class="font-semibold">${creature.ac}</div>
-                    </div>
-                </div>
-                
-                <div class="grid grid-cols-2 gap-2 mb-2">
-                    <div>
-                        <div class="text-xs text-gray-400">Initiative</div>
-                        <div class="font-semibold">${creature.initiative !== null ? creature.initiative : '-'}</div>
-                    </div>
-                    <div>
-                        <div class="text-xs text-gray-400">Conditions</div>
-                        <div class="flex flex-wrap gap-1">
-                            ${conditionsHtml}
-                        </div>
-                    </div>
-                </div>
-                
-                ${monsterDetailsHtml}
-                ${concentrationHtml}
-                ${deathSavesHtml}
-                ${legendaryActionsHtml}
-            `;
-            
-            container.appendChild(cardElement);
-            
-            // Highlight the current turn
-            if (this.app.state.combatStarted && this.app.state.currentTurn === creature.id) {
-                cardElement.classList.add('ring-2', 'ring-blue-500');
-            }
-        });
-    }
-    
-        /**
-     * Render the initiative order
-     */
-    renderInitiativeOrder() {
-        const container = document.getElementById('initiative-container');
-        if (!container) return;
-        
-        const creatures = this.app.combat.getInitiativeOrder();
-        
-        if (creatures.length === 0) {
-            container.innerHTML = `
-                <div class="text-center text-gray-400 py-4">
-                    No initiative rolled yet
-                </div>
-            `;
-            return;
-        }
-        
-        container.innerHTML = '';
-        
-        // Add lair actions if any
-        if (this.app.combat.lairActions && this.app.combat.lairActions.length > 0) {
-            this.app.combat.lairActions.forEach(lairAction => {
-                const isActive = this.app.state.combatStarted && 
-                                 this.app.state.currentTurn === null && 
-                                 !lairAction.used;
-                
-                const itemElement = document.createElement('div');
-                itemElement.className = `initiative-item p-2 mb-1 rounded flex justify-between items-center ${isActive ? 'bg-red-900' : 'bg-gray-700'}`;
-                
-                itemElement.innerHTML = `
-                    <div class="flex items-center">
-                        <span class="w-6 h-6 flex items-center justify-center bg-red-800 rounded-full text-sm mr-2">L</span>
-                        <span>⚡ ${lairAction.name}</span>
-                    </div>
-                    <div class="flex items-center">
-                        <div class="font-bold mr-2">${lairAction.initiative}</div>
-                        <button class="lair-action-btn bg-red-700 hover:bg-red-800 text-white text-xs py-1 px-2 rounded ${lairAction.used ? 'opacity-50 cursor-not-allowed' : ''}" 
-                            data-lair-action-id="${lairAction.id}" ${lairAction.used ? 'disabled' : ''}>
-                            ${lairAction.used ? 'Used' : 'Use'}
-                        </button>
-                    </div>
-                `;
-                
-                container.appendChild(itemElement);
-            });
-        }
-        
-        // Add creatures
-        creatures.forEach((creature, index) => {
-            const typeIcon = creature.type === 'hero' ? '👤' : '👹';
-            const isActive = this.app.state.combatStarted && this.app.state.currentTurn === creature.id;
-            
-            // Handle character image
-            let imageHtml = '';
-            if (creature.imageUrl) {
-                imageHtml = `<img src="${creature.imageUrl}" alt="${creature.name}" class="character-image w-6 h-6 mr-2">`;
-            }
-            
-            const itemElement = document.createElement('div');
-            itemElement.className = `initiative-item p-2 mb-1 rounded flex justify-between items-center ${isActive ? 'bg-blue-900' : 'bg-gray-700'}`;
-            
-            itemElement.innerHTML = `
-                <div class="flex items-center">
-                    <span class="w-6 h-6 flex items-center justify-center bg-gray-600 rounded-full text-sm mr-2">${index + 1}</span>
-                    ${imageHtml}
-                    <span>${typeIcon} ${creature.name}</span>
-                </div>
-                <div class="font-bold">${creature.initiative}</div>
-            `;
-            
-            container.appendChild(itemElement);
-        });
-    }
-    
-    /**
-     * Render the combat log
-     */
-    renderCombatLog() {
-        const container = document.getElementById('combat-log');
-        if (!container) return;
-        
-        const log = this.app.state.combatLog;
-        
-        if (log.length === 0) {
-            container.innerHTML = `<div class="text-gray-400">Combat log will appear here...</div>`;
-            return;
-        }
-        
-        container.innerHTML = '';
-        
-        log.forEach(entry => {
-            const entryElement = document.createElement('div');
-            entryElement.className = 'log-entry text-sm';
-            entryElement.textContent = entry;
-            container.appendChild(entryElement);
-        });
-        
-        // Scroll to bottom
-        container.scrollTop = container.scrollHeight;
-    }
-    
-    /**
-     * Open the monster stat block modal
-     * @param {string} creatureId - The ID of the creature
-     */
-    openStatBlockModal(creatureId) {
-        const creature = this.app.combat.getCreatureById(creatureId);
-        if (!creature || creature.type !== 'monster') return;
-        
-        // Get additional monster data if available
-        const monsterData = creature;
-        
-        // Format ability scores with modifiers
-        const formatAbilityScore = (score) => {
-            const modifier = Math.floor((score - 10) / 2);
-            const sign = modifier >= 0 ? '+' : '';
-            return `${score} (${sign}${modifier})`;
+    init(appElements = {}) {
+        // Store references to main app elements
+        this.elements = {
+            ...appElements,
+            body: document.body,
+            app: document.getElementById('app') || document.body,
+            modal: document.getElementById('modal-container'),
+            toast: document.getElementById('toast-container')
         };
         
-        // Format actions with attack buttons
-        const formatActions = (actions) => {
-            if (!actions || actions.length === 0) return '<div class="text-gray-400">No actions available</div>';
-            
-            return actions.map(action => {
-                // Check if this is an attack action
-                const isAttack = action.desc && (action.desc.includes('Attack:') || action.desc.includes('Hit:'));
-                const attackButton = isAttack ? 
-                    `<button class="roll-attack-btn bg-red-600 hover:bg-red-700 text-white text-xs py-1 px-2 rounded ml-2" 
-                        data-creature-id="${creature.id}" 
-                        data-action-name="${action.name}">
-                        Roll Attack
-                    </button>` : '';
-                
-                return `
-                    <div class="mb-3">
-                        <div class="font-semibold flex justify-between">
-                            ${action.name}
-                            ${attackButton}
-                        </div>
-                        <div class="text-sm">${action.desc}</div>
-                    </div>
-                `;
-            }).join('');
-        };
+        // Create UI containers if they don't exist
+        this._createUIContainers();
         
-        // Get ability scores
-        const str = monsterData.abilities?.str || monsterData.str || 10;
-        const dex = monsterData.abilities?.dex || monsterData.dex || 10;
-        const con = monsterData.abilities?.con || monsterData.con || 10;
-        const int = monsterData.abilities?.int || monsterData.int || 10;
-        const wis = monsterData.abilities?.wis || monsterData.wis || 10;
-        const cha = monsterData.abilities?.cha || monsterData.cha || 10;
+        // Apply theme from settings
+        this.settings.applyTheme();
         
-        const modal = this.createModal({
-            title: `${creature.name} - Stat Block`,
-            content: `
-                <div class="space-y-4 stat-block">
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <h3 class="text-xl font-bold">${creature.name}</h3>
-                            <div class="text-gray-400">
-                                ${monsterData.size || ''} ${monsterData.type || 'monster'}, ${monsterData.alignment || 'unaligned'}
-                            </div>
-                        </div>
-                        ${creature.imageUrl ? `<img src="${creature.imageUrl}" alt="${creature.name}" class="w-20 h-20 rounded object-cover">` : ''}
-                    </div>
-                    
-                    <hr class="border-gray-600">
-                    
-                    <div class="grid grid-cols-2 gap-2">
-                        <div><span class="font-semibold">Armor Class:</span> ${creature.ac}</div>
-                        <div><span class="font-semibold">Hit Points:</span> ${creature.currentHp}/${creature.maxHp}</div>
-                        <div><span class="font-semibold">Speed:</span> ${monsterData.speed || 'Unknown'}</div>
-                        <div><span class="font-semibold">Challenge Rating:</span> ${monsterData.cr || 'Unknown'}</div>
-                    </div>
-                    
-                    <hr class="border-gray-600">
-                    
-                    <div class="grid grid-cols-6 gap-2 text-center">
-                        <div>
-                            <div class="font-semibold">STR</div>
-                            <div>${formatAbilityScore(str)}</div>
-                        </div>
-                        <div>
-                            <div class="font-semibold">DEX</div>
-                            <div>${formatAbilityScore(dex)}</div>
-                        </div>
-                        <div>
-                            <div class="font-semibold">CON</div>
-                            <div>${formatAbilityScore(con)}</div>
-                        </div>
-                        <div>
-                            <div class="font-semibold">INT</div>
-                            <div>${formatAbilityScore(int)}</div>
-                        </div>
-                        <div>
-                            <div class="font-semibold">WIS</div>
-                            <div>${formatAbilityScore(wis)}</div>
-                        </div>
-                        <div>
-                            <div class="font-semibold">CHA</div>
-                            <div>${formatAbilityScore(cha)}</div>
-                        </div>
-                    </div>
-                    
-                    <hr class="border-gray-600">
-                    
-                    <div class="grid grid-cols-2 gap-2 text-sm">
-                        ${monsterData.senses ? `<div><span class="font-semibold">Senses:</span> ${monsterData.senses}</div>` : ''}
-                        ${monsterData.languages ? `<div><span class="font-semibold">Languages:</span> ${monsterData.languages}</div>` : ''}
-                        ${monsterData.damageVulnerabilities ? `<div><span class="font-semibold">Vulnerabilities:</span> ${monsterData.damageVulnerabilities}</div>` : ''}
-                        ${monsterData.damageResistances ? `<div><span class="font-semibold">Resistances:</span> ${monsterData.damageResistances}</div>` : ''}
-                        ${monsterData.damageImmunities ? `<div><span class="font-semibold">Immunities:</span> ${monsterData.damageImmunities}</div>` : ''}
-                        ${monsterData.conditionImmunities ? `<div><span class="font-semibold">Condition Immunities:</span> ${monsterData.conditionImmunities}</div>` : ''}
-                    </div>
-                    
-                    ${monsterData.specialAbilities && monsterData.specialAbilities.length > 0 ? `
-                        <hr class="border-gray-600">
-                        <div>
-                            <h4 class="font-bold mb-2">Special Abilities</h4>
-                            ${formatActions(monsterData.specialAbilities)}
-                        </div>
-                    ` : ''}
-                    
-                    ${monsterData.actions && monsterData.actions.length > 0 ? `
-                        <hr class="border-gray-600">
-                        <div>
-                            <h4 class="font-bold mb-2">Actions</h4>
-                            ${formatActions(monsterData.actions)}
-                        </div>
-                    ` : ''}
-                    
-                    ${monsterData.legendaryActions && monsterData.legendaryActions.length > 0 ? `
-                        <hr class="border-gray-600">
-                        <div>
-                            <h4 class="font-bold mb-2">Legendary Actions</h4>
-                            ${formatActions(monsterData.legendaryActions)}
-                        </div>
-                    ` : ''}
-                    
-                    <div class="flex justify-between mt-4">
-                        <button id="add-to-hotbar-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded">
-                            Add to Hotbar
-                        </button>
-                        <button id="close-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
-                            Close
-                        </button>
-                    </div>
-                </div>
-            `,
-            width: 'max-w-3xl'
-        });
+        // Initialize tooltips
+        this._initTooltips();
         
-        // Add event listeners
-        const closeBtn = modal.querySelector('#close-btn');
-        closeBtn.addEventListener('click', () => {
-            this.closeModal(modal.parentNode);
-        });
+        // Initialize tab navigation
+        this._initTabNavigation();
         
-        // Add to hotbar button
-        const addToHotbarBtn = modal.querySelector('#add-to-hotbar-btn');
-        if (addToHotbarBtn) {
-            addToHotbarBtn.addEventListener('click', () => {
-                this.addToHotbar({
-                    type: 'statBlock',
-                    creatureId: creature.id,
-                    label: creature.name.substring(0, 1),
-                    tooltip: `${creature.name} Stat Block`
-                });
-                this.app.showAlert(`Added ${creature.name} to the hotbar.`);
-            });
+        // Initialize global event listeners
+        this._initEventListeners();
+    }
+
+    /**
+     * Create UI containers if they don't exist
+     * @private
+     */
+    _createUIContainers() {
+        // Create modal container if it doesn't exist
+        if (!this.elements.modal) {
+            const modalContainer = document.createElement('div');
+            modalContainer.id = 'modal-container';
+            modalContainer.className = 'modal-container hidden';
+            document.body.appendChild(modalContainer);
+            this.elements.modal = modalContainer;
         }
         
-        // Add event listeners for attack rolls
-        modal.querySelectorAll('.roll-attack-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const actionName = btn.dataset.actionName;
-                this.rollMonsterAttack(creature, actionName);
+        // Create toast container if it doesn't exist
+        if (!this.elements.toast) {
+            const toastContainer = document.createElement('div');
+            toastContainer.id = 'toast-container';
+            toastContainer.className = 'toast-container';
+            document.body.appendChild(toastContainer);
+            this.elements.toast = toastContainer;
+        }
+    }
+
+    /**
+     * Initialize tooltips
+     * @private
+     */
+    _initTooltips() {
+        // Clear existing tooltips
+        this.tooltips.forEach(tooltip => {
+            if (tooltip.element) {
+                tooltip.element.removeEventListener('mouseenter', tooltip.mouseEnterHandler);
+                tooltip.element.removeEventListener('mouseleave', tooltip.mouseLeaveHandler);
+                tooltip.element.removeEventListener('focus', tooltip.mouseEnterHandler);
+                tooltip.element.removeEventListener('blur', tooltip.mouseLeaveHandler);
+            }
+        });
+        this.tooltips = [];
+        
+        // Find all elements with data-tooltip attribute
+        const tooltipElements = document.querySelectorAll('[data-tooltip]');
+        
+        tooltipElements.forEach(element => {
+            const tooltip = element.getAttribute('data-tooltip');
+            if (!tooltip) return;
+            
+            const mouseEnterHandler = () => this.showTooltip(element, tooltip);
+            const mouseLeaveHandler = () => this.hideTooltip(element);
+            
+            element.addEventListener('mouseenter', mouseEnterHandler);
+            element.addEventListener('mouseleave', mouseLeaveHandler);
+            element.addEventListener('focus', mouseEnterHandler);
+            element.addEventListener('blur', mouseLeaveHandler);
+            
+            this.tooltips.push({
+                element,
+                mouseEnterHandler,
+                mouseLeaveHandler
             });
         });
     }
-    
+
     /**
-     * Roll a monster attack
-     * @param {Object} monster - The monster
-     * @param {string} actionName - The name of the action
+     * Initialize tab navigation
+     * @private
      */
-    rollMonsterAttack(monster, actionName) {
-        // Find the action
-        const action = monster.actions?.find(a => a.name === actionName) || 
-                      monster.specialAbilities?.find(a => a.name === actionName) ||
-                      monster.legendaryActions?.find(a => a.name === actionName);
+    _initTabNavigation() {
+        // Find all tab navigation links
+        const tabLinks = document.querySelectorAll('[data-tab-link]');
         
-        if (!action) return;
+        tabLinks.forEach(link => {
+            const tabId = link.getAttribute('data-tab-link');
+            if (!tabId) return;
+            
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.switchTab(tabId);
+            });
+        });
         
-        // Parse attack bonus from description
-        const attackBonusMatch = action.desc.match(/\+(\d+) to hit/);
-        const attackBonus = attackBonusMatch ? parseInt(attackBonusMatch[1]) : 0;
+        // Activate default tab
+        this.switchTab(this.activeTab);
+    }
+
+    /**
+     * Initialize global event listeners
+     * @private
+     */
+    _initEventListeners() {
+        // Listen for keyboard shortcuts
+        document.addEventListener('keydown', this._handleKeyDown.bind(this));
         
-        // Parse damage from description
-        const damageMatch = action.desc.match(/(\d+d\d+(?:\s*\+\s*\d+)?) (\w+) damage/);
-        const damageDice = damageMatch ? damageMatch[1].replace(/\s+/g, '') : null;
-        const damageType = damageMatch ? damageMatch[2] : null;
+        // Listen for resize events
+        window.addEventListener('resize', this._handleResize.bind(this));
         
-        // Roll attack
-        const attackRoll = this.app.dice.roll(20);
-        const isCrit = attackRoll.rolls[0] === 20;
-        const isFumble = attackRoll.rolls[0] === 1;
-        const attackTotal = isFumble ? 0 : (attackRoll.total + attackBonus);
+        // Listen for visibility change
+        document.addEventListener('visibilitychange', this._handleVisibilityChange.bind(this));
         
-        // Roll damage if applicable
-        let damageRoll = null;
-        if (damageDice) {
-            damageRoll = this.app.dice.roll(damageDice);
-            // Double damage dice on crit
-            if (isCrit) {
-                const critDamageRoll = this.app.dice.roll(damageDice);
-                damageRoll.rolls = [...damageRoll.rolls, ...critDamageRoll.rolls];
-                damageRoll.total = damageRoll.total + critDamageRoll.total;
-            }
+        // Listen for online/offline events
+        window.addEventListener('online', this._handleOnlineStatus.bind(this));
+        window.addEventListener('offline', this._handleOnlineStatus.bind(this));
+    }
+
+    /**
+     * Handle keyboard shortcuts
+     * @private
+     * @param {KeyboardEvent} event - Keyboard event
+     */
+    _handleKeyDown(event) {
+        // Close modal with Escape key
+        if (event.key === 'Escape' && this.modalStack.length > 0) {
+            this.closeModal();
+            event.preventDefault();
+            return;
         }
         
-        // Display results
-        let resultMessage = `<div class="text-xl font-bold">${monster.name} uses ${actionName}</div>`;
-        
-        if (isCrit) {
-            resultMessage += `<div class="text-green-400 font-bold">CRITICAL HIT!</div>`;
-        } else if (isFumble) {
-            resultMessage += `<div class="text-red-400 font-bold">CRITICAL MISS!</div>`;
+        // Dispatch event to registered handlers
+        if (this.eventHandlers.keydown) {
+            this.eventHandlers.keydown.forEach(handler => handler(event));
         }
+    }
+
+    /**
+     * Handle window resize
+     * @private
+     */
+    _handleResize() {
+        // Notify resize observers
+        this.resizeObservers.forEach(observer => observer());
         
-        resultMessage += `<div>Attack roll: ${attackRoll.rolls[0]} + ${attackBonus} = ${attackTotal}</div>`;
-        
-        if (damageRoll) {
-            resultMessage += `<div>Damage${isCrit ? ' (critical)' : ''}: ${damageRoll.rolls.join(' + ')} = ${damageRoll.total} ${damageType}</div>`;
+        // Dispatch event to registered handlers
+        if (this.eventHandlers.resize) {
+            this.eventHandlers.resize.forEach(handler => handler());
         }
+    }
+
+    /**
+     * Handle visibility change
+     * @private
+     */
+    _handleVisibilityChange() {
+        const isVisible = document.visibilityState === 'visible';
         
-        // Show the result
-        this.app.showAlert(resultMessage, `${monster.name} - ${actionName}`);
+        // Dispatch event to registered handlers
+        if (this.eventHandlers.visibilityChange) {
+            this.eventHandlers.visibilityChange.forEach(handler => handler(isVisible));
+        }
+    }
+
+    /**
+     * Handle online/offline status
+     * @private
+     */
+    _handleOnlineStatus() {
+        const isOnline = navigator.onLine;
         
-        // Log the event
-        this.app.logEvent(`${monster.name} uses ${actionName}: ${attackTotal} to hit${damageRoll ? `, ${damageRoll.total} ${damageType} damage` : ''}`);
-        
-        // Play sound
-        if (isCrit) {
-            this.app.audio.play('criticalHit');
-        } else if (isFumble) {
-            this.app.audio.play('miss');
+        // Show toast notification
+        if (isOnline) {
+            this.showToast('You are back online', 'success');
         } else {
-            this.app.audio.play('hit');
-        }
-    }
-    
-    /**
-     * Open the initiative management modal
-     */
-    openInitiativeManagementModal() {
-        const creatures = this.app.combat.getAllCreatures();
-        
-        if (creatures.length === 0) {
-            this.app.showAlert('No creatures to manage initiative for.');
-            return;
+            this.showToast('You are offline. Some features may be unavailable.', 'warning', 0);
         }
         
-        const modal = this.createModal({
-            title: 'Manage Initiative Order',
-            content: `
-                <div class="space-y-4">
-                    <p class="text-sm text-gray-400">Edit initiative values directly or use the up/down buttons to reorder.</p>
-                    
-                    <div id="initiative-list" class="space-y-2">
-                        ${creatures.map((creature, index) => `
-                            <div class="initiative-item bg-gray-700 p-2 rounded flex justify-between items-center" data-id="${creature.id}">
-                                <div class="flex items-center">
-                                    <span>${creature.type === 'hero' ? '👤' : '👹'} ${creature.name}</span>
-                                </div>
-                                <div class="flex items-center space-x-2">
-                                    <input type="number" class="initiative-input bg-gray-600 text-white w-16 px-2 py-1 rounded" 
-                                        value="${creature.initiative !== null ? creature.initiative : ''}" 
-                                        placeholder="Init">
-                                    <div class="flex flex-col">
-                                        <button class="move-up-btn text-xs bg-gray-600 hover:bg-gray-500 px-2 py-0.5 rounded-t ${index === 0 ? 'opacity-50 cursor-not-allowed' : ''}" 
-                                            ${index === 0 ? 'disabled' : ''}>▲</button>
-                                        <button class="move-down-btn text-xs bg-gray-600 hover:bg-gray-500 px-2 py-0.5 rounded-b ${index === creatures.length - 1 ? 'opacity-50 cursor-not-allowed' : ''}" 
-                                            ${index === creatures.length - 1 ? 'disabled' : ''}>▼</button>
-                                    </div>
-                                </div>
-                            </div>
-                        `).join('')}
-                    </div>
-                    
-                    <div class="flex justify-end space-x-2">
-                        <button id="cancel-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
-                            Cancel
-                        </button>
-                        <button id="save-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                            Save Order
-                        </button>
-                    </div>
-                </div>
-            `,
-            width: 'max-w-lg'
-        });
-        
-        // Add event listeners
-        const cancelBtn = modal.querySelector('#cancel-btn');
-        const saveBtn = modal.querySelector('#save-btn');
-        const initiativeList = modal.querySelector('#initiative-list');
-        
-        // Add event listeners for move up/down buttons
-        initiativeList.querySelectorAll('.move-up-btn').forEach((btn, index) => {
-            if (index > 0) {
-                btn.addEventListener('click', () => {
-                    const item = btn.closest('.initiative-item');
-                    const prevItem = item.previousElementSibling;
-                    if (prevItem) {
-                        initiativeList.insertBefore(item, prevItem);
-                        updateMoveButtons();
-                    }
-                });
-            }
-        });
-        
-        initiativeList.querySelectorAll('.move-down-btn').forEach((btn, index) => {
-            if (index < creatures.length - 1) {
-                btn.addEventListener('click', () => {
-                    const item = btn.closest('.initiative-item');
-                    const nextItem = item.nextElementSibling;
-                    if (nextItem) {
-                        initiativeList.insertBefore(nextItem, item);
-                        updateMoveButtons();
-                    }
-                });
-            }
-        });
-        
-        // Function to update move buttons after reordering
-        function updateMoveButtons() {
-            const items = initiativeList.querySelectorAll('.initiative-item');
-            items.forEach((item, index) => {
-                const upBtn = item.querySelector('.move-up-btn');
-                const downBtn = item.querySelector('.move-down-btn');
-                
-                if (index === 0) {
-                    upBtn.disabled = true;
-                    upBtn.classList.add('opacity-50', 'cursor-not-allowed');
-                } else {
-                    upBtn.disabled = false;
-                    upBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-                }
-                
-                if (index === items.length - 1) {
-                    downBtn.disabled = true;
-                    downBtn.classList.add('opacity-50', 'cursor-not-allowed');
-                } else {
-                    downBtn.disabled = false;
-                    downBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-                }
-            });
-        }
-        
-        cancelBtn.addEventListener('click', () => {
-            this.closeModal(modal.parentNode);
-        });
-        
-        saveBtn.addEventListener('click', () => {
-            // Get the new order and initiative values
-            const initiativeItems = modal.querySelectorAll('.initiative-item');
-            const newOrder = [];
-            
-            initiativeItems.forEach(item => {
-                const id = item.dataset.id;
-                const initiativeInput = item.querySelector('.initiative-input');
-                const initiative = initiativeInput.value.trim() !== '' ? parseInt(initiativeInput.value) : null;
-                
-                newOrder.push({ id, initiative });
-            });
-            
-            // Update the initiative values
-            newOrder.forEach(item => {
-                const creature = this.app.combat.getCreatureById(item.id);
-                if (creature) {
-                    creature.initiative = item.initiative;
-                }
-            });
-            
-            // Reorder the creatures array
-            this.app.combat.reorderCreatures(newOrder.map(item => item.id));
-            
-            // Update UI
-            this.app.ui.renderCreatures();
-            this.app.ui.renderInitiativeOrder();
-            this.app.updatePlayerView();
-            
-            // Close the modal
-            this.closeModal(modal.parentNode);
-            
-            // Log the event
-            this.app.logEvent('Initiative order updated manually.');
-        });
-    }
-    
-    /**
-     * Show a creature context menu
-     * @param {string} creatureId - The ID of the creature
-     * @param {number} x - The x position of the menu
-     * @param {number} y - The y position of the menu
-     */
-    showCreatureContextMenu(creatureId, x, y) {
-        const creature = this.app.combat.getCreatureById(creatureId);
-        if (!creature) return;
-        
-        // Remove any existing context menu
-        this.closeContextMenu();
-        
-        // Create the context menu
-        const menu = document.createElement('div');
-        menu.id = 'context-menu';
-        menu.className = 'fixed bg-gray-800 rounded shadow-lg z-50 overflow-hidden';
-        menu.style.left = `${x}px`;
-        menu.style.top = `${y}px`;
-        
-        // Menu items
-        const items = [
-            { text: 'Edit Character', icon: '✏️', action: () => this.openEditCreatureModal(creatureId) }
-        ];
-        
-        // Add stat block option for monsters
-        if (creature.type === 'monster' && (creature.actions || creature.specialAbilities)) {
-            items.push({ text: 'View Stat Block', icon: '📋', action: () => this.openStatBlockModal(creatureId) });
-        }
-        
-        // Add other options
-        items.push(
-            { text: 'Apply Damage', icon: '🗡️', action: () => this.app.damage.openDamageModal(creatureId) },
-            { text: 'Apply Healing', icon: '❤️', action: () => this.app.damage.openHealModal(creatureId) },
-            { text: 'Add Condition', icon: '⚠️', action: () => this.app.conditions.openAddConditionModal(creatureId) },
-            { text: 'Manage Conditions', icon: '📋', action: () => this.app.conditions.openManageConditionsModal(creatureId) },
-            { text: 'Set Image URL', icon: '🖼️', action: () => this.openSetImageModal(creatureId) }
-        );
-        
-        // Add concentration option
-        if (creature.concentration) {
-            items.push({ 
-                text: `End Concentration (${creature.concentration.spell})`, 
-                icon: '🧠', 
-                action: () => {
-                    creature.concentration = null;
-                    this.app.logEvent(`${creature.name} is no longer concentrating.`);
-                    this.app.ui.renderCreatures();
-                }
-            });
-        } else {
-            items.push({ 
-                text: 'Add Concentration Spell', 
-                icon: '🧠', 
-                action: () => this.openAddConcentrationModal(creatureId) 
-            });
-        }
-        
-        // Add death save option for unconscious heroes
-        if (creature.type === 'hero' && creature.currentHp === 0) {
-            items.push({ 
-                text: 'Roll Death Save', 
-                icon: '💀', 
-                action: () => this.app.combat.handleDeathSavingThrow(creatureId) 
-            });
-        }
-        
-        // Add legendary action option for monsters
-        if (creature.type === 'monster') {
-            if (creature.legendaryActions) {
-                items.push({ 
-                    text: 'Reset Legendary Actions', 
-                    icon: '⚜️', 
-                    action: () => {
-                        creature.legendaryActions.used = 0;
-                        this.app.logEvent(`${creature.name}'s legendary actions reset.`);
-                        this.app.ui.renderCreatures();
-                    }
-                });
-            } else {
-                items.push({ 
-                    text: 'Add Legendary Actions', 
-                    icon: '⚜️', 
-                    action: () => {
-                        creature.legendaryActions = { max: 3, used: 0 };
-                        this.app.logEvent(`${creature.name} now has legendary actions.`);
-                        this.app.ui.renderCreatures();
-                    }
-                });
-            }
-        }
-        
-        // Add remove option
-        items.push({ 
-            text: 'Remove from Combat', 
-            icon: '❌', 
-            action: () => {
-                this.app.showConfirm(`Are you sure you want to remove ${creature.name} from combat?`, () => {
-                    this.app.combat.removeCreature(creatureId);
-                });
-            }
-        });
-        
-        // Create menu items
-        items.forEach(item => {
-            const menuItem = document.createElement('div');
-            menuItem.className = 'px-4 py-2 hover:bg-gray-700 cursor-pointer flex items-center';
-            menuItem.innerHTML = `<span class="mr-2">${item.icon}</span> ${item.text}`;
-            menuItem.addEventListener('click', () => {
-                this.closeContextMenu();
-                item.action();
-            });
-            menu.appendChild(menuItem);
-        });
-        
-        // Add the menu to the document
-        document.body.appendChild(menu);
-        
-        // Close the menu when clicking outside
-        setTimeout(() => {
-            document.addEventListener('click', this.closeContextMenu);
-        }, 0);
-    }
-    
-    /**
-     * Close the context menu
-     */
-    closeContextMenu() {
-        const menu = document.getElementById('context-menu');
-        if (menu) {
-            menu.remove();
-            document.removeEventListener('click', this.closeContextMenu);
+        // Dispatch event to registered handlers
+        if (this.eventHandlers.onlineStatus) {
+            this.eventHandlers.onlineStatus.forEach(handler => handler(isOnline));
         }
     }
-    
+
     /**
-     * Open the edit creature modal
-     * @param {string} creatureId - The ID of the creature to edit
+     * Register an event handler
+     * @param {string} eventType - Event type
+     * @param {Function} handler - Event handler
+     * @returns {Function} Function to unregister the handler
      */
-    openEditCreatureModal(creatureId) {
-        const creature = this.app.combat.getCreatureById(creatureId);
-        if (!creature) return;
+    on(eventType, handler) {
+        if (!this.eventHandlers[eventType]) {
+            this.eventHandlers[eventType] = [];
+        }
         
-        const modal = this.createModal({
-            title: `Edit ${creature.type === 'hero' ? 'Hero' : 'Monster'}: ${creature.name}`,
-            content: `
-                <div class="space-y-4">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-gray-300 mb-2">Name:</label>
-                            <input type="text" id="edit-name" class="w-full bg-gray-700 text-white px-3 py-2 rounded" value="${creature.name || ''}">
-                        </div>
-                        <div>
-                            <label class="block text-gray-300 mb-2">Initiative Bonus:</label>
-                            <input type="number" id="edit-initiative" class="w-full bg-gray-700 text-white px-3 py-2 rounded" value="${creature.initiativeBonus || 0}">
-                        </div>
-                        <div>
-                            <label class="block text-gray-300 mb-2">Max HP:</label>
-                            <input type="number" id="edit-max-hp" class="w-full bg-gray-700 text-white px-3 py-2 rounded" min="1" value="${creature.maxHp || 10}">
-                        </div>
-                        <div>
-                            <label class="block text-gray-300 mb-2">Current HP:</label>
-                            <input type="number" id="edit-current-hp" class="w-full bg-gray-700 text-white px-3 py-2 rounded" min="0" value="${creature.currentHp || 0}">
-                        </div>
-                        <div>
-                            <label class="block text-gray-300 mb-2">AC:</label>
-                            <input type="number" id="edit-ac" class="w-full bg-gray-700 text-white px-3 py-2 rounded" min="1" value="${creature.ac || 10}">
-                        </div>
-                                             <div>
-                            <label class="block text-gray-300 mb-2">AC:</label>
-                            <input type="number" id="edit-ac" class="w-full bg-gray-700 text-white px-3 py-2 rounded" min="1" value="${creature.ac || 10}">
-                        </div>
-                        <div>
-                            <label class="block text-gray-300 mb-2">Image URL:</label>
-                            <input type="text" id="edit-image-url" class="w-full bg-gray-700 text-white px-3 py-2 rounded" value="${creature.imageUrl || ''}">
-                        </div>
-                    </div>
-                    
-                    <div id="image-preview" class="${creature.imageUrl ? '' : 'hidden'} flex justify-center items-center">
-                        <img src="${creature.imageUrl || ''}" alt="Preview" class="max-h-40 rounded">
-                    </div>
-                    
-                    <div class="flex justify-end space-x-2">
-                        <button id="cancel-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
-                            Cancel
-                        </button>
-                        <button id="save-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                            Save Changes
-                        </button>
-                    </div>
-                </div>
-            `,
-            width: 'max-w-2xl'
-        });
+        this.eventHandlers[eventType].push(handler);
         
-        // Add event listeners
-        const nameInput = modal.querySelector('#edit-name');
-        const initiativeInput = modal.querySelector('#edit-initiative');
-        const maxHpInput = modal.querySelector('#edit-max-hp');
-        const currentHpInput = modal.querySelector('#edit-current-hp');
-        const acInput = modal.querySelector('#edit-ac');
-        const imageUrlInput = modal.querySelector('#edit-image-url');
-        const imagePreview = modal.querySelector('#image-preview');
-        const cancelBtn = modal.querySelector('#cancel-btn');
-        const saveBtn = modal.querySelector('#save-btn');
-        
-        // Preview image when URL changes
-        imageUrlInput.addEventListener('input', () => {
-            const url = imageUrlInput.value.trim();
-            if (url) {
-                const img = imagePreview.querySelector('img');
-                img.src = url;
-                imagePreview.classList.remove('hidden');
-                
-                // Handle image load error
-                img.onerror = () => {
-                    img.src = 'data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2232%22%20height%3D%2232%22%20viewBox%3D%220%200%2032%2032%22%3E%3Cpath%20fill%3D%22%23D32F2F%22%20d%3D%22M16%202C8.268%202%202%208.268%202%2016s6.268%2014%2014%2014%2014-6.268%2014-14S23.732%202%2016%202zm0%2025.6c-6.408%200-11.6-5.192-11.6-11.6S9.592%204.4%2016%204.4%2027.6%209.592%2027.6%2016%2022.408%2027.6%2016%2027.6z%22%2F%3E%3Cpath%20fill%3D%22%23D32F2F%22%20d%3D%22M14.8%2010.4h2.4v8h-2.4v-8zm0%2010.4h2.4v2.4h-2.4v-2.4z%22%2F%3E%3C%2Fsvg%3E';
-                };
-                
-                // Reset error handler when image loads successfully
-                img.onload = () => {
-                    img.onerror = null;
-                };
-            } else {
-                imagePreview.classList.add('hidden');
-            }
-        });
-        
-        cancelBtn.addEventListener('click', () => {
-            this.closeModal(modal.parentNode);
-        });
-        
-        saveBtn.addEventListener('click', () => {
-            // Validate inputs
-            const name = nameInput.value.trim();
-            const initiativeBonus = parseInt(initiativeInput.value) || 0;
-            const maxHp = parseInt(maxHpInput.value) || 10;
-            const currentHp = parseInt(currentHpInput.value) || 0;
-            const ac = parseInt(acInput.value) || 10;
-            const imageUrl = imageUrlInput.value.trim() || null;
-            
-            if (!name) {
-                this.app.showAlert('Please enter a name.');
-                return;
-            }
-            
-            if (maxHp < 1) {
-                this.app.showAlert('Max HP must be at least 1.');
-                return;
-            }
-            
-            if (currentHp < 0) {
-                this.app.showAlert('Current HP cannot be negative.');
-                return;
-            }
-            
-            if (ac < 1) {
-                this.app.showAlert('AC must be at least 1.');
-                return;
-            }
-            
-            // Update the creature
-            const updates = {
-                name,
-                initiativeBonus,
-                maxHp,
-                currentHp,
-                ac,
-                imageUrl
-            };
-            
-            this.app.combat.updateCreature(creatureId, updates);
-            
-            // Close the modal
-            this.closeModal(modal.parentNode);
-            
-            // Log the event
-            this.app.logEvent(`${name} has been updated.`);
-        });
-    }
-    
-    /**
-     * Open the set image modal for a creature
-     * @param {string} creatureId - The ID of the creature
-     */
-    openSetImageModal(creatureId) {
-        const creature = this.app.combat.getCreatureById(creatureId);
-        if (!creature) return;
-        
-        const modal = this.createModal({
-            title: `Set Image for ${creature.name}`,
-            content: `
-                <div class="space-y-4">
-                    <p class="text-gray-300 mb-4">Enter the URL of the character image:</p>
-                    
-                    <div class="mb-4">
-                        <label class="block text-gray-300 mb-2">Image URL:</label>
-                        <input type="text" id="image-url-input" class="w-full bg-gray-700 text-white px-3 py-2 rounded" 
-                            value="${creature.imageUrl || ''}" placeholder="https://example.com/character-image.jpg">
-                    </div>
-                    
-                    <div class="mb-4">
-                        <p class="text-sm text-gray-400">
-                            For D&D Beyond characters, you can right-click on the character portrait and select "Copy Image Address".
-                        </p>
-                    </div>
-                    
-                    <div id="image-preview" class="mb-4 flex justify-center items-center ${creature.imageUrl ? '' : 'hidden'}">
-                        <img src="${creature.imageUrl || ''}" alt="Preview" class="max-h-40 rounded">
-                    </div>
-                    
-                    <div class="flex justify-end space-x-2">
-                        <button id="cancel-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
-                            Cancel
-                        </button>
-                        <button id="save-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                            Save
-                        </button>
-                    </div>
-                </div>
-            `,
-            width: 'max-w-md'
-        });
-        
-        // Add event listeners
-        const imageUrlInput = modal.querySelector('#image-url-input');
-        const imagePreview = modal.querySelector('#image-preview');
-        const cancelBtn = modal.querySelector('#cancel-btn');
-        const saveBtn = modal.querySelector('#save-btn');
-        
-        // Preview image when URL changes
-        imageUrlInput.addEventListener('input', () => {
-            const url = imageUrlInput.value.trim();
-            if (url) {
-                const img = imagePreview.querySelector('img');
-                img.src = url;
-                imagePreview.classList.remove('hidden');
-                
-                // Handle image load error
-                img.onerror = () => {
-                    img.src = 'data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2232%22%20height%3D%2232%22%20viewBox%3D%220%200%2032%2032%22%3E%3Cpath%20fill%3D%22%23D32F2F%22%20d%3D%22M16%202C8.268%202%202%208.268%202%2016s6.268%2014%2014%2014%2014-6.268%2014-14S23.732%202%2016%202zm0%2025.6c-6.408%200-11.6-5.192-11.6-11.6S9.592%204.4%2016%204.4%2027.6%209.592%2027.6%2016%2022.408%2027.6%2016%2027.6z%22%2F%3E%3Cpath%20fill%3D%22%23D32F2F%22%20d%3D%22M14.8%2010.4h2.4v8h-2.4v-8zm0%2010.4h2.4v2.4h-2.4v-2.4z%22%2F%3E%3C%2Fsvg%3E';
-                };
-                
-                // Reset error handler when image loads successfully
-                img.onload = () => {
-                    img.onerror = null;
-                };
-            } else {
-                imagePreview.classList.add('hidden');
-            }
-        });
-        
-        cancelBtn.addEventListener('click', () => {
-            this.closeModal(modal.parentNode);
-        });
-        
-        saveBtn.addEventListener('click', () => {
-            const url = imageUrlInput.value.trim();
-            
-            // Update the creature
-            this.app.combat.updateCreature(creatureId, { imageUrl: url || null });
-            
-            // Close the modal
-            this.closeModal(modal.parentNode);
-            
-            // Log the event
-            this.app.logEvent(`Image updated for ${creature.name}.`);
-        });
-    }
-    
-    /**
-     * Open the add concentration modal for a creature
-     * @param {string} creatureId - The ID of the creature
-     */
-    openAddConcentrationModal(creatureId) {
-        const creature = this.app.combat.getCreatureById(creatureId);
-        if (!creature) return;
-        
-        const modal = this.createModal({
-            title: `Add Concentration Spell for ${creature.name}`,
-            content: `
-                <div class="space-y-4">
-                    <div class="mb-4">
-                        <label class="block text-gray-300 mb-2">Spell Name:</label>
-                        <input type="text" id="spell-name-input" class="w-full bg-gray-700 text-white px-3 py-2 rounded" 
-                            placeholder="e.g., Bless, Hold Person, etc.">
-                    </div>
-                    
-                    <div class="mb-4">
-                        <label class="block text-gray-300 mb-2">Duration (rounds):</label>
-                        <input type="number" id="spell-duration-input" class="w-full bg-gray-700 text-white px-3 py-2 rounded" 
-                            placeholder="Leave blank for 'Until dispelled'">
-                        <p class="text-sm text-gray-400 mt-1">
-                            Leave blank for spells that last until concentration is broken.
-                        </p>
-                    </div>
-                    
-                    <div class="flex justify-end space-x-2">
-                        <button id="cancel-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
-                            Cancel
-                        </button>
-                        <button id="save-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                            Add Spell
-                        </button>
-                    </div>
-                </div>
-            `,
-            width: 'max-w-md'
-        });
-        
-        // Add event listeners
-        const spellNameInput = modal.querySelector('#spell-name-input');
-        const spellDurationInput = modal.querySelector('#spell-duration-input');
-        const cancelBtn = modal.querySelector('#cancel-btn');
-        const saveBtn = modal.querySelector('#save-btn');
-        
-        cancelBtn.addEventListener('click', () => {
-            this.closeModal(modal.parentNode);
-        });
-        
-        saveBtn.addEventListener('click', () => {
-            const spellName = spellNameInput.value.trim();
-            const duration = spellDurationInput.value.trim() !== '' ? parseInt(spellDurationInput.value) : null;
-            
-            if (!spellName) {
-                this.app.showAlert('Please enter a spell name.');
-                return;
-            }
-            
-            // Add concentration
-            this.app.combat.addConcentrationSpell(creatureId, spellName, duration);
-            
-            // Close the modal
-            this.closeModal(modal.parentNode);
-        });
-    }
-    
-    /**
-     * Open the add hero modal
-     */
-    openAddHeroModal() {
-        const modal = this.createModal({
-            title: 'Add Hero',
-            content: `
-                <div class="space-y-4">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-gray-300 mb-2">Name:</label>
-                            <input type="text" id="hero-name" class="w-full bg-gray-700 text-white px-3 py-2 rounded" required>
-                        </div>
-                        <div>
-                            <label class="block text-gray-300 mb-2">Initiative Bonus:</label>
-                            <input type="number" id="hero-initiative" class="w-full bg-gray-700 text-white px-3 py-2 rounded" value="0">
-                        </div>
-                        <div>
-                            <label class="block text-gray-300 mb-2">Max HP:</label>
-                            <input type="number" id="hero-max-hp" class="w-full bg-gray-700 text-white px-3 py-2 rounded" min="1" value="10" required>
-                        </div>
-                        <div>
-                            <label class="block text-gray-300 mb-2">AC:</label>
-                            <input type="number" id="hero-ac" class="w-full bg-gray-700 text-white px-3 py-2 rounded" min="1" value="10" required>
-                        </div>
-                        <div>
-                            <label class="block text-gray-300 mb-2">Image URL (optional):</label>
-                            <input type="text" id="hero-image-url" class="w-full bg-gray-700 text-white px-3 py-2 rounded" placeholder="https://example.com/character.jpg">
-                            <p class="text-xs text-gray-400 mt-1">For D&D Beyond characters, right-click portrait and select "Copy Image Address"</p>
-                        </div>
-                        <div id="image-preview" class="hidden flex justify-center items-center">
-                            <img src="" alt="Preview" class="max-h-24 rounded">
-                        </div>
-                    </div>
-                    
-                    <div class="flex justify-end space-x-2">
-                        <button id="cancel-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
-                            Cancel
-                        </button>
-                        <button id="add-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                            Add Hero
-                        </button>
-                    </div>
-                </div>
-            `,
-            width: 'max-w-2xl'
-        });
-        
-        // Add event listeners
-        const nameInput = modal.querySelector('#hero-name');
-        const initiativeInput = modal.querySelector('#hero-initiative');
-        const maxHpInput = modal.querySelector('#hero-max-hp');
-        const acInput = modal.querySelector('#hero-ac');
-        const imageUrlInput = modal.querySelector('#hero-image-url');
-        const imagePreview = modal.querySelector('#image-preview');
-        const cancelBtn = modal.querySelector('#cancel-btn');
-        const addBtn = modal.querySelector('#add-btn');
-        
-        // Preview image when URL changes
-        imageUrlInput.addEventListener('input', () => {
-            const url = imageUrlInput.value.trim();
-            if (url) {
-                const img = imagePreview.querySelector('img');
-                img.src = url;
-                imagePreview.classList.remove('hidden');
-                
-                // Handle image load error
-                img.onerror = () => {
-                    img.src = 'data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2232%22%20height%3D%2232%22%20viewBox%3D%220%200%2032%2032%22%3E%3Cpath%20fill%3D%22%23D32F2F%22%20d%3D%22M16%202C8.268%202%202%208.268%202%2016s6.268%2014%2014%2014%2014-6.268%2014-14S23.732%202%2016%202zm0%2025.6c-6.408%200-11.6-5.192-11.6-11.6S9.592%204.4%2016%204.4%2027.6%209.592%2027.6%2016%2022.408%2027.6%2016%2027.6z%22%2F%3E%3Cpath%20fill%3D%22%23D32F2F%22%20d%3D%22M14.8%2010.4h2.4v8h-2.4v-8zm0%2010.4h2.4v2.4h-2.4v-2.4z%22%2F%3E%3C%2Fsvg%3E';
-                };
-                
-                // Reset error handler when image loads successfully
-                img.onload = () => {
-                    img.onerror = null;
-                };
-            } else {
-                imagePreview.classList.add('hidden');
-            }
-        });
-        
-        cancelBtn.addEventListener('click', () => {
-            this.closeModal(modal.parentNode);
-        });
-        
-        addBtn.addEventListener('click', () => {
-            // Validate inputs
-            const name = nameInput.value.trim();
-            const initiativeBonus = parseInt(initiativeInput.value) || 0;
-            const maxHp = parseInt(maxHpInput.value) || 10;
-            const ac = parseInt(acInput.value) || 10;
-            const imageUrl = imageUrlInput.value.trim() || null;
-            
-            if (!name) {
-                this.app.showAlert('Please enter a name for the hero.');
-                return;
-            }
-            
-            if (maxHp < 1) {
-                this.app.showAlert('Max HP must be at least 1.');
-                return;
-            }
-            
-            if (ac < 1) {
-                this.app.showAlert('AC must be at least 1.');
-                return;
-            }
-            
-            // Create the hero
-            const hero = {
-                id: this.app.utils.generateUUID(),
-                name: name,
-                type: 'hero',
-                maxHp: maxHp,
-                currentHp: maxHp,
-                ac: ac,
-                initiativeBonus: initiativeBonus,
-                initiative: null,
-                conditions: [],
-                imageUrl: imageUrl,
-                source: 'Custom'
-            };
-            
-            // Add the hero to combat
-            this.app.combat.addCreature(hero);
-            
-            // Close the modal
-            this.closeModal(modal.parentNode);
-            
-            // Log the event
-            this.app.logEvent(`${name} added to combat.`);
-        });
-    }
-    
-    /**
-     * Open the add monster modal
-     */
-    openAddMonsterModal() {
-        const modal = this.createModal({
-            title: 'Add Monster',
-            content: `
-                <div class="space-y-4">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-gray-300 mb-2">Name:</label>
-                            <input type="text" id="monster-name" class="w-full bg-gray-700 text-white px-3 py-2 rounded" required>
-                        </div>
-                        <div>
-                            <label class="block text-gray-300 mb-2">Initiative Bonus:</label>
-                            <input type="number" id="monster-initiative" class="w-full bg-gray-700 text-white px-3 py-2 rounded" value="0">
-                        </div>
-                        <div>
-                            <label class="block text-gray-300 mb-2">Max HP:</label>
-                            <input type="number" id="monster-max-hp" class="w-full bg-gray-700 text-white px-3 py-2 rounded" min="1" value="10" required>
-                        </div>
-                        <div>
-                            <label class="block text-gray-300 mb-2">AC:</label>
-                            <input type="number" id="monster-ac" class="w-full bg-gray-700 text-white px-3 py-2 rounded" min="1" value="10" required>
-                        </div>
-                        <div>
-                            <label class="block text-gray-300 mb-2">Image URL (optional):</label>
-                            <input type="text" id="monster-image-url" class="w-full bg-gray-700 text-white px-3 py-2 rounded" placeholder="https://example.com/monster.jpg">
-                        </div>
-                        <div id="image-preview" class="hidden flex justify-center items-center">
-                            <img src="" alt="Preview" class="max-h-24 rounded">
-                        </div>
-                    </div>
-                    
-                    <div class="flex justify-end space-x-2">
-                        <button id="cancel-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
-                            Cancel
-                        </button>
-                        <button id="add-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                            Add Monster
-                        </button>
-                    </div>
-                </div>
-            `,
-            width: 'max-w-2xl'
-        });
-        
-        // Add event listeners
-        const nameInput = modal.querySelector('#monster-name');
-        const initiativeInput = modal.querySelector('#monster-initiative');
-        const maxHpInput = modal.querySelector('#monster-max-hp');
-        const acInput = modal.querySelector('#monster-ac');
-        const imageUrlInput = modal.querySelector('#monster-image-url');
-        const imagePreview = modal.querySelector('#image-preview');
-        const cancelBtn = modal.querySelector('#cancel-btn');
-        const addBtn = modal.querySelector('#add-btn');
-        
-        // Preview image when URL changes
-        imageUrlInput.addEventListener('input', () => {
-            const url = imageUrlInput.value.trim();
-            if (url) {
-                const img = imagePreview.querySelector('img');
-                img.src = url;
-                imagePreview.classList.remove('hidden');
-                
-                // Handle image load error
-                img.onerror = () => {
-                    img.src = 'data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2232%22%20height%3D%2232%22%20viewBox%3D%220%200%2032%2032%22%3E%3Cpath%20fill%3D%22%23D32F2F%22%20d%3D%22M16%202C8.268%202%202%208.268%202%2016s6.268%2014%2014%2014%2014-6.268%2014-14S23.732%202%2016%202zm0%2025.6c-6.408%200-11.6-5.192-11.6-11.6S9.592%204.4%2016%204.4%2027.6%209.592%2027.6%2016%2022.408%2027.6%2016%2027.6z%22%2F%3E%3Cpath%20fill%3D%22%23D32F2F%22%20d%3D%22M14.8%2010.4h2.4v8h-2.4v-8zm0%2010.4h2.4v2.4h-2.4v-2.4z%22%2F%3E%3C%2Fsvg%3E';
-                };
-                
-                // Reset error handler when image loads successfully
-                img.onload = () => {
-                    img.onerror = null;
-                };
-            } else {
-                imagePreview.classList.add('hidden');
-            }
-        });
-        
-        cancelBtn.addEventListener('click', () => {
-            this.closeModal(modal.parentNode);
-        });
-        
-        addBtn.addEventListener('click', () => {
-            // Validate inputs
-            const name = nameInput.value.trim();
-            const initiativeBonus = parseInt(initiativeInput.value) || 0;
-            const maxHp = parseInt(maxHpInput.value) || 10;
-            const ac = parseInt(acInput.value) || 10;
-            const imageUrl = imageUrlInput.value.trim() || null;
-            
-            if (!name) {
-                this.app.showAlert('Please enter a name for the monster.');
-                return;
-            }
-            
-            if (maxHp < 1) {
-                this.app.showAlert('Max HP must be at least 1.');
-                return;
-            }
-            
-            if (ac < 1) {
-                this.app.showAlert('AC must be at least 1.');
-                return;
-            }
-            
-            // Create the monster
-            const monster = {
-                id: this.app.utils.generateUUID(),
-                name: name,
-                type: 'monster',
-                maxHp: maxHp,
-                currentHp: maxHp,
-                ac: ac,
-                initiativeBonus: initiativeBonus,
-                initiative: null,
-                conditions: [],
-                imageUrl: imageUrl,
-                source: 'Custom'
-            };
-            
-            // Add the monster to combat
-            this.app.combat.addCreature(monster);
-            
-            // Close the modal
-            this.closeModal(modal.parentNode);
-            
-            // Log the event
-            this.app.logEvent(`${name} added to combat.`);
-        });
-    }
-    
-    /**
-     * Open the monster search modal
-     */
-    openMonsterSearchModal() {
-        const modal = this.createModal({
-            title: 'Search Monsters (Open5e SRD)',
-            content: `
-                <div class="space-y-4">
-                    <div class="flex">
-                        <input type="text" id="monster-search-input" class="flex-1 bg-gray-700 text-white px-3 py-2 rounded-l" placeholder="Search for monsters...">
-                        <button id="search-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-r">
-                            Search
-                        </button>
-                    </div>
-                    
-                    <div id="search-results" class="max-h-96 overflow-y-auto">
-                        <div class="text-center text-gray-400 py-4">
-                            Enter a search term to find monsters
-                        </div>
-                    </div>
-                    
-                    <div class="flex justify-end">
-                        <button id="close-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
-                            Close
-                        </button>
-                    </div>
-                </div>
-            `,
-            width: 'max-w-2xl'
-        });
-        
-        // Add event listeners
-        const searchInput = modal.querySelector('#monster-search-input');
-        const searchBtn = modal.querySelector('#search-btn');
-        const searchResults = modal.querySelector('#search-results');
-        const closeBtn = modal.querySelector('#close-btn');
-        
-        // Search function
-        const performSearch = async () => {
-            const query = searchInput.value.trim();
-            if (!query) return;
-            
-            // Show loading state
-            searchResults.innerHTML = `
-                <div class="text-center text-gray-400 py-4">
-                    <svg class="animate-spin h-6 w-6 mx-auto mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Searching...
-                </div>
-            `;
-            
-            // Perform search
-            const monsters = await this.app.api.searchMonsters(query);
-            
-            // Display results
-            if (monsters.length === 0) {
-                searchResults.innerHTML = `
-                    <div class="text-center text-gray-400 py-4">
-                        No monsters found matching "${query}"
-                    </div>
-                `;
-                return;
-            }
-            
-            // Create results HTML
-            searchResults.innerHTML = `
-                <div class="grid grid-cols-1 gap-2">
-                    ${monsters.map(monster => `
-                        <div class="monster-result bg-gray-700 hover:bg-gray-600 p-3 rounded cursor-pointer" data-slug="${monster.slug}">
-                    ${monsters.map(monster => `
-                        <div class="monster-result bg-gray-700 hover:bg-gray-600 p-3 rounded cursor-pointer" data-slug="${monster.slug}">
-                            <div class="flex justify-between items-center">
-                                <div>
-                                    <div class="font-semibold">${monster.name}</div>
-                                    <div class="text-sm text-gray-400">${monster.size} ${monster.type}, CR ${monster.challenge_rating}</div>
-                                </div>
-                                <div class="text-sm">
-                                    <span class="bg-gray-800 px-2 py-1 rounded">HP: ${monster.hit_points}</span>
-                                    <span class="bg-gray-800 px-2 py-1 rounded ml-1">AC: ${monster.armor_class}</span>
-                                </div>
-                            </div>
-                        </div>
-                    `).join('')}
-                </div>
-            `;
-            
-            // Add click event for monster selection
-            searchResults.querySelectorAll('.monster-result').forEach(element => {
-                element.addEventListener('click', async () => {
-                    const slug = element.dataset.slug;
-                    const monsterData = await this.app.api.getMonster(slug);
-                    
-                    if (monsterData) {
-                        // Convert to our format
-                        const monster = this.app.api.convertOpen5eMonster(monsterData);
-                        
-                        // Add to combat
-                        this.app.combat.addCreature(monster);
-                        
-                        // Close the modal
-                        this.app.ui.closeModal(modal.parentNode);
-                        
-                        // Log the event
-                        this.app.logEvent(`${monster.name} added to combat from Open5e SRD.`);
-                    }
-                });
-            });
+        // Return function to unregister the handler
+        return () => {
+            this.off(eventType, handler);
         };
+    }
+
+    /**
+     * Unregister an event handler
+     * @param {string} eventType - Event type
+     * @param {Function} handler - Event handler
+     */
+    off(eventType, handler) {
+        if (!this.eventHandlers[eventType]) return;
         
-        // Add event listeners
-        searchBtn.addEventListener('click', performSearch);
-        searchInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                performSearch();
+        this.eventHandlers[eventType] = this.eventHandlers[eventType].filter(h => h !== handler);
+    }
+
+    /**
+     * Add a resize observer
+     * @param {Function} observer - Resize observer function
+     * @returns {Function} Function to remove the observer
+     */
+    addResizeObserver(observer) {
+        this.resizeObservers.push(observer);
+        
+        // Return function to remove the observer
+        return () => {
+            this.resizeObservers = this.resizeObservers.filter(o => o !== observer);
+        };
+    }
+
+    /**
+     * Switch to a different tab
+     * @param {string} tabId - Tab ID
+     */
+    switchTab(tabId) {
+        // Update active tab
+        this.activeTab = tabId;
+        
+        // Update tab links
+        const tabLinks = document.querySelectorAll('[data-tab-link]');
+        tabLinks.forEach(link => {
+            const linkTabId = link.getAttribute('data-tab-link');
+            if (linkTabId === tabId) {
+                link.classList.add('active');
+                link.setAttribute('aria-selected', 'true');
+            } else {
+                link.classList.remove('active');
+                link.setAttribute('aria-selected', 'false');
             }
         });
         
-        closeBtn.addEventListener('click', () => {
-            this.closeModal(modal.parentNode);
-        });
-        
-        // Focus the search input
-        searchInput.focus();
-    }
-    
-    /**
-     * Open the D&D Beyond import modal
-     */
-    openDnDBeyondImportModal() {
-        const modal = this.createModal({
-            title: 'Import from D&D Beyond',
-            content: `
-                <div class="space-y-4">
-                    <div class="bg-gray-700 p-4 rounded">
-                        <h3 class="font-semibold mb-2">Instructions:</h3>
-                        <ol class="list-decimal list-inside space-y-2 text-sm">
-                            <li>Open your character sheet on D&D Beyond</li>
-                            <li>Open the browser console (F12 or right-click > Inspect > Console)</li>
-                            <li>Copy the script below and paste it into the console</li>
-                            <li>Copy the JSON output between the lines of equal signs (=====)</li>
-                            <li>Paste the JSON below (make sure it starts with { and ends with })</li>
-                        </ol>
-                    </div>
-                    
-                    <div>
-                        <label class="block text-gray-300 mb-2">Copy this script:</label>
-                        <div class="relative">
-                            <textarea id="import-script" class="w-full bg-gray-800 text-white px-3 py-2 rounded h-32 font-mono text-xs" readonly></textarea>
-                            <button id="copy-script-btn" class="absolute top-2 right-2 bg-gray-600 hover:bg-gray-500 text-white text-xs py-1 px-2 rounded">
-                                Copy
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <div>
-                        <label class="block text-gray-300 mb-2">Paste the JSON result here:</label>
-                        <textarea id="import-json" class="w-full bg-gray-700 text-white px-3 py-2 rounded h-32 font-mono text-xs" placeholder='{"name": "Character Name", ...}'></textarea>
-                    </div>
-                    
-                    <div class="flex justify-end space-x-2">
-                        <button id="cancel-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
-                            Cancel
-                        </button>
-                        <button id="import-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                            Import Character
-                        </button>
-                    </div>
-                </div>
-            `,
-            width: 'max-w-2xl'
-        });
-        
-        // Add event listeners
-        const importScript = modal.querySelector('#import-script');
-        const copyScriptBtn = modal.querySelector('#copy-script-btn');
-        const importJson = modal.querySelector('#import-json');
-        const cancelBtn = modal.querySelector('#cancel-btn');
-        const importBtn = modal.querySelector('#import-btn');
-        
-        // Set the import script
-        importScript.value = this.app.api.getDnDBeyondImportScript();
-        
-        // Copy script button
-        copyScriptBtn.addEventListener('click', () => {
-            importScript.select();
-            document.execCommand('copy');
-            copyScriptBtn.textContent = 'Copied!';
-            setTimeout(() => {
-                copyScriptBtn.textContent = 'Copy';
-            }, 2000);
-        });
-        
-        cancelBtn.addEventListener('click', () => {
-            this.closeModal(modal.parentNode);
-        });
-        
-        importBtn.addEventListener('click', () => {
-            let jsonText = importJson.value.trim();
-            if (!jsonText) {
-                this.app.showAlert('Please paste the JSON data from D&D Beyond.');
-                return;
-            }
-            
-            try {
-                // Fix common JSON issues
-                
-                // Add missing braces if needed
-                if (!jsonText.startsWith('{')) {
-                    jsonText = '{' + jsonText;
-                }
-                if (!jsonText.endsWith('}')) {
-                    jsonText = jsonText + '}';
-                }
-                
-                // Clean up the JSON text - remove any console prefixes or extra text
-                if (jsonText.includes('\n')) {
-                    // Try to extract just the JSON object from multiple lines
-                    const lines = jsonText.split('\n');
-                    let jsonLines = [];
-                    let inJson = false;
-                    
-                    for (const line of lines) {
-                        const trimmedLine = line.trim();
-                        
-                        if (trimmedLine === '{') {
-                            inJson = true;
-                            jsonLines.push('{');
-                        } else if (trimmedLine === '}') {
-                            jsonLines.push('}');
-                            inJson = false;
-                        } else if (inJson) {
-                            jsonLines.push(trimmedLine);
-                        }
-                    }
-                    
-                    if (jsonLines.length > 0) {
-                        jsonText = jsonLines.join('\n');
-                    }
-                }
-                
-                // Parse the JSON
-                const data = JSON.parse(jsonText);
-                
-                // Check for error
-                if (data.error) {
-                    throw new Error(data.error);
-                }
-                
-                // Parse the character
-                const character = this.app.api.parseDnDBeyondCharacter(data);
-                
-                // Add to combat
-                this.app.combat.addCreature(character);
-                
-                // Close the modal
-                this.closeModal(modal.parentNode);
-                
-                // Log the event
-                this.app.logEvent(`${character.name} imported from D&D Beyond.`);
-            } catch (error) {
-                this.app.showAlert(`Error importing character: ${error.message}\n\nMake sure you've copied the entire JSON output from the console and it starts with { and ends with }.`);
-                console.error('JSON parsing error:', error);
-                console.log('Attempted to parse:', jsonText);
+        // Update tab content
+        const tabContents = document.querySelectorAll('[data-tab-content]');
+        tabContents.forEach(content => {
+            const contentTabId = content.getAttribute('data-tab-content');
+            if (contentTabId === tabId) {
+                content.classList.remove('hidden');
+                content.setAttribute('aria-hidden', 'false');
+            } else {
+                content.classList.add('hidden');
+                content.setAttribute('aria-hidden', 'true');
             }
         });
-    }
-    
-    /**
-     * Open the encounter builder modal
-     */
-    openEncounterBuilderModal() {
-        const modal = this.createModal({
-            title: 'Encounter Builder',
-            content: `
-                <div class="space-y-4">
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-lg font-semibold">Build Your Encounter</h3>
-                        <div>
-                            <button id="save-encounter-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-3 rounded text-sm">
-                                Save Current
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <h4 class="font-semibold mb-2">Add Creatures</h4>
-                            <div class="space-y-2">
-                                <button id="add-hero-to-encounter" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                                    Add Hero
-                                </button>
-                                <button id="add-monster-to-encounter" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">
-                                    Add Monster
-                                </button>
-                                <button id="add-group-to-encounter" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded">
-                                    Add Monster Group
-                                </button>
-                            </div>
-                            
-                            <div class="mt-4">
-                                <h4 class="font-semibold mb-2">Current Encounter</h4>
-                                <div id="encounter-creatures" class="bg-gray-700 rounded p-2 max-h-64 overflow-y-auto">
-                                    <div class="text-gray-400 text-center py-2">No creatures added yet</div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div>
-                            <h4 class="font-semibold mb-2">Saved Encounters</h4>
-                            <div id="saved-encounters" class="bg-gray-700 rounded p-2 max-h-80 overflow-y-auto">
-                                <div class="text-gray-400 text-center py-2">No saved encounters</div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="flex justify-end mt-4">
-                        <button id="close-encounter-builder-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
-                            Close
-                        </button>
-                    </div>
-                </div>
-            `,
-            width: 'max-w-4xl'
-        });
         
-        // Load saved encounters
-        this.loadSavedEncounters(modal.querySelector('#saved-encounters'));
-        
-        // Add event listeners
-        modal.querySelector('#add-hero-to-encounter').addEventListener('click', () => {
-            this.openAddHeroModal(true); // true = for encounter builder
-        });
-        
-        modal.querySelector('#add-monster-to-encounter').addEventListener('click', () => {
-            this.openAddMonsterModal(true); // true = for encounter builder
-        });
-        
-        modal.querySelector('#add-group-to-encounter').addEventListener('click', () => {
-            this.openAddMonsterGroupModal();
-        });
-        
-        modal.querySelector('#save-encounter-btn').addEventListener('click', () => {
-            this.openSaveEncounterModal();
-        });
-        
-        modal.querySelector('#close-encounter-builder-btn').addEventListener('click', () => {
-            this.closeModal(modal.parentNode);
-        });
-    }
-    
-    /**
-     * Load saved encounters into the encounter builder
-     * @param {HTMLElement} container - The container to load encounters into
-     */
-    loadSavedEncounters(container) {
-        const encounters = this.app.storage.loadData('encounters', []);
-        
-        if (encounters.length === 0) {
-            container.innerHTML = `<div class="text-gray-400 text-center py-2">No saved encounters</div>`;
-            return;
+        // Dispatch tab change event
+        if (this.eventHandlers.tabChange) {
+            this.eventHandlers.tabChange.forEach(handler => handler(tabId));
         }
-        
-        container.innerHTML = encounters.map(encounter => `
-            <div class="encounter-item bg-gray-600 hover:bg-gray-500 p-2 mb-2 rounded">
-                <div class="flex justify-between items-center">
-                    <div class="font-semibold">${encounter.name}</div>
-                    <div class="flex space-x-1">
-                        <button class="load-encounter-btn bg-blue-600 hover:bg-blue-700 text-white text-xs py-1 px-2 rounded" data-encounter-id="${encounter.id}">
-                            Load
-                        </button>
-                        <button class="delete-encounter-btn bg-red-600 hover:bg-red-700 text-white text-xs py-1 px-2 rounded" data-encounter-id="${encounter.id}">
-                            Delete
-                        </button>
-                    </div>
-                </div>
-                <div class="text-sm text-gray-300 mt-1">
-                    ${encounter.creatures.length} creatures
-                    <span class="text-xs text-gray-400">
-                        (${encounter.creatures.filter(c => c.type === 'hero').length} heroes, 
-                        ${encounter.creatures.filter(c => c.type === 'monster').length} monsters)
-                    </span>
-                </div>
-                ${encounter.description ? `<div class="text-sm text-gray-400 mt-1">${encounter.description}</div>` : ''}
-            </div>
-        `).join('');
-        
-        // Add event listeners
-        container.querySelectorAll('.load-encounter-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const encounterId = btn.dataset.encounterId;
-                this.app.storage.loadEncounter(encounterId);
-                this.closeModal(container.closest('.modal-backdrop'));
-            });
-        });
-        
-        container.querySelectorAll('.delete-encounter-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const encounterId = btn.dataset.encounterId;
-                const encounterName = encounters.find(e => e.id === encounterId)?.name || 'Unknown';
-                
-                this.app.showConfirm(`Are you sure you want to delete the encounter "${encounterName}"?`, () => {
-                    this.app.storage.deleteEncounter(encounterId);
-                    this.loadSavedEncounters(container);
-                });
-            });
-        });
     }
-    
+
     /**
-     * Open the save encounter modal
-     */
-    openSaveEncounterModal() {
-        const creatures = this.app.combat.getAllCreatures();
-        
-        if (creatures.length === 0) {
-            this.app.showAlert('No creatures to save.');
-            return;
-        }
-        
-        const modal = this.createModal({
-            title: 'Save Encounter',
-            content: `
-                <div class="space-y-4">
-                    <div>
-                        <label class="block text-gray-300 mb-2">Encounter Name:</label>
-                        <input type="text" id="encounter-name" class="w-full bg-gray-700 text-white px-3 py-2 rounded" required>
-                    </div>
-                    
-                    <div>
-                        <label class="block text-gray-300 mb-2">Description (optional):</label>
-                        <textarea id="encounter-description" class="w-full bg-gray-700 text-white px-3 py-2 rounded h-20" placeholder="Enter a description for this encounter..."></textarea>
-                    </div>
-                    
-                    <div>
-                        <label class="block text-gray-300 mb-2">Creatures in this encounter:</label>
-                        <div class="bg-gray-800 p-2 rounded max-h-40 overflow-y-auto">
-                            <ul class="list-disc list-inside">
-                                ${creatures.map(c => `
-                                    <li>${c.type === 'hero' ? '👤' : '👹'} ${c.name} (HP: ${c.maxHp}, AC: ${c.ac})</li>
-                                `).join('')}
-                            </ul>
-                        </div>
-                    </div>
-                    
-                    <div class="flex justify-end space-x-2">
-                        <button id="cancel-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
-                            Cancel
-                        </button>
-                        <button id="save-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                            Save Encounter
-                        </button>
-                    </div>
-                </div>
-            `,
-            width: 'max-w-md'
-        });
-        
-        // Add event listeners
-        const nameInput = modal.querySelector('#encounter-name');
-        const descriptionInput = modal.querySelector('#encounter-description');
-        const cancelBtn = modal.querySelector('#cancel-btn');
-        const saveBtn = modal.querySelector('#save-btn');
-        
-        cancelBtn.addEventListener('click', () => {
-            this.closeModal(modal.parentNode);
-        });
-        
-        saveBtn.addEventListener('click', () => {
-            const name = nameInput.value.trim();
-            const description = descriptionInput.value.trim();
-            
-            if (!name) {
-                this.app.showAlert('Please enter a name for the encounter.');
-                return;
-            }
-            
-            // Save the encounter
-            const encounterId = this.app.storage.saveEncounter(name, description);
-            
-            if (encounterId) {
-                this.app.showAlert(`Encounter "${name}" saved successfully.`);
-                this.closeModal(modal.parentNode);
-            }
-        });
-    }
-    
-    /**
-     * Open the add monster group modal
-     */
-    openAddMonsterGroupModal() {
-        const modal = this.createModal({
-            title: 'Add Monster Group',
-            content: `
-                <div class="space-y-4">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-gray-300 mb-2">Monster Name:</label>
-                            <input type="text" id="monster-name" class="w-full bg-gray-700 text-white px-3 py-2 rounded" required>
-                        </div>
-                        <div>
-                            <label class="block text-gray-300 mb-2">Number of Monsters:</label>
-                            <input type="number" id="monster-count" class="w-full bg-gray-700 text-white px-3 py-2 rounded" min="1" value="4">
-                        </div>
-                        <div>
-                            <label class="block text-gray-300 mb-2">Initiative Bonus:</label>
-                            <input type="number" id="monster-initiative" class="w-full bg-gray-700 text-white px-3 py-2 rounded" value="0">
-                        </div>
-                        <div>
-                            <label class="block text-gray-300 mb-2">HP per Monster:</label>
-                            <input type="number" id="monster-hp" class="w-full bg-gray-700 text-white px-3 py-2 rounded" min="1" value="10" required>
-                        </div>
-                        <div>
-                            <label class="block text-gray-300 mb-2">AC:</label>
-                            <input type="number" id="monster-ac" class="w-full bg-gray-700 text-white px-3 py-2 rounded" min="1" value="10" required>
-                        </div>
-                        <div>
-                            <label class="block text-gray-300 mb-2">HP Variation (%):</label>
-                            <input type="number" id="hp-variation" class="w-full bg-gray-700 text-white px-3 py-2 rounded" min="0" max="50" value="10">
-                            <p class="text-xs text-gray-400 mt-1">Randomizes HP by ±X% for variety</p>
-                        </div>
-                    </div>
-                    
-                    <div>
-                        <label class="block text-gray-300 mb-2">Naming Style:</label>
-                        <div class="flex space-x-4">
-                            <label class="flex items-center">
-                                <input type="radio" name="naming-style" value="number" class="mr-2" checked>
-                                <span>Numbered (Goblin 1, Goblin 2)</span>
-                            </label>
-                            <label class="flex items-center">
-                                <input type="radio" name="naming-style" value="letter" class="mr-2">
-                                <span>Lettered (Goblin A, Goblin B)</span>
-                            </label>
-                        </div>
-                    </div>
-                    
-                    <div class="flex justify-end space-x-2">
-                        <button id="cancel-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
-                            Cancel
-                        </button>
-                        <button id="add-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                            Add Group
-                        </button>
-                    </div>
-                </div>
-            `,
-            width: 'max-w-2xl'
-        });
-        
-        // Add event listeners
-        const nameInput = modal.querySelector('#monster-name');
-        const countInput = modal.querySelector('#monster-count');
-        const initiativeInput = modal.querySelector('#monster-initiative');
-        const hpInput = modal.querySelector('#monster-hp');
-        const acInput = modal.querySelector('#monster-ac');
-        const hpVariationInput = modal.querySelector('#hp-variation');
-        const namingStyleInputs = modal.querySelectorAll('input[name="naming-style"]');
-        const cancelBtn = modal.querySelector('#cancel-btn');
-        const addBtn = modal.querySelector('#add-btn');
-        
-        cancelBtn.addEventListener('click', () => {
-            this.closeModal(modal.parentNode);
-        });
-        
-        addBtn.addEventListener('click', () => {
-            // Validate inputs
-            const name = nameInput.value.trim();
-            const count = parseInt(countInput.value) || 4;
-            const initiativeBonus = parseInt(initiativeInput.value) || 0;
-            const hp = parseInt(hpInput.value) || 10;
-            const ac = parseInt(acInput.value) || 10;
-            const hpVariation = parseInt(hpVariationInput.value) || 0;
-            
-            // Get naming style
-            let namingStyle = 'number';
-            namingStyleInputs.forEach(input => {
-                if (input.checked) {
-                    namingStyle = input.value;
-                }
-            });
-            
-            if (!name) {
-                this.app.showAlert('Please enter a name for the monsters.');
-                return;
-            }
-            
-            if (count < 1) {
-                this.app.showAlert('Number of monsters must be at least 1.');
-                return;
-            }
-            
-            if (hp < 1) {
-                this.app.showAlert('HP must be at least 1.');
-                return;
-            }
-            
-            if (ac < 1) {
-                this.app.showAlert('AC must be at least 1.');
-                return;
-            }
-            
-            // Create the monsters
-            for (let i = 0; i < count; i++) {
-                // Generate suffix based on naming style
-                let suffix;
-                if (namingStyle === 'letter') {
-                    suffix = String.fromCharCode(65 + i); // A, B, C, ...
-                } else {
-                    suffix = (i + 1).toString(); // 1, 2, 3, ...
-                }
-                
-                // Calculate HP with variation
-                let monsterHp = hp;
-                if (hpVariation > 0) {
-                    const variation = hp * (hpVariation / 100);
-                    const min = Math.max(1, Math.floor(hp - variation));
-                    const max = Math.ceil(hp + variation);
-                    monsterHp = Math.floor(Math.random() * (max - min + 1)) + min;
-                }
-                
-                const monster = {
-                    id: this.app.utils.generateUUID(),
-                    name: `${name} ${suffix}`,
-                    type: 'monster',
-                    maxHp: monsterHp,
-                    currentHp: monsterHp,
-                    ac: ac,
-                    initiativeBonus: initiativeBonus,
-                    initiative: null,
-                    conditions: [],
-                    source: 'Group'
-                };
-                
-                // Add the monster to combat
-                this.app.combat.addCreature(monster);
-            }
-            
-            // Close the modal
-            this.closeModal(modal.parentNode);
-            
-            // Log the event
-            this.app.logEvent(`Added ${count} ${name} monsters to combat.`);
-        });
-    }
-    
-    /**
-     * Create a modal
+     * Show a modal dialog
+     * @param {string} title - Modal title
+     * @param {string} content - Modal content (HTML)
      * @param {Object} options - Modal options
-     * @param {string} options.title - The modal title
-     * @param {string} options.content - The modal content (HTML)
-     * @param {string} [options.width='max-w-lg'] - The modal width
-     * @returns {HTMLElement} - The modal element
+     * @param {boolean} options.closable - Whether the modal can be closed
+     * @param {boolean} options.wide - Whether the modal should be wide
+     * @param {boolean} options.fullscreen - Whether the modal should be fullscreen
+     * @param {Function} options.onClose - Callback when modal is closed
+     * @returns {Object} Modal control object
      */
-    createModal(options) {
-        // Create the modal backdrop
-        const backdrop = document.createElement('div');
-        backdrop.className = 'modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+    showModal(title, content, options = {}) {
+        const {
+            closable = true,
+            wide = false,
+            fullscreen = false,
+            onClose = null
+        } = options;
         
-        // Create the modal
-        const modal = document.createElement('div');
-        modal.className = `bg-gray-800 rounded-lg shadow-xl overflow-hidden ${options.width || 'max-w-lg'} w-full mx-4 fade-in`;
+        // Create modal element
+        const modalId = `modal-${Date.now()}`;
+        const modalElement = document.createElement('div');
+        modalElement.id = modalId;
+        modalElement.className = `modal ${wide ? 'modal-wide' : ''} ${fullscreen ? 'modal-fullscreen' : ''}`;
+        modalElement.setAttribute('role', 'dialog');
+        modalElement.setAttribute('aria-modal', 'true');
+        modalElement.setAttribute('aria-labelledby', `${modalId}-title`);
         
-        // Create the modal header
-        const header = document.createElement('div');
-        header.className = 'bg-gray-700 px-4 py-3 flex justify-between items-center';
-        header.innerHTML = `
-            <h3 class="text-lg font-semibold text-white">${options.title}</h3>
-            <button class="close-modal-btn text-gray-400 hover:text-white">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-            </button>
+        // Create modal content
+        modalElement.innerHTML = `
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 id="${modalId}-title" class="modal-title">${title}</h2>
+                    ${closable ? '<button class="modal-close" aria-label="Close">×</button>' : ''}
+                </div>
+                <div class="modal-body">
+                    ${content}
+                </div>
+            </div>
         `;
         
-        // Create the modal body
-        const body = document.createElement('div');
-        body.className = 'p-4';
-        body.innerHTML = options.content;
+        // Add modal to container
+        this.elements.modal.appendChild(modalElement);
+        this.elements.modal.classList.remove('hidden');
         
-        // Assemble the modal
-        modal.appendChild(header);
-        modal.appendChild(body);
-        backdrop.appendChild(modal);
-        
-        // Add the modal to the document
-        document.body.appendChild(backdrop);
-        
-        // Add event listener for close button
-        const closeBtn = modal.querySelector('.close-modal-btn');
-        closeBtn.addEventListener('click', () => {
-            this.closeModal(backdrop);
+        // Add to modal stack
+        this.modalStack.push({
+            id: modalId,
+            element: modalElement,
+            onClose
         });
         
-        // Add event listener for clicking outside the modal
-        backdrop.addEventListener('click', (event) => {
-            if (event.target === backdrop) {
-                this.closeModal(backdrop);
-            }
-        });
-        
-        // Add the modal to the modals array
-        this.modals.push(backdrop);
-        
-        // Return the modal body for adding event listeners
-        return body;
-    }
-    
-    /**
-     * Close a modal
-     * @param {HTMLElement} modal - The modal element
-     */
-    closeModal(modal) {
-        // Remove the modal from the DOM
-        if (modal && modal.parentNode) {
-            modal.parentNode.removeChild(modal);
+        // Add event listeners
+        if (closable) {
+            const closeButton = modalElement.querySelector('.modal-close');
+            closeButton.addEventListener('click', () => this.closeModal(modalId));
+            
+            // Close on click outside
+            modalElement.addEventListener('click', (e) => {
+                if (e.target === modalElement) {
+                    this.closeModal(modalId);
+                }
+            });
         }
         
-        // Remove the modal from the modals array
-        this.modals = this.modals.filter(m => m !== modal);
+        // Initialize tooltips in modal
+        this._initTooltips();
+        
+        // Return modal control object
+        return {
+            id: modalId,
+            close: () => this.closeModal(modalId),
+            getElement: () => modalElement
+        };
     }
-    
+
     /**
-     * Close all modals
+     * Close a modal dialog
+     * @param {string} modalId - Modal ID (optional, closes the top modal if not provided)
+     * @returns {boolean} Success status
      */
-    closeAllModals() {
-        // Close all modals
-        this.modals.forEach(modal => {
-            if (modal && modal.parentNode) {
-                modal.parentNode.removeChild(modal);
-            }
-        });
+    closeModal(modalId = null) {
+        // If no modal ID is provided, close the top modal
+        if (!modalId && this.modalStack.length > 0) {
+            modalId = this.modalStack[this.modalStack.length - 1].id;
+        }
         
-        // Clear the modals array
-        this.modals = [];
+        // Find the modal in the stack
+        const modalIndex = this.modalStack.findIndex(modal => modal.id === modalId);
+        if (modalIndex === -1) return false;
+        
+        // Get the modal
+        const modal = this.modalStack[modalIndex];
+        
+        // Remove the modal from the DOM
+        if (modal.element && modal.element.parentNode) {
+            modal.element.parentNode.removeChild(modal.element);
+        }
+        
+        // Remove the modal from the stack
+        this.modalStack.splice(modalIndex, 1);
+        
+        // Hide the modal container if there are no more modals
+        if (this.modalStack.length === 0) {
+            this.elements.modal.classList.add('hidden');
+        }
+        
+        // Call the onClose callback
+        if (modal.onClose) {
+            modal.onClose();
+        }
+        
+        return true;
     }
-    
-    /**
-     * Show an alert
-     * @param {string} message - The alert message
-     * @param {string} [title='Alert'] - The alert title
-     */
-    showAlert(message, title = 'Alert') {
-        const modal = this.createModal({
-            title: title,
-            content: `
-                <div class="space-y-4">
-                    <div class="alert-message">${message}</div>
-                    <div class="flex justify-end">
-                        <button id="alert-ok-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                            OK
-                        </button>
-                    </div>
-                </div>
-            `,
-            width: 'max-w-md'
-        });
-        
-        // Add event listener for OK button
-        const okBtn = modal.querySelector('#alert-ok-btn');
-        okBtn.addEventListener('click', () => {
-            this.closeModal(modal.parentNode);
-        });
-        
-        // Focus the OK button
-        okBtn.focus();
-    }
-    
+
     /**
      * Show a confirmation dialog
-     * @param {string} message - The confirmation message
-     * @param {Function} onConfirm - The function to call when confirmed
-     * @param {string} [title='Confirm'] - The confirmation title
+     * @param {string} title - Dialog title
+     * @param {string} message - Dialog message
+     * @param {Object} options - Dialog options
+     * @param {string} options.confirmText - Confirm button text
+     * @param {string} options.cancelText - Cancel button text
+     * @param {string} options.confirmClass - Confirm button CSS class
+     * @returns {Promise<boolean>} Promise that resolves to true if confirmed, false if cancelled
      */
-    showConfirm(message, onConfirm, title = 'Confirm') {
-        const modal = this.createModal({
-            title: title,
-            content: `
-                <div class="space-y-4">
-                    <p>${message}</p>
+    showConfirmation(title, message, options = {}) {
+        const {
+            confirmText = 'Confirm',
+            cancelText = 'Cancel',
+            confirmClass = 'bg-red-600 hover:bg-red-700'
+        } = options;
+        
+        return new Promise((resolve) => {
+            // Create confirmation dialog content
+            const content = `
+                <div class="confirmation-dialog">
+                    <p class="mb-4">${message}</p>
                     <div class="flex justify-end space-x-2">
-                        <button id="confirm-cancel-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
-                            Cancel
+                        <button id="confirm-cancel" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
+                            ${cancelText}
                         </button>
-                        <button id="confirm-ok-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                            OK
-                        </button>
-                    </div>
-                </div>
-            `,
-            width: 'max-w-md'
-        });
-        
-        // Add event listeners
-        const cancelBtn = modal.querySelector('#confirm-cancel-btn');
-        const okBtn = modal.querySelector('#confirm-ok-btn');
-        
-        cancelBtn.addEventListener('click', () => {
-            this.closeModal(modal.parentNode);
-        });
-        
-        okBtn.addEventListener('click
-        okBtn.addEventListener('click', () => {
-            this.closeModal(modal.parentNode);
-            onConfirm();
-        });
-        
-        // Focus the OK button
-        okBtn.focus();
-    }
-    
-    /**
-     * Open the player view
-     */
-    openPlayerView() {
-        // Close existing player view if open
-        if (this.app.state.playerViewWindow && !this.app.state.playerViewWindow.closed) {
-            this.app.state.playerViewWindow.close();
-        }
-        
-        // Open a new window
-        this.app.state.playerViewWindow = window.open('', 'playerView', 'width=800,height=600');
-        
-        // Update the player view
-        this.app.updatePlayerView();
-        
-        // Set up auto-refresh
-        const refreshRate = this.app.settings.getSetting('playerViewRefreshRate', 5) * 1000;
-        const refreshInterval = setInterval(() => {
-            if (this.app.state.playerViewWindow && !this.app.state.playerViewWindow.closed) {
-                this.app.updatePlayerView();
-            } else {
-                clearInterval(refreshInterval);
-            }
-        }, refreshRate);
-        
-        // Log the event
-        this.app.logEvent('Player view opened.');
-    }
-    
-    /**
-     * Generate HTML for the player view
-     * @returns {string} - The player view HTML
-     */
-    generatePlayerViewHTML() {
-        const creatures = this.app.combat.getInitiativeOrder();
-        const currentTurn = this.app.state.currentTurn;
-        const roundNumber = this.app.state.roundNumber;
-        const combatStarted = this.app.state.combatStarted;
-        
-        // Generate creature HTML
-        let creaturesHTML = '';
-        if (creatures.length > 0) {
-            creaturesHTML = creatures.map((creature, index) => {
-                const isActive = combatStarted && currentTurn === creature.id;
-                const typeIcon = creature.type === 'hero' ? '👤' : '👹';
-                
-                // Handle HP display based on settings
-                let hpDisplay = '';
-                if (this.playerViewSettings.hpDisplay === 'exact' && creature.type === 'hero') {
-                    hpDisplay = `${creature.currentHp}/${creature.maxHp}`;
-                } else if (this.playerViewSettings.hpDisplay === 'descriptive') {
-                    const hpPercentage = (creature.currentHp / creature.maxHp) * 100;
-                    if (creature.currentHp <= 0) {
-                        hpDisplay = 'Unconscious';
-                    } else if (hpPercentage <= 25) {
-                        hpDisplay = 'Critical';
-                    } else if (hpPercentage <= 50) {
-                        hpDisplay = 'Bloodied';
-                    } else if (hpPercentage <= 75) {
-                        hpDisplay = 'Injured';
-                    } else {
-                        hpDisplay = 'Healthy';
-                    }
-                } else {
-                    hpDisplay = '—';
-                }
-                
-                // Handle conditions
-                let conditionsHTML = '';
-                if (creature.conditions && creature.conditions.length > 0) {
-                    conditionsHTML = creature.conditions.map(condition => {
-                        const name = typeof condition === 'string' ? condition : condition.name;
-                        const rounds = typeof condition === 'string' ? null : condition.roundsLeft;
-                        return `<span class="condition-tag">${name}${rounds !== null ? ` (${rounds})` : ''}</span>`;
-                    }).join(' ');
-                }
-                
-                // Handle character image
-                let imageHTML = '';
-                if (creature.imageUrl) {
-                    imageHTML = `<img src="${creature.imageUrl}" alt="${creature.name}" class="character-image">`;
-                }
-                
-                return `
-                    <div class="creature ${isActive ? 'active' : ''}">
-                        <div class="creature-header">
-                            <div class="creature-info">
-                                ${imageHTML}
-                                <span class="creature-name">${typeIcon} ${creature.name}</span>
-                            </div>
-                            <div class="creature-initiative">${creature.initiative}</div>
-                        </div>
-                        <div class="creature-details">
-                            <div class="creature-hp">${hpDisplay}</div>
-                            <div class="creature-conditions">${conditionsHTML}</div>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        } else {
-            creaturesHTML = '<div class="no-creatures">No creatures in combat</div>';
-        }
-        
-        // Generate the full HTML
-        return `
-            <!DOCTYPE html>
-            <html lang="en">
-            <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Combat Tracker - Player View</title>
-                <style>
-                    body {
-                        font-family: 'Arial', sans-serif;
-                        background-color: #111827;
-                        color: #f3f4f6;
-                        margin: 0;
-                        padding: 0;
-                        background-image: ${this.playerViewSettings.theme === 'custom' && this.playerViewSettings.customBackground ? 
-                            `url('${this.playerViewSettings.customBackground}')` : 
-                            this.getThemeBackground()};
-                        background-size: cover;
-                        background-position: center;
-                        background-attachment: fixed;
-                    }
-                    
-                    .container {
-                        max-width: 800px;
-                        margin: 0 auto;
-                        padding: 20px;
-                    }
-                    
-                    .header {
-                        background-color: rgba(17, 24, 39, 0.8);
-                        padding: 15px;
-                        border-radius: 8px;
-                        margin-bottom: 20px;
-                        display: flex;
-                        justify-content: space-between;
-                        align-items: center;
-                    }
-                    
-                    .title {
-                        font-size: 24px;
-                        font-weight: bold;
-                        color: #818cf8;
-                    }
-                    
-                    .round {
-                        font-size: 18px;
-                        font-weight: bold;
-                    }
-                    
-                    .creatures-container {
-                        display: flex;
-                        flex-direction: column;
-                        gap: 10px;
-                    }
-                    
-                    .creature {
-                        background-color: rgba(31, 41, 55, 0.8);
-                        border-radius: 8px;
-                        padding: 10px;
-                        transition: all 0.3s ease;
-                    }
-                    
-                    .creature.active {
-                        background-color: rgba(30, 58, 138, 0.8);
-                        box-shadow: 0 0 15px rgba(59, 130, 246, 0.5);
-                    }
-                    
-                    .creature-header {
-                        display: flex;
-                        justify-content: space-between;
-                        align-items: center;
-                        margin-bottom: 8px;
-                    }
-                    
-                    .creature-info {
-                        display: flex;
-                        align-items: center;
-                    }
-                    
-                    .creature-name {
-                        font-size: 18px;
-                        font-weight: bold;
-                    }
-                    
-                    .creature-initiative {
-                        font-size: 18px;
-                        font-weight: bold;
-                        background-color: rgba(17, 24, 39, 0.8);
-                        width: 30px;
-                        height: 30px;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        border-radius: 50%;
-                    }
-                    
-                    .creature-details {
-                        display: flex;
-                        justify-content: space-between;
-                    }
-                    
-                    .creature-hp {
-                        font-size: 14px;
-                    }
-                    
-                    .creature-conditions {
-                        display: flex;
-                        flex-wrap: wrap;
-                        gap: 5px;
-                    }
-                    
-                    .condition-tag {
-                        background-color: rgba(217, 119, 6, 0.8);
-                        color: #fff;
-                        font-size: 12px;
-                        padding: 2px 8px;
-                        border-radius: 10px;
-                    }
-                    
-                    .no-creatures {
-                        text-align: center;
-                        padding: 20px;
-                        color: #9ca3af;
-                    }
-                    
-                    .character-image {
-                        width: 40px;
-                        height: 40px;
-                        border-radius: 50%;
-                        object-fit: cover;
-                        margin-right: 10px;
-                        border: 2px solid #4b5563;
-                    }
-                    
-                    .footer {
-                        margin-top: 20px;
-                        text-align: center;
-                        font-size: 12px;
-                        color: rgba(156, 163, 175, 0.8);
-                    }
-                </style>
-            </head>
-            <body>
-                <div class="container">
-                    <div class="header">
-                        <div class="title">Combat Tracker</div>
-                        <div class="round">${combatStarted ? `Round ${roundNumber}` : 'Combat not started'}</div>
-                    </div>
-                    
-                    <div class="creatures-container">
-                        ${creaturesHTML}
-                    </div>
-                    
-                    <div class="footer">
-                        Dungeons & Dragons, D&D, their respective logos, and all Wizards titles and characters are property of Wizards of the Coast LLC in the U.S.A. and other countries. ©2024 Wizards.
-                    </div>
-                </div>
-            </body>
-            </html>
-        `;
-    }
-    
-    /**
-     * Get the background image URL for the current theme
-     * @returns {string} - The background image URL
-     */
-    getThemeBackground() {
-        switch (this.playerViewSettings.theme) {
-            case 'dungeon':
-                return "url('https://i.imgur.com/JsVWNQn.jpg')";
-            case 'forest':
-                return "url('https://i.imgur.com/3H8EVLJ.jpg')";
-            case 'castle':
-                return "url('https://i.imgur.com/7wYmAi9.jpg')";
-            case 'tavern':
-                return "url('https://i.imgur.com/QFqiRsD.jpg')";
-            default:
-                return "none";
-        }
-    }
-    
-    /**
-     * Open the player view settings modal
-     */
-    openPlayerViewSettingsModal() {
-        const modal = this.createModal({
-            title: 'Player View Settings',
-            content: `
-                <div class="space-y-4">
-                    <div>
-                        <label class="block text-gray-300 mb-2">HP Display Style:</label>
-                        <select id="hp-display-style" class="w-full bg-gray-700 text-white px-3 py-2 rounded">
-                            <option value="descriptive" ${this.playerViewSettings.hpDisplay === 'descriptive' ? 'selected' : ''}>Descriptive (Healthy, Bloodied, etc.)</option>
-                            <option value="exact" ${this.playerViewSettings.hpDisplay === 'exact' ? 'selected' : ''}>Exact Numbers for Heroes</option>
-                            <option value="hidden" ${this.playerViewSettings.hpDisplay === 'hidden' ? 'selected' : ''}>Hidden</option>
-                        </select>
-                    </div>
-                    
-                    <div>
-                        <label class="block text-gray-300 mb-2">Background Theme:</label>
-                        <select id="background-theme" class="w-full bg-gray-700 text-white px-3 py-2 rounded">
-                            <option value="default" ${this.playerViewSettings.theme === 'default' ? 'selected' : ''}>Default (Dark)</option>
-                            <option value="dungeon" ${this.playerViewSettings.theme === 'dungeon' ? 'selected' : ''}>Dungeon</option>
-                            <option value="forest" ${this.playerViewSettings.theme === 'forest' ? 'selected' : ''}>Forest</option>
-                            <option value="castle" ${this.playerViewSettings.theme === 'castle' ? 'selected' : ''}>Castle</option>
-                            <option value="tavern" ${this.playerViewSettings.theme === 'tavern' ? 'selected' : ''}>Tavern</option>
-                            <option value="custom" ${this.playerViewSettings.theme === 'custom' ? 'selected' : ''}>Custom URL</option>
-                        </select>
-                    </div>
-                    
-                    <div id="custom-background-container" class="${this.playerViewSettings.theme === 'custom' ? '' : 'hidden'}">
-                        <label class="block text-gray-300 mb-2">Custom Background URL:</label>
-                        <input type="text" id="custom-background-url" class="w-full bg-gray-700 text-white px-3 py-2 rounded" 
-                            value="${this.playerViewSettings.customBackground || ''}">
-                        <p class="text-xs text-gray-400 mt-1">Enter the URL of an image to use as the background</p>
-                    </div>
-                    
-                    <div class="flex justify-end space-x-2">
-                        <button id="cancel-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
-                            Cancel
-                        </button>
-                        <button id="save-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                            Save Settings
+                        <button id="confirm-ok" class="${confirmClass} text-white font-bold py-2 px-4 rounded">
+                            ${confirmText}
                         </button>
                     </div>
                 </div>
-            `,
-            width: 'max-w-md'
-        });
-        
-        // Add event listeners
-        const hpDisplayStyle = modal.querySelector('#hp-display-style');
-        const backgroundTheme = modal.querySelector('#background-theme');
-        const customBackgroundContainer = modal.querySelector('#custom-background-container');
-        const customBackgroundUrl = modal.querySelector('#custom-background-url');
-        const cancelBtn = modal.querySelector('#cancel-btn');
-        const saveBtn = modal.querySelector('#save-btn');
-        
-        // Show/hide custom background URL input
-        backgroundTheme.addEventListener('change', () => {
-            if (backgroundTheme.value === 'custom') {
-                customBackgroundContainer.classList.remove('hidden');
-            } else {
-                customBackgroundContainer.classList.add('hidden');
-            }
-        });
-        
-        cancelBtn.addEventListener('click', () => {
-            this.closeModal(modal.parentNode);
-        });
-        
-        saveBtn.addEventListener('click', () => {
-            // Update settings
-            this.playerViewSettings.hpDisplay = hpDisplayStyle.value;
-            this.playerViewSettings.theme = backgroundTheme.value;
-            this.playerViewSettings.customBackground = customBackgroundUrl.value.trim();
+            `;
             
-            // Save settings
-            this.savePlayerViewSettings();
+            // Show the modal
+            const modal = this.showModal(title, content);
             
-            // Update player view if open
-            if (this.app.state.playerViewWindow && !this.app.state.playerViewWindow.closed) {
-                this.app.updatePlayerView();
-            }
+            // Add event listeners
+            const confirmButton = document.getElementById('confirm-ok');
+            const cancelButton = document.getElementById('confirm-cancel');
             
-            // Close modal
-            this.closeModal(modal.parentNode);
-            
-            // Log event
-            this.app.logEvent('Player view settings updated.');
-        });
-    }
-    
-    /**
-     * Create the hotbar
-     */
-    createHotbar() {
-        // Check if hotbar already exists
-        if (document.getElementById('action-hotbar')) return;
-        
-        // Load hotbar actions
-        this.hotbarActions = this.app.storage.loadData('hotbarActions', []);
-        
-        // Create hotbar container
-        const hotbar = document.createElement('div');
-        hotbar.id = 'action-hotbar';
-        hotbar.className = 'fixed bottom-4 right-4 bg-gray-800 rounded-lg shadow-lg p-2 z-30';
-        
-        // Create hotbar content
-        hotbar.innerHTML = `
-            <div class="flex space-x-2">
-                ${Array(5).fill(0).map((_, index) => {
-                    const action = this.hotbarActions[index];
-                    return `
-                        <div class="hotbar-slot" data-slot="${index}">
-                            <button class="hotbar-action-btn w-12 h-12 bg-gray-700 hover:bg-gray-600 rounded flex items-center justify-center text-white font-bold" 
-                                data-action-index="${index}" title="${action ? action.tooltip || '' : 'Empty slot'}">
-                                ${action ? action.label : '+'}
-                            </button>
-                        </div>
-                    `;
-                }).join('')}
-            </div>
-        `;
-        
-        // Add to document
-        document.body.appendChild(hotbar);
-        
-        // Add event listeners
-        hotbar.querySelectorAll('.hotbar-action-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const actionIndex = parseInt(btn.dataset.actionIndex);
-                this.executeHotbarAction(actionIndex);
+            confirmButton.addEventListener('click', () => {
+                modal.close();
+                resolve(true);
             });
             
-            // Right-click to edit
-            btn.addEventListener('contextmenu', (e) => {
-                e.preventDefault();
-                const actionIndex = parseInt(btn.dataset.actionIndex);
-                this.editHotbarAction(actionIndex);
+            cancelButton.addEventListener('click', () => {
+                modal.close();
+                resolve(false);
             });
+            
+            // Focus the cancel button by default (safer option)
+            cancelButton.focus();
         });
     }
-    
+
     /**
-     * Add an action to the hotbar
-     * @param {Object} action - The action to add
+     * Show a prompt dialog
+     * @param {string} title - Dialog title
+     * @param {string} message - Dialog message
+     * @param {string} defaultValue - Default input value
+     * @param {Object} options - Dialog options
+     * @param {string} options.confirmText - Confirm button text
+     * @param {string} options.cancelText - Cancel button text
+     * @param {string} options.inputType - Input type (text, number, etc.)
+     * @param {string} options.placeholder - Input placeholder
+     * @returns {Promise<string|null>} Promise that resolves to the input value if confirmed, null if cancelled
      */
-    addToHotbar(action) {
-        // Find an empty slot or use the first slot
-        let slotIndex = this.hotbarActions.findIndex(a => !a);
-        if (slotIndex === -1) slotIndex = 0;
+    showPrompt(title, message, defaultValue = '', options = {}) {
+        const {
+            confirmText = 'OK',
+            cancelText = 'Cancel',
+            inputType = 'text',
+            placeholder = ''
+        } = options;
         
-        // Add the action
-        this.hotbarActions[slotIndex] = action;
-        
-        // Save hotbar actions
-        this.app.storage.saveData('hotbarActions', this.hotbarActions);
-        
-        // Update hotbar UI
-        this.updateHotbarUI();
+        return new Promise((resolve) => {
+            // Create prompt dialog content
+            const content = `
+                <div class="prompt-dialog">
+                    <p class="mb-2">${message}</p>
+                    <input 
+                        type="${inputType}" 
+                        id="prompt-input" 
+                        class="w-full p-2 border border-gray-300 rounded mb-4" 
+                        value="${defaultValue}"
+                        placeholder="${placeholder}"
+                    >
+                    <div class="flex justify-end space-x-2">
+                        <button id="prompt-cancel" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
+                            ${cancelText}
+                        </button>
+                        <button id="prompt-ok" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                            ${confirmText}
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            // Show the modal
+            const modal = this.showModal(title, content);
+            
+            // Add event listeners
+            const promptInput = document.getElementById('prompt-input');
+            const confirmButton = document.getElementById('prompt-ok');
+            const cancelButton = document.getElementById('prompt-cancel');
+            
+            confirmButton.addEventListener('click', () => {
+                modal.close();
+                resolve(promptInput.value);
+            });
+            
+            cancelButton.addEventListener('click', () => {
+                modal.close();
+                resolve(null);
+            });
+            
+            // Handle Enter key
+            promptInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    modal.close();
+                    resolve(promptInput.value);
+                }
+            });
+            
+            // Focus the input
+            promptInput.focus();
+            promptInput.select();
+        });
     }
-    
+
     /**
-     * Execute a hotbar action
-     * @param {number} index - The index of the action to execute
+     * Show a toast notification
+     * @param {string} message - Toast message
+     * @param {string} type - Toast type (info, success, warning, error)
+     * @param {number} duration - Toast duration in milliseconds (0 for persistent)
      */
-    executeHotbarAction(index) {
-        const action = this.hotbarActions[index];
-        if (!action) {
-            this.editHotbarAction(index);
+    showToast(message, type = 'info', duration = 3000) {
+        // Add toast to queue
+        this.toastQueue.push({ message, type, duration });
+        
+        // Process queue if not already processing
+        if (!this.isProcessingToasts) {
+            this._processToastQueue();
+        }
+    }
+
+    /**
+     * Process toast queue
+     * @private
+     */
+    async _processToastQueue() {
+        if (this.toastQueue.length === 0) {
+            this.isProcessingToasts = false;
             return;
         }
         
-        switch (action.type) {
-            case 'statBlock':
-                const creature = this.app.combat.getCreatureById(action.creatureId);
-                if (creature) {
-                    this.openStatBlockModal(action.creatureId);
-                } else {
-                    this.app.showAlert('Creature not found.');
-                    this.hotbarActions[index] = null;
-                    this.app.storage.saveData('hotbarActions', this.hotbarActions);
-                    this.updateHotbarUI();
-                }
+        this.isProcessingToasts = true;
+        
+        // Get the next toast
+        const { message, type, duration } = this.toastQueue.shift();
+        
+        // Create toast element
+        const toastId = `toast-${Date.now()}`;
+        const toastElement = document.createElement('div');
+        toastElement.id = toastId;
+        toastElement.className = `toast toast-${type}`;
+        toastElement.setAttribute('role', 'alert');
+        
+        // Add icon based on type
+        let icon = '';
+        switch (type) {
+            case 'success':
+                icon = '<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>';
                 break;
-            case 'diceRoll':
-                this.app.dice.rollAndDisplay(action.dice);
+            case 'warning':
+                icon = '<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg>';
                 break;
-            case 'customAction':
-                if (action.callback && typeof action.callback === 'function') {
-                    action.callback();
-                }
+            case 'error':
+                icon = '<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path></svg>';
                 break;
-            default:
-                this.app.showAlert('Unknown action type.');
+            default: // info
+                icon = '<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path></svg>';
+                break;
+        }
+        
+        // Create toast content
+        toastElement.innerHTML = `
+            <div class="toast-content">
+                <div class="toast-icon">${icon}</div>
+                <div class="toast-message">${message}</div>
+                <button class="toast-close" aria-label="Close">×</button>
+            </div>
+            ${duration > 0 ? '<div class="toast-progress"></div>' : ''}
+        `;
+        
+        // Add to container
+        this.elements.toast.appendChild(toastElement);
+        
+        // Animate in
+        setTimeout(() => {
+            toastElement.classList.add('show');
+        }, 10);
+        
+        // Add progress animation if duration > 0
+        if (duration > 0) {
+            const progressBar = toastElement.querySelector('.toast-progress');
+            progressBar.style.animationDuration = `${duration}ms`;
+        }
+        
+        // Add close button event listener
+        const closeButton = toastElement.querySelector('.toast-close');
+        closeButton.addEventListener('click', () => {
+            this._removeToast(toastId);
+        });
+        
+        // Auto-remove after duration (if not persistent)
+        if (duration > 0) {
+            await new Promise(resolve => setTimeout(resolve, duration));
+            this._removeToast(toastId);
+        }
+        
+        // Process next toast
+        this._processToastQueue();
+    }
+
+    /**
+     * Remove a toast
+     * @private
+     * @param {string} toastId - Toast ID
+     */
+    _removeToast(toastId) {
+        const toastElement = document.getElementById(toastId);
+        if (!toastElement) return;
+        
+        // Animate out
+        toastElement.classList.remove('show');
+        
+        // Remove after animation
+        setTimeout(() => {
+            if (toastElement.parentNode) {
+                toastElement.parentNode.removeChild(toastElement);
+            }
+        }, 300);
+    }
+
+    /**
+     * Show a tooltip
+     * @param {HTMLElement} element - Element to show tooltip for
+     * @param {string} content - Tooltip content
+     */
+    showTooltip(element, content) {
+        // Check if tooltip already exists
+        let tooltip = element.querySelector('.tooltip');
+        if (tooltip) return;
+        
+        // Create tooltip element
+        tooltip = document.createElement('div');
+        tooltip.className = 'tooltip';
+        tooltip.textContent = content;
+        tooltip.setAttribute('role', 'tooltip');
+        
+        // Add to element
+        element.appendChild(tooltip);
+        
+        // Position tooltip
+        this._positionTooltip(element, tooltip);
+    }
+
+    /**
+     * Hide a tooltip
+     * @param {HTMLElement} element - Element to hide tooltip for
+     */
+    hideTooltip(element) {
+        const tooltip = element.querySelector('.tooltip');
+        if (tooltip) {
+            tooltip.parentNode.removeChild(tooltip);
         }
     }
-    
+
     /**
-     * Edit a hotbar action
-     * @param {number} index - The index of the action to edit
+     * Position a tooltip
+     * @private
+     * @param {HTMLElement} element - Element to position tooltip for
+     * @param {HTMLElement} tooltip - Tooltip element
      */
-    editHotbarAction(index) {
-        const action = this.hotbarActions[index];
+    _positionTooltip(element, tooltip) {
+        const rect = element.getBoundingClientRect();
+        const tooltipRect = tooltip.getBoundingClientRect();
         
-        const modal = this.createModal({
-            title: action ? 'Edit Hotbar Action' : 'Add Hotbar Action',
-            content: `
-                <div class="space-y-4">
-                    <div>
-                        <label class="block text-gray-300 mb-2">Action Type:</label>
-                        <select id="action-type" class="w-full bg-gray-700 text-white px-3 py-2 rounded">
-                            <option value="diceRoll" ${action && action.type === 'diceRoll' ? 'selected' : ''}>Dice Roll</option>
-                            <option value="empty" ${!action ? 'selected' : ''}>Empty Slot</option>
-                        </select>
-                    </div>
-                    
-                    <div id="dice-roll-options" class="${action && action.type === 'diceRoll' ? '' : 'hidden'}">
-                        <label class="block text-gray-300 mb-2">Dice Expression:</label>
-                        <input type="text" id="dice-expression" class="w-full bg-gray-700 text-white px-3 py-2 rounded" 
-                            value="${action && action.type === 'diceRoll' ? action.dice : '1d20'}" placeholder="e.g., 1d20+5, 2d6">
-                    </div>
-                    
-                    <div>
-                        <label class="block text-gray-300 mb-2">Label (1-2 characters):</label>
-                        <input type="text" id="action-label" class="w-full bg-gray-700 text-white px-3 py-2 rounded" maxlength="2"
-                            value="${action ? action.label : ''}" placeholder="e.g., D, 20">
-                    </div>
-                    
-                    <div>
-                        <label class="block text-gray-300 mb-2">Tooltip:</label>
-                        <input type="text" id="action-tooltip" class="w-full bg-gray-700 text-white px-3 py-2 rounded"
-                            value="${action && action.tooltip ? action.tooltip : ''}" placeholder="e.g., Roll d20">
-                    </div>
-                    
-                    <div class="flex justify-end space-x-2">
-                        ${action ? `
-                        <button id="remove-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">
-                            Remove
-                        </button>
-                        ` : ''}
-                        <button id="cancel-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
-                            Cancel
-                        </button>
-                        <button id="save-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                            Save
-                        </button>
-                    </div>
-                </div>
-            `,
-            width: 'max-w-md'
-        });
+        // Default position (top)
+        let top = rect.top - tooltipRect.height - 5;
+        let left = rect.left + (rect.width / 2) - (tooltipRect.width / 2);
         
-        // Add event listeners
-        const actionType = modal.querySelector('#action-type');
-        const diceRollOptions = modal.querySelector('#dice-roll-options');
-        const diceExpression = modal.querySelector('#dice-expression');
-        const actionLabel = modal.querySelector('#action-label');
-        const actionTooltip = modal.querySelector('#action-tooltip');
-        const cancelBtn = modal.querySelector('#cancel-btn');
-        const saveBtn = modal.querySelector('#save-btn');
-        const removeBtn = modal.querySelector('#remove-btn');
+        // Check if tooltip would go off the top of the screen
+        if (top < 5) {
+            // Position below element
+            top = rect.bottom + 5;
+            tooltip.classList.add('tooltip-bottom');
+        } else {
+            tooltip.classList.add('tooltip-top');
+        }
         
-        // Show/hide options based on action type
-        actionType.addEventListener('change', () => {
-            if (actionType.value === 'diceRoll') {
-                diceRollOptions.classList.remove('hidden');
-            } else {
-                diceRollOptions.classList.add('hidden');
+        // Check if tooltip would go off the left of the screen
+        if (left < 5) {
+            left = 5;
+        }
+        
+        // Check if tooltip would go off the right of the screen
+        if (left + tooltipRect.width > window.innerWidth - 5) {
+            left = window.innerWidth - tooltipRect.width - 5;
+        }
+        
+        // Set position
+        tooltip.style.top = `${top}px`;
+        tooltip.style.left = `${left}px`;
+    }
+
+    /**
+     * Show a loading spinner
+     * @param {HTMLElement} container - Container element
+     * @param {string} message - Loading message
+     * @returns {Object} Loading spinner control object
+     */
+    showLoading(container, message = 'Loading...') {
+        // Create loading element
+        const loadingId = `loading-${Date.now()}`;
+        const loadingElement = document.createElement('div');
+        loadingElement.id = loadingId;
+        loadingElement.className = 'loading-container';
+        loadingElement.setAttribute('role', 'status');
+        loadingElement.setAttribute('aria-live', 'polite');
+        
+        // Create loading content
+        loadingElement.innerHTML = `
+            <div class="loading-spinner"></div>
+            <div class="loading-message">${message}</div>
+        `;
+        
+        // Add to container
+        container.appendChild(loadingElement);
+        
+        // Return control object
+        return {
+            id: loadingId,
+            update: (newMessage) => {
+                const messageElement = loadingElement.querySelector('.loading-message');
+                if (messageElement) {
+                    messageElement.textContent = newMessage;
+                }
+            },
+            remove: () => {
+                if (loadingElement.parentNode) {
+                    loadingElement.parentNode.removeChild(loadingElement);
+                }
             }
+        };
+    }
+
+    /**
+     * Enable drag and drop for an element
+     * @param {HTMLElement} element - Element to make draggable
+     * @param {Object} options - Drag options
+     * @param {string} options.dragHandle - Selector for drag handle
+     * @param {Function} options.onDragStart - Callback when drag starts
+     * @param {Function} options.onDragEnd - Callback when drag ends
+     * @param {Function} options.onDragOver - Callback when dragging over a target
+     * @param {Function} options.onDrop - Callback when dropped on a target
+     */
+    enableDragDrop(element, options = {}) {
+        const {
+            dragHandle = null,
+            onDragStart = null,
+            onDragEnd = null,
+            onDragOver = null,
+            onDrop = null
+        } = options;
+        
+        // Make element draggable
+        element.setAttribute('draggable', 'true');
+        
+        // Add drag handle if specified
+        if (dragHandle) {
+            const handle = element.querySelector(dragHandle);
+            if (handle) {
+                handle.classList.add('drag-handle');
+                handle.addEventListener('mousedown', () => {
+                    element.setAttribute('draggable', 'true');
+                });
+                handle.addEventListener('mouseup', () => {
+                    element.setAttribute('draggable', 'false');
+                });
+            }
+        }
+        
+        // Add drag event listeners
+        element.addEventListener('dragstart', (e) => {
+            this.draggedElement = element;
+            element.classList.add('dragging');
+            
+            // Set drag data
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', element.id);
+            
+            // Set drag image
+            const dragImage = element.cloneNode(true);
+            dragImage.style.opacity = '0.7';
+            dragImage.style.position = 'absolute';
+            dragImage.style.top = '-1000px';
+            document.body.appendChild(dragImage);
+            e.dataTransfer.setDragImage(dragImage, 0, 0);
+            
+            // Call onDragStart callback
+            if (onDragStart) {
+                onDragStart(element, e);
+            }
+            
+            // Remove drag image after dragstart
+            setTimeout(() => {
+                document.body.removeChild(dragImage);
+            }, 0);
         });
         
-        cancelBtn.addEventListener('click', () => {
-            this.closeModal(modal.parentNode);
+        element.addEventListener('dragend', (e) => {
+            this.draggedElement = null;
+            element.classList.remove('dragging');
+            
+            // Call onDragEnd callback
+            if (onDragEnd) {
+                onDragEnd(element, this.dropTarget, e);
+            }
+            
+            this.dropTarget = null;
         });
         
-        if (removeBtn) {
-            removeBtn.addEventListener('click', () => {
-                this.hotbarActions[index] = null;
-                this.app.storage.saveData('hotbarActions', this.hotbarActions);
-                this.updateHotbarUI();
-                this.closeModal(modal.parentNode);
+        // Add drop target event listeners
+        const dropTargets = document.querySelectorAll('.drop-target');
+        dropTargets.forEach(target => {
+            target.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                
+                this.dropTarget = target;
+                target.classList.add('drag-over');
+                
+                                // Call onDragOver callback
+                if (onDragOver) {
+                    onDragOver(element, target, e);
+                }
             });
-        }
-        
-        saveBtn.addEventListener('click', () => {
-            if (actionType.value === 'empty') {
-                this.hotbarActions[index] = null;
-            } else if (actionType.value === 'diceRoll') {
-                const dice = diceExpression.value.trim();
-                const label = actionLabel.value.trim() || 'D';
-                const tooltip = actionTooltip.value.trim() || `Roll ${dice}`;
+            
+            target.addEventListener('dragleave', (e) => {
+                target.classList.remove('drag-over');
+                if (this.dropTarget === target) {
+                    this.dropTarget = null;
+                }
+            });
+            
+            target.addEventListener('drop', (e) => {
+                e.preventDefault();
+                target.classList.remove('drag-over');
                 
-                if (!dice) {
-                    this.app.showAlert('Please enter a dice expression.');
-                    return;
+                // Call onDrop callback
+                if (onDrop && this.draggedElement) {
+                    onDrop(this.draggedElement, target, e);
+                }
+            });
+        });
+    }
+
+    /**
+     * Create a tabbed interface
+     * @param {HTMLElement} container - Container element
+     * @param {Object[]} tabs - Tab definitions
+     * @param {string} tabs[].id - Tab ID
+     * @param {string} tabs[].label - Tab label
+     * @param {string} tabs[].content - Tab content (HTML)
+     * @param {boolean} tabs[].active - Whether the tab is active
+     * @returns {Object} Tabbed interface control object
+     */
+    createTabbedInterface(container, tabs) {
+        // Create tab container
+        const tabId = `tabs-${Date.now()}`;
+        const tabContainer = document.createElement('div');
+        tabContainer.id = tabId;
+        tabContainer.className = 'tabbed-interface';
+        
+        // Create tab navigation
+        const tabNav = document.createElement('div');
+        tabNav.className = 'tab-nav';
+        tabNav.setAttribute('role', 'tablist');
+        
+        // Create tab content container
+        const tabContent = document.createElement('div');
+        tabContent.className = 'tab-content';
+        
+        // Add tabs
+        let activeTabId = null;
+        tabs.forEach(tab => {
+            // Create tab button
+            const tabButton = document.createElement('button');
+            tabButton.id = `${tabId}-tab-${tab.id}`;
+            tabButton.className = 'tab-button';
+            tabButton.textContent = tab.label;
+            tabButton.setAttribute('role', 'tab');
+            tabButton.setAttribute('aria-controls', `${tabId}-panel-${tab.id}`);
+            
+            // Create tab panel
+            const tabPanel = document.createElement('div');
+            tabPanel.id = `${tabId}-panel-${tab.id}`;
+            tabPanel.className = 'tab-panel';
+            tabPanel.innerHTML = tab.content;
+            tabPanel.setAttribute('role', 'tabpanel');
+            tabPanel.setAttribute('aria-labelledby', `${tabId}-tab-${tab.id}`);
+            
+            // Set active tab
+            if (tab.active || activeTabId === null) {
+                activeTabId = tab.id;
+                tabButton.classList.add('active');
+                tabButton.setAttribute('aria-selected', 'true');
+                tabPanel.classList.add('active');
+            } else {
+                tabButton.setAttribute('aria-selected', 'false');
+                tabPanel.classList.add('hidden');
+            }
+            
+            // Add click event
+            tabButton.addEventListener('click', () => {
+                // Deactivate all tabs
+                tabNav.querySelectorAll('.tab-button').forEach(button => {
+                    button.classList.remove('active');
+                    button.setAttribute('aria-selected', 'false');
+                });
+                
+                tabContent.querySelectorAll('.tab-panel').forEach(panel => {
+                    panel.classList.remove('active');
+                    panel.classList.add('hidden');
+                });
+                
+                // Activate clicked tab
+                tabButton.classList.add('active');
+                tabButton.setAttribute('aria-selected', 'true');
+                tabPanel.classList.add('active');
+                tabPanel.classList.remove('hidden');
+                
+                // Update active tab ID
+                activeTabId = tab.id;
+            });
+            
+            // Add to containers
+            tabNav.appendChild(tabButton);
+            tabContent.appendChild(tabPanel);
+        });
+        
+        // Add to container
+        tabContainer.appendChild(tabNav);
+        tabContainer.appendChild(tabContent);
+        container.appendChild(tabContainer);
+        
+        // Return control object
+        return {
+            id: tabId,
+            getActiveTab: () => activeTabId,
+            setActiveTab: (tabId) => {
+                const tabButton = document.getElementById(`${tabId}-tab-${tabId}`);
+                if (tabButton) {
+                    tabButton.click();
+                }
+            },
+            addTab: (tab) => {
+                // Create tab button
+                const tabButton = document.createElement('button');
+                tabButton.id = `${tabId}-tab-${tab.id}`;
+                tabButton.className = 'tab-button';
+                tabButton.textContent = tab.label;
+                tabButton.setAttribute('role', 'tab');
+                tabButton.setAttribute('aria-controls', `${tabId}-panel-${tab.id}`);
+                tabButton.setAttribute('aria-selected', 'false');
+                
+                // Create tab panel
+                const tabPanel = document.createElement('div');
+                tabPanel.id = `${tabId}-panel-${tab.id}`;
+                tabPanel.className = 'tab-panel hidden';
+                tabPanel.innerHTML = tab.content;
+                tabPanel.setAttribute('role', 'tabpanel');
+                tabPanel.setAttribute('aria-labelledby', `${tabId}-tab-${tab.id}`);
+                
+                // Add click event
+                tabButton.addEventListener('click', () => {
+                    // Deactivate all tabs
+                    tabNav.querySelectorAll('.tab-button').forEach(button => {
+                        button.classList.remove('active');
+                        button.setAttribute('aria-selected', 'false');
+                    });
+                    
+                    tabContent.querySelectorAll('.tab-panel').forEach(panel => {
+                        panel.classList.remove('active');
+                        panel.classList.add('hidden');
+                    });
+                    
+                    // Activate clicked tab
+                    tabButton.classList.add('active');
+                    tabButton.setAttribute('aria-selected', 'true');
+                    tabPanel.classList.add('active');
+                    tabPanel.classList.remove('hidden');
+                    
+                    // Update active tab ID
+                    activeTabId = tab.id;
+                });
+                
+                // Add to containers
+                tabNav.appendChild(tabButton);
+                tabContent.appendChild(tabPanel);
+                
+                // Activate if specified
+                if (tab.active) {
+                    tabButton.click();
+                }
+            },
+            removeTab: (tabId) => {
+                const tabButton = document.getElementById(`${tabId}-tab-${tabId}`);
+                const tabPanel = document.getElementById(`${tabId}-panel-${tabId}`);
+                
+                if (tabButton) {
+                    tabButton.parentNode.removeChild(tabButton);
                 }
                 
-                this.hotbarActions[index] = {
-                    type: 'diceRoll',
-                    dice: dice,
-                    label: label,
-                    tooltip: tooltip
-                };
+                if (tabPanel) {
+                    tabPanel.parentNode.removeChild(tabPanel);
+                }
+                
+                // If active tab was removed, activate first tab
+                if (activeTabId === tabId) {
+                    const firstTabButton = tabNav.querySelector('.tab-button');
+                    if (firstTabButton) {
+                        firstTabButton.click();
+                    } else {
+                        activeTabId = null;
+                    }
+                }
             }
-            
-            // Save hotbar actions
-            this.app.storage.saveData('hotbarActions', this.hotbarActions);
-            
-            // Update hotbar UI
-            this.updateHotbarUI();
-            
-            // Close modal
-            this.closeModal(modal.parentNode);
-        });
+        };
     }
-    
+
     /**
-     * Update the hotbar UI
+     * Create a collapsible section
+     * @param {HTMLElement} container - Container element
+     * @param {string} title - Section title
+     * @param {string} content - Section content (HTML)
+     * @param {Object} options - Options
+     * @param {boolean} options.expanded - Whether the section is expanded
+     * @param {string} options.titleClass - CSS class for the title
+     * @param {string} options.contentClass - CSS class for the content
+     * @returns {Object} Collapsible section control object
      */
-    updateHotbarUI() {
-        const hotbar = document.getElementById('action-hotbar');
-        if (!hotbar) return;
+    createCollapsible(container, title, content, options = {}) {
+        const {
+            expanded = false,
+            titleClass = '',
+            contentClass = ''
+        } = options;
         
-        const slots = hotbar.querySelectorAll('.hotbar-action-btn');
-        slots.forEach((slot, index) => {
-            const action = this.hotbarActions[index];
-            if (action) {
-                slot.textContent = action.label || '+';
-                slot.title = action.tooltip || '';
+        // Create collapsible container
+        const collapsibleId = `collapsible-${Date.now()}`;
+        const collapsibleContainer = document.createElement('div');
+        collapsibleContainer.id = collapsibleId;
+        collapsibleContainer.className = 'collapsible';
+        
+        // Create header
+        const header = document.createElement('div');
+        header.className = `collapsible-header ${titleClass}`;
+        header.innerHTML = `
+            <span class="collapsible-title">${title}</span>
+            <span class="collapsible-icon">${expanded ? '▼' : '►'}</span>
+        `;
+        
+        // Create content
+        const contentElement = document.createElement('div');
+        contentElement.className = `collapsible-content ${contentClass}`;
+        contentElement.innerHTML = content;
+        
+        // Set initial state
+        if (!expanded) {
+            contentElement.style.display = 'none';
+        }
+        
+        // Add click event
+        header.addEventListener('click', () => {
+            const isExpanded = contentElement.style.display !== 'none';
+            const icon = header.querySelector('.collapsible-icon');
+            
+            if (isExpanded) {
+                contentElement.style.display = 'none';
+                icon.textContent = '►';
             } else {
-                slot.textContent = '+';
-                slot.title = 'Empty slot';
+                contentElement.style.display = 'block';
+                icon.textContent = '▼';
+            }
+        });
+        
+        // Add to container
+        collapsibleContainer.appendChild(header);
+        collapsibleContainer.appendChild(contentElement);
+        container.appendChild(collapsibleContainer);
+        
+        // Return control object
+        return {
+            id: collapsibleId,
+            isExpanded: () => contentElement.style.display !== 'none',
+            expand: () => {
+                contentElement.style.display = 'block';
+                header.querySelector('.collapsible-icon').textContent = '▼';
+            },
+            collapse: () => {
+                contentElement.style.display = 'none';
+                header.querySelector('.collapsible-icon').textContent = '►';
+            },
+            toggle: () => {
+                const isExpanded = contentElement.style.display !== 'none';
+                if (isExpanded) {
+                    contentElement.style.display = 'none';
+                    header.querySelector('.collapsible-icon').textContent = '►';
+                } else {
+                    contentElement.style.display = 'block';
+                    header.querySelector('.collapsible-icon').textContent = '▼';
+                }
+            },
+            updateContent: (newContent) => {
+                contentElement.innerHTML = newContent;
+            },
+            updateTitle: (newTitle) => {
+                header.querySelector('.collapsible-title').textContent = newTitle;
+            }
+        };
+    }
+
+    /**
+     * Create a context menu
+     * @param {HTMLElement} element - Element to attach context menu to
+     * @param {Object[]} items - Menu items
+     * @param {string} items[].label - Item label
+     * @param {Function} items[].action - Item action
+     * @param {boolean} items[].divider - Whether to add a divider after this item
+     * @param {string} items[].icon - Item icon (HTML)
+     */
+    createContextMenu(element, items) {
+        // Add context menu event
+        element.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            
+            // Remove any existing context menus
+            document.querySelectorAll('.context-menu').forEach(menu => {
+                menu.parentNode.removeChild(menu);
+            });
+            
+            // Create context menu
+            const menuId = `context-menu-${Date.now()}`;
+            const menu = document.createElement('div');
+            menu.id = menuId;
+            menu.className = 'context-menu';
+            menu.setAttribute('role', 'menu');
+            
+            // Add items
+            items.forEach(item => {
+                if (item.divider) {
+                    const divider = document.createElement('div');
+                    divider.className = 'context-menu-divider';
+                    menu.appendChild(divider);
+                } else {
+                    const menuItem = document.createElement('div');
+                    menuItem.className = 'context-menu-item';
+                    menuItem.setAttribute('role', 'menuitem');
+                    menuItem.innerHTML = `
+                        ${item.icon ? `<span class="context-menu-icon">${item.icon}</span>` : ''}
+                        <span class="context-menu-label">${item.label}</span>
+                    `;
+                    
+                    // Add click event
+                    menuItem.addEventListener('click', () => {
+                        // Close menu
+                        document.body.removeChild(menu);
+                        
+                        // Call action
+                        if (item.action) {
+                            item.action();
+                        }
+                    });
+                    
+                    menu.appendChild(menuItem);
+                }
+            });
+            
+            // Position menu
+            menu.style.top = `${e.clientY}px`;
+            menu.style.left = `${e.clientX}px`;
+            
+            // Add to body
+            document.body.appendChild(menu);
+            
+            // Adjust position if menu goes off screen
+            const menuRect = menu.getBoundingClientRect();
+            if (menuRect.right > window.innerWidth) {
+                menu.style.left = `${window.innerWidth - menuRect.width - 5}px`;
+            }
+            if (menuRect.bottom > window.innerHeight) {
+                menu.style.top = `${window.innerHeight - menuRect.height - 5}px`;
+            }
+            
+            // Close menu on click outside
+            const closeMenu = (e) => {
+                if (!menu.contains(e.target)) {
+                    document.body.removeChild(menu);
+                    document.removeEventListener('click', closeMenu);
+                }
+            };
+            
+            // Add delay to prevent immediate closing
+            setTimeout(() => {
+                document.addEventListener('click', closeMenu);
+            }, 100);
+        });
+    }
+
+    /**
+     * Create a dropdown menu
+     * @param {HTMLElement} button - Button element
+     * @param {Object[]} items - Menu items
+     * @param {string} items[].label - Item label
+     * @param {Function} items[].action - Item action
+     * @param {boolean} items[].divider - Whether to add a divider after this item
+     * @param {string} items[].icon - Item icon (HTML)
+     */
+    createDropdownMenu(button, items) {
+        // Create dropdown container
+        const dropdownId = `dropdown-${Date.now()}`;
+        const dropdown = document.createElement('div');
+        dropdown.id = dropdownId;
+        dropdown.className = 'dropdown';
+        
+        // Create dropdown menu
+        const menu = document.createElement('div');
+        menu.className = 'dropdown-menu hidden';
+        menu.setAttribute('role', 'menu');
+        
+        // Add items
+        items.forEach(item => {
+            if (item.divider) {
+                const divider = document.createElement('div');
+                divider.className = 'dropdown-divider';
+                menu.appendChild(divider);
+            } else {
+                const menuItem = document.createElement('div');
+                menuItem.className = 'dropdown-item';
+                menuItem.setAttribute('role', 'menuitem');
+                menuItem.innerHTML = `
+                    ${item.icon ? `<span class="dropdown-icon">${item.icon}</span>` : ''}
+                    <span class="dropdown-label">${item.label}</span>
+                `;
+                
+                // Add click event
+                menuItem.addEventListener('click', () => {
+                    // Close menu
+                    menu.classList.add('hidden');
+                    
+                    // Call action
+                    if (item.action) {
+                        item.action();
+                    }
+                });
+                
+                menu.appendChild(menuItem);
+            }
+        });
+        
+        // Add to container
+        dropdown.appendChild(menu);
+        button.parentNode.insertBefore(dropdown, button.nextSibling);
+        
+        // Position menu
+        button.addEventListener('click', (e) => {
+            e.preventDefault();
+            
+            // Toggle menu
+            menu.classList.toggle('hidden');
+            
+            // Position menu
+            const buttonRect = button.getBoundingClientRect();
+            menu.style.top = `${buttonRect.bottom}px`;
+            menu.style.left = `${buttonRect.left}px`;
+            
+            // Adjust position if menu goes off screen
+            const menuRect = menu.getBoundingClientRect();
+            if (menuRect.right > window.innerWidth) {
+                menu.style.left = `${window.innerWidth - menuRect.width - 5}px`;
+            }
+        });
+        
+        // Close menu on click outside
+        document.addEventListener('click', (e) => {
+            if (!button.contains(e.target) && !menu.contains(e.target)) {
+                menu.classList.add('hidden');
             }
         });
     }
-    
+
     /**
-     * Update theme elements based on current theme
+     * Show an alert
+     * @param {string} message - Alert message
+     * @param {string} type - Alert type (info, success, warning, error)
      */
-    updateThemeElements() {
-        const theme = this.app.settings.getSetting('theme', 'theme-default');
-        document.documentElement.className = theme;
+    showAlert(message, type = 'info') {
+        // Create alert element
+        const alertId = `alert-${Date.now()}`;
+        const alertElement = document.createElement('div');
+        alertElement.id = alertId;
+        alertElement.className = `alert alert-${type}`;
+        alertElement.setAttribute('role', 'alert');
+        
+        // Add icon based on type
+        let icon = '';
+        switch (type) {
+            case 'success':
+                icon = '<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>';
+                break;
+            case 'warning':
+                icon = '<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg>';
+                break;
+            case 'error':
+                icon = '<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path></svg>';
+                break;
+            default: // info
+                icon = '<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path></svg>';
+                break;
+        }
+        
+        // Create alert content
+        alertElement.innerHTML = `
+            <div class="alert-content">
+                <div class="alert-icon">${icon}</div>
+                <div class="alert-message">${message}</div>
+                <button class="alert-close" aria-label="Close">×</button>
+            </div>
+        `;
+        
+        // Add to app container
+        this.elements.app.appendChild(alertElement);
+        
+        // Add close button event listener
+        const closeButton = alertElement.querySelector('.alert-close');
+        closeButton.addEventListener('click', () => {
+            alertElement.parentNode.removeChild(alertElement);
+        });
+        
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+            if (alertElement.parentNode) {
+                alertElement.parentNode.removeChild(alertElement);
+            }
+        }, 5000);
+    }
+
+    /**
+     * Create a form with validation
+     * @param {HTMLElement} container - Container element
+     * @param {Object[]} fields - Form fields
+     * @param {string} fields[].name - Field name
+     * @param {string} fields[].label - Field label
+     * @param {string} fields[].type - Field type
+     * @param {string} fields[].placeholder - Field placeholder
+     * @param {boolean} fields[].required - Whether the field is required
+     * @param {string} fields[].value - Field value
+     * @param {Function} fields[].validate - Validation function
+     * @param {Object} options - Form options
+     * @param {string} options.submitText - Submit button text
+     * @param {string} options.cancelText - Cancel button text
+     * @param {Function} options.onSubmit - Submit callback
+     * @param {Function} options.onCancel - Cancel callback
+     * @returns {Object} Form control object
+     */
+    createForm(container, fields, options = {}) {
+        const {
+            submitText = 'Submit',
+            cancelText = 'Cancel',
+            onSubmit = null,
+            onCancel = null
+        } = options;
+        
+        // Create form element
+        const formId = `form-${Date.now()}`;
+        const form = document.createElement('form');
+        form.id = formId;
+        form.className = 'form';
+        form.noValidate = true;
+        
+        // Add fields
+        fields.forEach(field => {
+            const fieldId = `${formId}-${field.name}`;
+            const fieldContainer = document.createElement('div');
+            fieldContainer.className = 'form-group';
+            
+            // Create label
+            const label = document.createElement('label');
+            label.htmlFor = fieldId;
+            label.className = 'form-label';
+            label.textContent = field.label;
+            if (field.required) {
+                label.innerHTML += ' <span class="required">*</span>';
+            }
+            
+            // Create input
+            let input;
+            if (field.type === 'textarea') {
+                input = document.createElement('textarea');
+                input.rows = field.rows || 3;
+            } else if (field.type === 'select') {
+                input = document.createElement('select');
+                if (field.options) {
+                    field.options.forEach(option => {
+                        const optionElement = document.createElement('option');
+                        optionElement.value = option.value;
+                        optionElement.textContent = option.label;
+                        if (option.value === field.value) {
+                            optionElement.selected = true;
+                        }
+                        input.appendChild(optionElement);
+                    });
+                }
+            } else {
+                input = document.createElement('input');
+                input.type = field.type || 'text';
+            }
+            
+            input.id = fieldId;
+            input.name = field.name;
+            input.className = 'form-control';
+            
+            if (field.placeholder) {
+                input.placeholder = field.placeholder;
+            }
+            
+            if (field.required) {
+                input.required = true;
+            }
+            
+            if (field.value !== undefined) {
+                input.value = field.value;
+            }
+            
+            if (field.min !== undefined) {
+                input.min = field.min;
+            }
+            
+            if (field.max !== undefined) {
+                input.max = field.max;
+            }
+            
+            if (field.step !== undefined) {
+                input.step = field.step;
+            }
+            
+            if (field.pattern) {
+                input.pattern = field.pattern;
+            }
+            
+            // Create error message container
+            const errorContainer = document.createElement('div');
+            errorContainer.className = 'form-error hidden';
+            errorContainer.id = `${fieldId}-error`;
+            
+            // Add validation
+            input.addEventListener('blur', () => {
+                this._validateField(input, field.validate, errorContainer);
+            });
+            
+            // Add to container
+            fieldContainer.appendChild(label);
+            fieldContainer.appendChild(input);
+            fieldContainer.appendChild(errorContainer);
+            form.appendChild(fieldContainer);
+        });
+        
+        // Add buttons
+        const buttonContainer = document.createElement('div');
+        buttonContainer.className = 'form-buttons';
+        
+        if (cancelText) {
+            const cancelButton = document.createElement('button');
+            cancelButton.type = 'button';
+            cancelButton.className = 'btn btn-secondary';
+            cancelButton.textContent = cancelText;
+            
+            cancelButton.addEventListener('click', () => {
+                if (onCancel) {
+                    onCancel();
+                }
+            });
+            
+            buttonContainer.appendChild(cancelButton);
+        }
+        
+        const submitButton = document.createElement('button');
+        submitButton.type = 'submit';
+        submitButton.className = 'btn btn-primary';
+        submitButton.textContent = submitText;
+        
+        buttonContainer.appendChild(submitButton);
+        form.appendChild(buttonContainer);
+        
+        // Add submit event
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            // Validate all fields
+            let isValid = true;
+            const formData = {};
+            
+            fields.forEach(field => {
+                const input = form.elements[field.name];
+                const errorContainer = document.getElementById(`${input.id}-error`);
+                
+                const fieldValid = this._validateField(input, field.validate, errorContainer);
+                if (!fieldValid) {
+                    isValid = false;
+                }
+                
+                // Collect form data
+                formData[field.name] = input.value;
+            });
+            
+            // Submit if valid
+            if (isValid && onSubmit) {
+                onSubmit(formData);
+            }
+        });
+        
+        // Add to container
+        container.appendChild(form);
+        
+        // Return form control object
+        return {
+            id: formId,
+            getValues: () => {
+                const formData = {};
+                fields.forEach(field => {
+                    formData[field.name] = form.elements[field.name].value;
+                });
+                return formData;
+            },
+            setValues: (values) => {
+                Object.entries(values).forEach(([name, value]) => {
+                    if (form.elements[name]) {
+                        form.elements[name].value = value;
+                    }
+                });
+            },
+            validate: () => {
+                let isValid = true;
+                fields.forEach(field => {
+                    const input = form.elements[field.name];
+                    const errorContainer = document.getElementById(`${input.id}-error`);
+                    
+                    const fieldValid = this._validateField(input, field.validate, errorContainer);
+                    if (!fieldValid) {
+                        isValid = false;
+                    }
+                });
+                return isValid;
+            },
+            reset: () => {
+                form.reset();
+                form.querySelectorAll('.form-error').forEach(error => {
+                    error.classList.add('hidden');
+                    error.textContent = '';
+                });
+            }
+        };
+    }
+
+    /**
+     * Validate a form field
+     * @private
+     * @param {HTMLElement} input - Input element
+     * @param {Function} validateFn - Custom validation function
+     * @param {HTMLElement} errorContainer - Error container element
+     * @returns {boolean} Whether the field is valid
+     */
+    _validateField(input, validateFn, errorContainer) {
+        // Clear previous error
+        errorContainer.classList.add('hidden');
+        errorContainer.textContent = '';
+        
+        // Check if field is required and empty
+        if (input.required && !input.value.trim()) {
+            errorContainer.textContent = 'This field is required';
+            errorContainer.classList.remove('hidden');
+            return false;
+        }
+        
+        // Check pattern
+        if (input.pattern && input.value) {
+            const regex = new RegExp(input.pattern);
+            if (!regex.test(input.value)) {
+                errorContainer.textContent = 'Please enter a valid value';
+                errorContainer.classList.remove('hidden');
+                return false;
+            }
+        }
+        
+        // Check min/max for number inputs
+        if (input.type === 'number' && input.value) {
+            const value = parseFloat(input.value);
+            
+            if (input.min !== undefined && value < parseFloat(input.min)) {
+                errorContainer.textContent = `Value must be at least ${input.min}`;
+                errorContainer.classList.remove('hidden');
+                return false;
+            }
+            
+            if (input.max !== undefined && value > parseFloat(input.max)) {
+                errorContainer.textContent = `Value must be at most ${input.max}`;
+                errorContainer.classList.remove('hidden');
+                return false;
+            }
+        }
+        
+        // Custom validation
+        if (validateFn && input.value) {
+            const error = validateFn(input.value);
+            if (error) {
+                errorContainer.textContent = error;
+                errorContainer.classList.remove('hidden');
+                return false;
+            }
+        }
+        
+        return true;
     }
 }
+
+// Export the UI class
+export default UI;
