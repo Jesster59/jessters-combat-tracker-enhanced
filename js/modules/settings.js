@@ -1,457 +1,627 @@
 /**
- * Settings Manager for Jesster's Combat Tracker
- * Handles application settings
+ * Settings module for Jesster's Combat Tracker
+ * Handles application configuration and user preferences
  */
-class SettingsManager {
-    constructor(app) {
-        this.app = app;
-        this.settings = {
-            theme: 'theme-default',
+class Settings {
+    constructor(storage) {
+        // Store reference to the storage module
+        this.storage = storage;
+        
+        // Default settings
+        this.defaults = {
+            // General settings
+            theme: 'dark',
+            fontSize: 'medium',
             soundEnabled: true,
             musicEnabled: false,
-            soundVolume: 0.5,
+            volume: 0.5,
             musicVolume: 0.3,
+            confirmations: true,
             autoSave: true,
             autoSaveInterval: 5, // minutes
-            playerViewRefreshRate: 5, // seconds
-            confirmEndCombat: true,
-            showHotbar: true,
-            showAudioControls: true,
-            diceRollMode: 'normal', // normal, 3d, text
-            keyboardShortcutsEnabled: true
+            
+            // Combat settings
+            initiativeSystem: 'standard', // standard, group, popcorn, side
+            showModifiers: true,
+            criticalHitRule: 'double', // double, max
+            autoEndTurn: false,
+            turnTimer: false,
+            turnTimerDuration: 60, // seconds
+            turnTimerWarning: 10, // seconds
+            turnTimerAutoEnd: false,
+            
+            // Monster settings
+            monsterHpMode: 'average', // average, roll, max
+            monsterGroupInitiative: true,
+            monsterNameNumbers: true,
+            autoGenerateMonsterImages: false,
+            monsterImageStyle: 'fantasy',
+            
+            // Player view settings
+            playerViewEnabled: false,
+            playerViewTheme: 'dungeon',
+            playerViewHpMode: 'descriptive', // exact, descriptive, hidden
+            playerViewShowAC: true,
+            playerViewShowConditions: true,
+            playerViewShowTimer: false,
+            
+            // Dice settings
+            diceAnimations: true,
+            diceSound: true,
+            advantageMode: 'query', // query, advantage, disadvantage, normal
+            showDiceFormulas: true,
+            keepDiceHistory: true,
+            maxDiceHistory: 20,
+            
+            // API settings
+            useOpen5e: true,
+            useDndBeyond: false,
+            dndBeyondKey: '',
+            geminiApiKey: '',
+            
+            // Advanced settings
+            debugMode: false,
+            experimentalFeatures: false,
+            cloudSync: false,
+            dataRetention: 30, // days
+            
+            // Accessibility settings
+            highContrast: false,
+            reducedMotion: false,
+            largeTargets: false,
+            screenReaderHints: false
         };
-        console.log("Settings Manager initialized");
+        
+        // Current settings (will be loaded from storage)
+        this.current = { ...this.defaults };
+        
+        // Initialize settings
+        this.init();
+        
+        console.log("Settings module initialized");
     }
-    
+
     /**
-     * Initialize the settings manager
+     * Initialize settings
      */
     async init() {
         // Load settings from storage
-        this.loadSettings();
+        const savedSettings = await this.storage.load('settings', { useLocalStorage: true });
         
-        // Apply initial settings
-        this.applySettings();
-        
-        console.log("Settings Manager initialized");
-    }
-    
-    /**
-     * Load settings from storage
-     */
-    loadSettings() {
-        const savedSettings = this.app.storage.loadData('settings', null);
         if (savedSettings) {
-            this.settings = { ...this.settings, ...savedSettings };
+            // Merge saved settings with defaults (to ensure new settings are included)
+            this.current = { ...this.defaults, ...savedSettings };
         }
+        
+        // Save merged settings back to storage
+        await this.save();
     }
-    
+
     /**
-     * Save settings to storage
+     * Save current settings to storage
+     * @returns {Promise<boolean>} Success status
      */
-    saveSettings() {
-        this.app.storage.saveData('settings', this.settings);
+    async save() {
+        return await this.storage.save('settings', this.current, { useLocalStorage: true });
     }
-    
-    /**
-     * Apply settings to the application
-     */
-    applySettings() {
-        // Apply theme
-        document.documentElement.className = this.settings.theme;
-        
-        // Apply audio settings
-        if (this.app.audio) {
-            this.app.audio.setEnabled(this.settings.soundEnabled);
-            this.app.audio.setVolume(this.settings.soundVolume);
-            
-            if (this.settings.musicEnabled) {
-                this.app.audio.startBackgroundMusic();
-            } else {
-                this.app.audio.stopBackgroundMusic();
-            }
-        }
-        
-        // Apply hotbar visibility
-        const hotbar = document.getElementById('action-hotbar');
-        if (hotbar) {
-            hotbar.style.display = this.settings.showHotbar ? 'block' : 'none';
-        }
-        
-        // Apply audio controls visibility
-        const audioControls = document.getElementById('audio-controls');
-        if (audioControls) {
-            audioControls.style.display = this.settings.showAudioControls ? 'flex' : 'none';
-        }
-        
-        // Apply keyboard shortcuts
-        if (this.app.keyboard) {
-            this.app.keyboard.setEnabled(this.settings.keyboardShortcutsEnabled);
-        }
-    }
-    
+
     /**
      * Get a setting value
-     * @param {string} key - The setting key
-     * @param {any} defaultValue - The default value if the setting doesn't exist
-     * @returns {any} - The setting value
+     * @param {string} key - Setting key
+     * @param {any} defaultValue - Default value if setting is not found
+     * @returns {any} Setting value
      */
-    getSetting(key, defaultValue = null) {
-        return this.settings[key] !== undefined ? this.settings[key] : defaultValue;
+    get(key, defaultValue = null) {
+        return this.current[key] !== undefined ? this.current[key] : defaultValue;
     }
-    
+
     /**
      * Set a setting value
-     * @param {string} key - The setting key
-     * @param {any} value - The setting value
+     * @param {string} key - Setting key
+     * @param {any} value - Setting value
+     * @returns {Promise<boolean>} Success status
      */
-    setSetting(key, value) {
-        this.settings[key] = value;
-        this.saveSettings();
-        this.applySettings();
+    async set(key, value) {
+        this.current[key] = value;
+        return await this.save();
     }
-    
+
     /**
-     * Set the theme
-     * @param {string} theme - The theme name
+     * Update multiple settings at once
+     * @param {Object} settings - Settings object
+     * @returns {Promise<boolean>} Success status
      */
-    setTheme(theme) {
-        this.settings.theme = theme;
-        this.saveSettings();
-        
-        // Apply theme
-        document.documentElement.className = theme;
-        
-        // Update UI elements that depend on theme
-        this.app.ui.updateThemeElements();
+    async update(settings) {
+        this.current = { ...this.current, ...settings };
+        return await this.save();
     }
-    
+
     /**
-     * Import settings from an object
-     * @param {Object} settings - The settings to import
+     * Reset settings to defaults
+     * @returns {Promise<boolean>} Success status
      */
-    importSettings(settings) {
-        this.settings = { ...this.settings, ...settings };
-        this.saveSettings();
-        this.applySettings();
+    async reset() {
+        this.current = { ...this.defaults };
+        return await this.save();
     }
-    
+
     /**
-     * Open the settings modal
+     * Reset a specific setting to its default value
+     * @param {string} key - Setting key
+     * @returns {Promise<boolean>} Success status
      */
-    openSettingsModal() {
-        const modal = this.app.ui.createModal({
-            title: 'Settings',
-            content: `
-                <div class="space-y-6">
-                    <div class="space-y-4">
-                        <h3 class="text-lg font-semibold border-b border-gray-700 pb-2">Appearance</h3>
-                        
-                        <div>
-                            <label class="block text-gray-300 mb-2">Theme:</label>
-                            <select id="theme-select" class="w-full bg-gray-700 text-white px-3 py-2 rounded">
-                                <option value="theme-default" ${this.settings.theme === 'theme-default' ? 'selected' : ''}>Default (Dark)</option>
-                                <option value="theme-light" ${this.settings.theme === 'theme-light' ? 'selected' : ''}>Light Mode</option>
-                                <option value="theme-high-contrast" ${this.settings.theme === 'theme-high-contrast' ? 'selected' : ''}>High Contrast</option>
-                                <option value="theme-fantasy" ${this.settings.theme === 'theme-fantasy' ? 'selected' : ''}>Fantasy</option>
-                                                        <select id="theme-select" class="w-full bg-gray-700 text-white px-3 py-2 rounded">
-                                <option value="theme-default" ${this.settings.theme === 'theme-default' ? 'selected' : ''}>Default (Dark)</option>
-                                <option value="theme-light" ${this.settings.theme === 'theme-light' ? 'selected' : ''}>Light Mode</option>
-                                <option value="theme-high-contrast" ${this.settings.theme === 'theme-high-contrast' ? 'selected' : ''}>High Contrast</option>
-                                <option value="theme-fantasy" ${this.settings.theme === 'theme-fantasy' ? 'selected' : ''}>Fantasy</option>
-                            </select>
-                        </div>
-                        
-                        <div>
-                            <label class="block text-gray-300 mb-2">Dice Roll Display:</label>
-                            <select id="dice-roll-mode" class="w-full bg-gray-700 text-white px-3 py-2 rounded">
-                                <option value="normal" ${this.settings.diceRollMode === 'normal' ? 'selected' : ''}>Normal</option>
-                                <option value="3d" ${this.settings.diceRollMode === '3d' ? 'selected' : ''}>3D Dice</option>
-                                <option value="text" ${this.settings.diceRollMode === 'text' ? 'selected' : ''}>Text Only</option>
-                            </select>
-                        </div>
-                        
-                        <div class="flex items-center justify-between">
-                            <label class="text-gray-300">Show Hotbar:</label>
-                            <label class="switch">
-                                <input type="checkbox" id="show-hotbar" ${this.settings.showHotbar ? 'checked' : ''}>
-                                <span class="slider round"></span>
-                            </label>
-                        </div>
-                        
-                        <div class="flex items-center justify-between">
-                            <label class="text-gray-300">Show Audio Controls:</label>
-                            <label class="switch">
-                                <input type="checkbox" id="show-audio-controls" ${this.settings.showAudioControls ? 'checked' : ''}>
-                                <span class="slider round"></span>
-                            </label>
-                        </div>
-                    </div>
-                    
-                    <div class="space-y-4">
-                        <h3 class="text-lg font-semibold border-b border-gray-700 pb-2">Audio</h3>
-                        
-                        <div class="flex items-center justify-between">
-                            <label class="text-gray-300">Sound Effects:</label>
-                            <label class="switch">
-                                <input type="checkbox" id="sound-enabled" ${this.settings.soundEnabled ? 'checked' : ''}>
-                                <span class="slider round"></span>
-                            </label>
-                        </div>
-                        
-                        <div>
-                            <label class="block text-gray-300 mb-2">Sound Volume:</label>
-                            <input type="range" id="sound-volume" class="w-full" min="0" max="1" step="0.1" value="${this.settings.soundVolume}">
-                            <div class="flex justify-between text-xs text-gray-400 mt-1">
-                                <span>0%</span>
-                                <span>50%</span>
-                                <span>100%</span>
-                            </div>
-                        </div>
-                        
-                        <div class="flex items-center justify-between">
-                            <label class="text-gray-300">Background Music:</label>
-                            <label class="switch">
-                                <input type="checkbox" id="music-enabled" ${this.settings.musicEnabled ? 'checked' : ''}>
-                                <span class="slider round"></span>
-                            </label>
-                        </div>
-                        
-                        <div>
-                            <label class="block text-gray-300 mb-2">Music Volume:</label>
-                            <input type="range" id="music-volume" class="w-full" min="0" max="1" step="0.1" value="${this.settings.musicVolume}">
-                            <div class="flex justify-between text-xs text-gray-400 mt-1">
-                                <span>0%</span>
-                                <span>50%</span>
-                                <span>100%</span>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="space-y-4">
-                        <h3 class="text-lg font-semibold border-b border-gray-700 pb-2">Player View</h3>
-                        
-                        <div>
-                            <label class="block text-gray-300 mb-2">Refresh Rate (seconds):</label>
-                            <input type="number" id="player-view-refresh-rate" class="w-full bg-gray-700 text-white px-3 py-2 rounded" min="1" max="30" value="${this.settings.playerViewRefreshRate}">
-                        </div>
-                        
-                        <div>
-                            <button id="player-view-settings-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded w-full">
-                                Configure Player View
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <div class="space-y-4">
-                        <h3 class="text-lg font-semibold border-b border-gray-700 pb-2">Auto-Save</h3>
-                        
-                        <div class="flex items-center justify-between">
-                            <label class="text-gray-300">Enable Auto-Save:</label>
-                            <label class="switch">
-                                <input type="checkbox" id="auto-save" ${this.settings.autoSave ? 'checked' : ''}>
-                                <span class="slider round"></span>
-                            </label>
-                        </div>
-                        
-                        <div>
-                            <label class="block text-gray-300 mb-2">Auto-Save Interval (minutes):</label>
-                            <input type="number" id="auto-save-interval" class="w-full bg-gray-700 text-white px-3 py-2 rounded" min="1" max="60" value="${this.settings.autoSaveInterval}">
-                        </div>
-                    </div>
-                    
-                    <div class="space-y-4">
-                        <h3 class="text-lg font-semibold border-b border-gray-700 pb-2">Miscellaneous</h3>
-                        
-                        <div class="flex items-center justify-between">
-                            <label class="text-gray-300">Confirm End Combat:</label>
-                            <label class="switch">
-                                <input type="checkbox" id="confirm-end-combat" ${this.settings.confirmEndCombat ? 'checked' : ''}>
-                                <span class="slider round"></span>
-                            </label>
-                        </div>
-                        
-                        <div class="flex items-center justify-between">
-                            <label class="text-gray-300">Enable Keyboard Shortcuts:</label>
-                            <label class="switch">
-                                <input type="checkbox" id="keyboard-shortcuts-enabled" ${this.settings.keyboardShortcutsEnabled ? 'checked' : ''}>
-                                <span class="slider round"></span>
-                            </label>
-                        </div>
-                        
-                        <div>
-                            <button id="view-shortcuts-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded w-full">
-                                View Keyboard Shortcuts
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <div class="flex justify-end space-x-2">
-                        <button id="reset-settings-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">
-                            Reset to Default
-                        </button>
-                        <button id="save-settings-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                            Save Settings
-                        </button>
-                    </div>
-                </div>
-                
-                <style>
-                    /* Switch styles */
-                    .switch {
-                        position: relative;
-                        display: inline-block;
-                        width: 50px;
-                        height: 24px;
-                    }
-                    
-                    .switch input {
-                        opacity: 0;
-                        width: 0;
-                        height: 0;
-                    }
-                    
-                    .slider {
-                        position: absolute;
-                        cursor: pointer;
-                        top: 0;
-                        left: 0;
-                        right: 0;
-                        bottom: 0;
-                        background-color: #4b5563;
-                        transition: .4s;
-                    }
-                    
-                    .slider:before {
-                        position: absolute;
-                        content: "";
-                        height: 16px;
-                        width: 16px;
-                        left: 4px;
-                        bottom: 4px;
-                        background-color: white;
-                        transition: .4s;
-                    }
-                    
-                    input:checked + .slider {
-                        background-color: #4f46e5;
-                    }
-                    
-                    input:focus + .slider {
-                        box-shadow: 0 0 1px #4f46e5;
-                    }
-                    
-                    input:checked + .slider:before {
-                        transform: translateX(26px);
-                    }
-                    
-                    .slider.round {
-                        border-radius: 24px;
-                    }
-                    
-                    .slider.round:before {
-                        border-radius: 50%;
-                    }
-                </style>
-            `,
-            width: 'max-w-2xl'
-        });
-        
-        // Add event listeners
-        const themeSelect = modal.querySelector('#theme-select');
-        const diceRollMode = modal.querySelector('#dice-roll-mode');
-        const showHotbar = modal.querySelector('#show-hotbar');
-        const showAudioControls = modal.querySelector('#show-audio-controls');
-        const soundEnabled = modal.querySelector('#sound-enabled');
-        const soundVolume = modal.querySelector('#sound-volume');
-        const musicEnabled = modal.querySelector('#music-enabled');
-        const musicVolume = modal.querySelector('#music-volume');
-        const playerViewRefreshRate = modal.querySelector('#player-view-refresh-rate');
-        const playerViewSettingsBtn = modal.querySelector('#player-view-settings-btn');
-        const autoSave = modal.querySelector('#auto-save');
-        const autoSaveInterval = modal.querySelector('#auto-save-interval');
-        const confirmEndCombat = modal.querySelector('#confirm-end-combat');
-        const keyboardShortcutsEnabled = modal.querySelector('#keyboard-shortcuts-enabled');
-        const viewShortcutsBtn = modal.querySelector('#view-shortcuts-btn');
-        const resetSettingsBtn = modal.querySelector('#reset-settings-btn');
-        const saveSettingsBtn = modal.querySelector('#save-settings-btn');
-        
-        // Player view settings button
-        playerViewSettingsBtn.addEventListener('click', () => {
-            this.app.ui.openPlayerViewSettingsModal();
-        });
-        
-        // View shortcuts button
-        viewShortcutsBtn.addEventListener('click', () => {
-            this.app.keyboard.showShortcutsPanel();
-        });
-        
-        // Reset settings button
-        resetSettingsBtn.addEventListener('click', () => {
-            this.app.showConfirm('Are you sure you want to reset all settings to default?', () => {
-                // Reset to default settings
-                this.settings = {
-                    theme: 'theme-default',
-                    soundEnabled: true,
-                    musicEnabled: false,
-                    soundVolume: 0.5,
-                    musicVolume: 0.3,
-                    autoSave: true,
-                    autoSaveInterval: 5,
-                    playerViewRefreshRate: 5,
-                    confirmEndCombat: true,
-                    showHotbar: true,
-                    showAudioControls: true,
-                    diceRollMode: 'normal',
-                    keyboardShortcutsEnabled: true
-                };
-                
-                // Save and apply settings
-                this.saveSettings();
-                this.applySettings();
-                
-                // Close the modal
-                this.app.ui.closeModal(modal.parentNode);
-                
-                // Show confirmation
-                this.app.showAlert('Settings have been reset to default.');
-            });
-        });
-        
-        // Save settings button
-        saveSettingsBtn.addEventListener('click', () => {
-            // Update settings from form values
-            this.settings.theme = themeSelect.value;
-            this.settings.diceRollMode = diceRollMode.value;
-            this.settings.showHotbar = showHotbar.checked;
-            this.settings.showAudioControls = showAudioControls.checked;
-            this.settings.soundEnabled = soundEnabled.checked;
-            this.settings.soundVolume = parseFloat(soundVolume.value);
-            this.settings.musicEnabled = musicEnabled.checked;
-            this.settings.musicVolume = parseFloat(musicVolume.value);
-            this.settings.playerViewRefreshRate = parseInt(playerViewRefreshRate.value);
-            this.settings.autoSave = autoSave.checked;
-            this.settings.autoSaveInterval = parseInt(autoSaveInterval.value);
-            this.settings.confirmEndCombat = confirmEndCombat.checked;
-            this.settings.keyboardShortcutsEnabled = keyboardShortcutsEnabled.checked;
-            
-            // Save and apply settings
-            this.saveSettings();
-            this.applySettings();
-            
-            // Close the modal
-            this.app.ui.closeModal(modal.parentNode);
-            
-            // Show confirmation
-            this.app.showAlert('Settings saved successfully.');
-        });
+    async resetSetting(key) {
+        if (this.defaults[key] !== undefined) {
+            this.current[key] = this.defaults[key];
+            return await this.save();
+        }
+        return false;
     }
-    
+
+    /**
+     * Export settings as JSON
+     * @returns {string} JSON string
+     */
+    exportSettings() {
+        return JSON.stringify(this.current, null, 2);
+    }
+
+    /**
+     * Import settings from JSON
+     * @param {string} json - JSON string
+     * @returns {Promise<boolean>} Success status
+     */
+    async importSettings(json) {
+        try {
+            const settings = JSON.parse(json);
+            // Validate settings before importing
+            if (typeof settings !== 'object' || settings === null) {
+                throw new Error('Invalid settings format');
+            }
+            
+            // Merge with defaults to ensure all required settings exist
+            this.current = { ...this.defaults, ...settings };
+            return await this.save();
+        } catch (error) {
+            console.error('Error importing settings:', error);
+            return false;
+        }
+    }
+
     /**
      * Get all settings
-     * @returns {Object} - All settings
+     * @returns {Object} All settings
      */
-    getAllSettings() {
-        return { ...this.settings };
+    getAll() {
+        return { ...this.current };
+    }
+
+    /**
+     * Get default settings
+     * @returns {Object} Default settings
+     */
+    getDefaults() {
+        return { ...this.defaults };
+    }
+
+    /**
+     * Check if a setting exists
+     * @param {string} key - Setting key
+     * @returns {boolean} True if setting exists
+     */
+    has(key) {
+        return this.current[key] !== undefined;
+    }
+
+    /**
+     * Get settings by category
+     * @param {string} category - Category name (general, combat, monster, etc.)
+     * @returns {Object} Category settings
+     */
+    getCategory(category) {
+        const categorySettings = {};
+        
+        // Define which settings belong to each category
+        const categories = {
+            general: [
+                'theme', 'fontSize', 'soundEnabled', 'musicEnabled', 
+                'volume', 'musicVolume', 'confirmations', 'autoSave', 
+                'autoSaveInterval'
+            ],
+            combat: [
+                'initiativeSystem', 'showModifiers', 'criticalHitRule',
+                'autoEndTurn', 'turnTimer', 'turnTimerDuration',
+                'turnTimerWarning', 'turnTimerAutoEnd'
+            ],
+            monster: [
+                'monsterHpMode', 'monsterGroupInitiative', 'monsterNameNumbers',
+                'autoGenerateMonsterImages', 'monsterImageStyle'
+            ],
+            playerView: [
+                'playerViewEnabled', 'playerViewTheme', 'playerViewHpMode',
+                'playerViewShowAC', 'playerViewShowConditions', 'playerViewShowTimer'
+            ],
+            dice: [
+                'diceAnimations', 'diceSound', 'advantageMode',
+                'showDiceFormulas', 'keepDiceHistory', 'maxDiceHistory'
+            ],
+            api: [
+                'useOpen5e', 'useDndBeyond', 'dndBeyondKey', 'geminiApiKey'
+            ],
+            advanced: [
+                'debugMode', 'experimentalFeatures', 'cloudSync', 'dataRetention'
+            ],
+            accessibility: [
+                'highContrast', 'reducedMotion', 'largeTargets', 'screenReaderHints'
+            ]
+        };
+        
+        // Get settings for the specified category
+        if (categories[category]) {
+            categories[category].forEach(key => {
+                categorySettings[key] = this.current[key];
+            });
+        }
+        
+        return categorySettings;
+    }
+
+    /**
+     * Apply theme based on current settings
+     */
+    applyTheme() {
+        // Remove any existing theme classes
+        document.body.classList.remove('theme-dark', 'theme-light', 'theme-custom');
+        
+        // Add the current theme class
+        document.body.classList.add(`theme-${this.current.theme}`);
+        
+        // Apply high contrast if enabled
+        if (this.current.highContrast) {
+            document.body.classList.add('high-contrast');
+        } else {
+            document.body.classList.remove('high-contrast');
+        }
+        
+        // Apply font size
+        document.body.classList.remove('font-small', 'font-medium', 'font-large');
+        document.body.classList.add(`font-${this.current.fontSize}`);
+        
+        // Apply reduced motion if enabled
+        if (this.current.reducedMotion) {
+            document.body.classList.add('reduced-motion');
+        } else {
+            document.body.classList.remove('reduced-motion');
+        }
+        
+        // Apply large targets if enabled
+        if (this.current.largeTargets) {
+            document.body.classList.add('large-targets');
+        } else {
+            document.body.classList.remove('large-targets');
+        }
+    }
+
+    /**
+     * Get D&D Beyond API key
+     * @returns {string} API key
+     */
+    getDndBeyondKey() {
+        return this.current.dndBeyondKey || '';
+    }
+
+    /**
+     * Get Gemini API key
+     * @returns {string} API key
+     */
+    getGeminiApiKey() {
+        return this.current.geminiApiKey || '';
+    }
+
+    /**
+     * Check if debug mode is enabled
+     * @returns {boolean} True if debug mode is enabled
+     */
+    isDebugMode() {
+        return this.current.debugMode === true;
+    }
+
+    /**
+     * Check if experimental features are enabled
+     * @returns {boolean} True if experimental features are enabled
+     */
+    areExperimentalFeaturesEnabled() {
+        return this.current.experimentalFeatures === true;
+    }
+
+    /**
+     * Check if cloud sync is enabled
+     * @returns {boolean} True if cloud sync is enabled
+     */
+    isCloudSyncEnabled() {
+        return this.current.cloudSync === true;
+    }
+
+    /**
+     * Get the data retention period in days
+     * @returns {number} Data retention period in days
+     */
+    getDataRetentionDays() {
+        return this.current.dataRetention || 30;
+    }
+
+    /**
+     * Check if sounds are enabled
+     * @returns {boolean} True if sounds are enabled
+     */
+    areSoundsEnabled() {
+        return this.current.soundEnabled === true;
+    }
+
+    /**
+     * Check if music is enabled
+     * @returns {boolean} True if music is enabled
+     */
+    isMusicEnabled() {
+        return this.current.musicEnabled === true;
+    }
+
+    /**
+     * Get the volume level
+     * @returns {number} Volume level (0-1)
+     */
+    getVolume() {
+        return this.current.volume;
+    }
+
+    /**
+     * Get the music volume level
+     * @returns {number} Music volume level (0-1)
+     */
+    getMusicVolume() {
+        return this.current.musicVolume;
+    }
+
+    /**
+     * Check if confirmations are enabled
+     * @returns {boolean} True if confirmations are enabled
+     */
+    areConfirmationsEnabled() {
+        return this.current.confirmations === true;
+    }
+
+    /**
+     * Check if auto-save is enabled
+     * @returns {boolean} True if auto-save is enabled
+     */
+    isAutoSaveEnabled() {
+        return this.current.autoSave === true;
+    }
+
+    /**
+     * Get the auto-save interval in minutes
+     * @returns {number} Auto-save interval in minutes
+     */
+    getAutoSaveInterval() {
+        return this.current.autoSaveInterval || 5;
+    }
+
+    /**
+     * Get the initiative system
+     * @returns {string} Initiative system
+     */
+    getInitiativeSystem() {
+        return this.current.initiativeSystem || 'standard';
+    }
+
+    /**
+     * Check if modifiers should be shown
+     * @returns {boolean} True if modifiers should be shown
+     */
+    shouldShowModifiers() {
+        return this.current.showModifiers === true;
+    }
+
+    /**
+     * Get the critical hit rule
+     * @returns {string} Critical hit rule
+     */
+    getCriticalHitRule() {
+        return this.current.criticalHitRule || 'double';
+    }
+
+    /**
+     * Check if turn should end automatically
+     * @returns {boolean} True if turn should end automatically
+     */
+    shouldAutoEndTurn() {
+        return this.current.autoEndTurn === true;
+    }
+
+    /**
+     * Check if turn timer is enabled
+     * @returns {boolean} True if turn timer is enabled
+     */
+    isTurnTimerEnabled() {
+        return this.current.turnTimer === true;
+    }
+
+    /**
+     * Get the turn timer duration in seconds
+     * @returns {number} Turn timer duration in seconds
+     */
+    getTurnTimerDuration() {
+        return this.current.turnTimerDuration || 60;
+    }
+
+    /**
+     * Get the turn timer warning threshold in seconds
+     * @returns {number} Turn timer warning threshold in seconds
+     */
+    getTurnTimerWarning() {
+        return this.current.turnTimerWarning || 10;
+    }
+
+    /**
+     * Check if turn timer should end turn automatically
+     * @returns {boolean} True if turn timer should end turn automatically
+     */
+    shouldTurnTimerAutoEnd() {
+        return this.current.turnTimerAutoEnd === true;
+    }
+
+    /**
+     * Get the monster HP mode
+     * @returns {string} Monster HP mode
+     */
+    getMonsterHpMode() {
+        return this.current.monsterHpMode || 'average';
+    }
+
+    /**
+     * Check if monster group initiative is enabled
+     * @returns {boolean} True if monster group initiative is enabled
+     */
+    isMonsterGroupInitiativeEnabled() {
+        return this.current.monsterGroupInitiative === true;
+    }
+
+    /**
+     * Check if monster names should include numbers
+     * @returns {boolean} True if monster names should include numbers
+     */
+    shouldNumberMonsterNames() {
+        return this.current.monsterNameNumbers === true;
+    }
+
+    /**
+     * Check if monster images should be generated automatically
+     * @returns {boolean} True if monster images should be generated automatically
+     */
+    shouldAutoGenerateMonsterImages() {
+        return this.current.autoGenerateMonsterImages === true;
+    }
+
+    /**
+     * Get the monster image style
+     * @returns {string} Monster image style
+     */
+    getMonsterImageStyle() {
+        return this.current.monsterImageStyle || 'fantasy';
+    }
+
+    /**
+     * Check if player view is enabled
+     * @returns {boolean} True if player view is enabled
+     */
+    isPlayerViewEnabled() {
+        return this.current.playerViewEnabled === true;
+    }
+
+    /**
+     * Get the player view theme
+     * @returns {string} Player view theme
+     */
+    getPlayerViewTheme() {
+        return this.current.playerViewTheme || 'dungeon';
+    }
+
+    /**
+     * Get the player view HP mode
+     * @returns {string} Player view HP mode
+     */
+    getPlayerViewHpMode() {
+        return this.current.playerViewHpMode || 'descriptive';
+    }
+
+    /**
+     * Check if player view should show AC
+     * @returns {boolean} True if player view should show AC
+     */
+    shouldPlayerViewShowAC() {
+        return this.current.playerViewShowAC === true;
+    }
+
+    /**
+     * Check if player view should show conditions
+     * @returns {boolean} True if player view should show conditions
+     */
+    shouldPlayerViewShowConditions() {
+        return this.current.playerViewShowConditions === true;
+    }
+
+    /**
+     * Check if player view should show timer
+     * @returns {boolean} True if player view should show timer
+     */
+    shouldPlayerViewShowTimer() {
+        return this.current.playerViewShowTimer === true;
+    }
+
+    /**
+     * Check if dice animations are enabled
+     * @returns {boolean} True if dice animations are enabled
+     */
+    areDiceAnimationsEnabled() {
+        return this.current.diceAnimations === true;
+    }
+
+    /**
+     * Check if dice sound is enabled
+     * @returns {boolean} True if dice sound is enabled
+     */
+    isDiceSoundEnabled() {
+        return this.current.diceSound === true;
+    }
+
+    /**
+     * Get the advantage mode
+     * @returns {string} Advantage mode
+     */
+    getAdvantageMode() {
+        return this.current.advantageMode || 'query';
+    }
+
+    /**
+     * Check if dice formulas should be shown
+     * @returns {boolean} True if dice formulas should be shown
+     */
+    shouldShowDiceFormulas() {
+        return this.current.showDiceFormulas === true;
+    }
+
+    /**
+     * Check if dice history should be kept
+     * @returns {boolean} True if dice history should be kept
+     */
+    shouldKeepDiceHistory() {
+        return this.current.keepDiceHistory === true;
+    }
+
+    /**
+     * Get the maximum dice history size
+     * @returns {number} Maximum dice history size
+     */
+    getMaxDiceHistory() {
+        return this.current.maxDiceHistory || 20;
+    }
+
+    /**
+     * Check if Open5e API should be used
+     * @returns {boolean} True if Open5e API should be used
+     */
+    shouldUseOpen5e() {
+        return this.current.useOpen5e === true;
+    }
+
+    /**
+     * Check if D&D Beyond integration should be used
+     * @returns {boolean} True if D&D Beyond integration should be used
+     */
+    shouldUseDndBeyond() {
+        return this.current.useDndBeyond === true;
     }
 }
+
+// Export the Settings class
+export default Settings;
