@@ -1,880 +1,821 @@
 /**
- * API Manager for Jesster's Combat Tracker
- * Handles API calls and data integration
+ * API module for Jesster's Combat Tracker
+ * Handles external API integrations
  */
-class APIManager {
-    constructor(app) {
-        this.app = app;
-        this.monsterCompendium = null;
-        this.spellDatabase = null;
-        console.log("API Manager initialized");
+class API {
+    constructor(settings) {
+        // Store reference to settings module
+        this.settings = settings;
+        
+        // API configuration
+        this.config = {
+            dnd5e: {
+                baseUrl: 'https://www.dnd5eapi.co/api',
+                enabled: true
+            },
+            openAI: {
+                baseUrl: 'https://api.openai.com/v1',
+                apiKey: this.settings.get('openAIApiKey') || '',
+                enabled: !!this.settings.get('openAIApiKey')
+            },
+            customApis: this.settings.get('customApis') || []
+        };
+        
+        // Cache for API responses
+        this.cache = {
+            dnd5e: {},
+            openAI: {},
+            custom: {}
+        };
+        
+        // Rate limiting
+        this.rateLimits = {
+            dnd5e: {
+                requestsPerMinute: 60,
+                requestCount: 0,
+                resetTime: Date.now() + 60000
+            },
+            openAI: {
+                requestsPerMinute: 20,
+                requestCount: 0,
+                resetTime: Date.now() + 60000
+            }
+        };
+        
+        console.log("API module initialized");
     }
-    
+
     /**
-     * Initialize the API manager
+     * Initialize the API module
      */
-    async init() {
-        // Preload monster compendium if enabled
-        if (this.app.settings.getSetting('preloadMonsterCompendium', true)) {
-            this.loadMonsterCompendium().catch(error => {
-                console.warn('Failed to preload monster compendium:', error);
-            });
+    init() {
+        // Reset rate limits every minute
+        setInterval(() => this._resetRateLimits(), 60000);
+    }
+
+    /**
+     * Reset rate limits
+     * @private
+     */
+    _resetRateLimits() {
+        Object.keys(this.rateLimits).forEach(api => {
+            this.rateLimits[api].requestCount = 0;
+            this.rateLimits[api].resetTime = Date.now() + 60000;
+        });
+    }
+
+    /**
+     * Check if rate limit is exceeded
+     * @private
+     * @param {string} api - API name
+     * @returns {boolean} True if rate limit is exceeded
+     */
+    _isRateLimited(api) {
+        const limit = this.rateLimits[api];
+        if (!limit) return false;
+        
+        // Reset if time has passed
+        if (Date.now() > limit.resetTime) {
+            limit.requestCount = 0;
+            limit.resetTime = Date.now() + 60000;
         }
         
-        console.log("API Manager initialized");
+        return limit.requestCount >= limit.requestsPerMinute;
     }
-    
+
     /**
-     * Search for monsters in the Open5e API
-     * @param {string} query - The search query
-     * @returns {Promise<Array>} - The search results
+     * Increment rate limit counter
+     * @private
+     * @param {string} api - API name
+     */
+    _incrementRateLimit(api) {
+        const limit = this.rateLimits[api];
+        if (!limit) return;
+        
+        limit.requestCount++;
+    }
+
+    /**
+     * Make a fetch request with error handling
+     * @private
+     * @param {string} url - URL to fetch
+     * @param {Object} options - Fetch options
+     * @returns {Promise<Object>} Response data
+     */
+    async _fetchWithErrorHandling(url, options = {}) {
+        try {
+            const response = await fetch(url, options);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error ${response.status}: ${response.statusText}`);
+            }
+            
+            return await response.json();
+        } catch (error) {
+            console.error(`API fetch error: ${error.message}`);
+            throw error;
+        }
+    }
+
+    /**
+     * Get data from the D&D 5e API
+     * @param {string} endpoint - API endpoint
+     * @param {Object} options - Request options
+     * @param {boolean} options.useCache - Whether to use cached data
+     * @returns {Promise<Object>} API response
+     */
+    async getDnd5eData(endpoint, options = {}) {
+        const { useCache = true } = options;
+        
+        // Check if API is enabled
+        if (!this.config.dnd5e.enabled) {
+            throw new Error('D&D 5e API is disabled');
+        }
+        
+        // Check rate limit
+        if (this._isRateLimited('dnd5e')) {
+            throw new Error('D&D 5e API rate limit exceeded');
+        }
+        
+        // Normalize endpoint
+        const normalizedEndpoint = endpoint.startsWith('/') ? endpoint.substring(1) : endpoint;
+        
+        // Check cache
+        if (useCache && this.cache.dnd5e[normalizedEndpoint]) {
+            return this.cache.dnd5e[normalizedEndpoint];
+        }
+        
+        // Increment rate limit counter
+        this._incrementRateLimit('dnd5e');
+        
+        // Make request
+        const url = `${this.config.dnd5e.baseUrl}/${normalizedEndpoint}`;
+        const data = await this._fetchWithErrorHandling(url);
+        
+        // Cache response
+        if (useCache) {
+            this.cache.dnd5e[normalizedEndpoint] = data;
+        }
+        
+        return data;
+    }
+
+    /**
+     * Get a monster from the D&D 5e API
+     * @param {string} monsterName - Monster name or index
+     * @returns {Promise<Object>} Monster data
+     */
+    async getMonster(monsterName) {
+        // Convert monster name to index format
+        const index = monsterName.toLowerCase().replace(/\s+/g, '-');
+        
+        try {
+            const monster = await this.getDnd5eData(`monsters/${index}`);
+            
+            // Transform monster data to our format
+            return this._transformMonsterData(monster);
+        } catch (error) {
+            console.error(`Error fetching monster ${monsterName}:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * Search monsters in the D&D 5e API
+     * @param {string} query - Search query
+     * @returns {Promise<Array>} Search results
      */
     async searchMonsters(query) {
         try {
-            const response = await fetch(`https://api.open5e.com/monsters/?search=${encodeURIComponent(query)}&limit=20`);
-            const data = await response.json();
-            return data.results || [];
+            const results = await this.getDnd5eData(`monsters?name=${encodeURIComponent(query)}`);
+            
+            return results.results || [];
         } catch (error) {
-            console.error('Error searching monsters:', error);
-            this.app.showAlert('Error searching monsters. Please try again later.');
-            return [];
+            console.error(`Error searching monsters:`, error);
+            throw error;
         }
     }
-    
-    /**
-     * Get a monster from the Open5e API
-     * @param {string} slug - The monster slug
-     * @returns {Promise<Object>} - The monster data
-     */
-    async getMonster(slug) {
-        try {
-            const response = await fetch(`https://api.open5e.com/monsters/${slug}/`);
-            const data = await response.json();
-            return data;
-        } catch (error) {
-            console.error('Error getting monster:', error);
-            this.app.showAlert('Error getting monster data. Please try again later.');
-            return null;
-        }
-    }
-    
-    /**
-     * Convert an Open5e monster to our format
-     * @param {Object} monster - The Open5e monster data
-     * @returns {Object} - The converted monster
-     */
-    convertOpen5eMonster(monster) {
-        // Parse hit points
-        let hp = 10;
-        const hpMatch = monster.hit_points_roll?.match(/(\d+)d(\d+)(?:\s*\+\s*(\d+))?/);
-        if (hpMatch) {
-            const count = parseInt(hpMatch[1]);
-            const dice = parseInt(hpMatch[2]);
-            const bonus = hpMatch[3] ? parseInt(hpMatch[3]) : 0;
-            hp = monster.hit_points || (Math.floor(count * (dice + 1) / 2) + bonus);
-        } else {
-            hp = monster.hit_points || 10;
-        }
-        
-        // Calculate initiative bonus from dexterity
-        const dexMod = Math.floor((monster.dexterity - 10) / 2);
-        
-        // Convert actions
-        const actions = monster.actions ? monster.actions.map(action => {
-            return {
-                name: action.name,
-                desc: action.desc
-            };
-        }) : [];
-        
-        // Convert special abilities
-        const specialAbilities = monster.special_abilities ? monster.special_abilities.map(ability => {
-            return {
-                name: ability.name,
-                desc: ability.desc
-            };
-        }) : [];
-        
-        // Convert legendary actions
-        const legendaryActions = monster.legendary_actions ? monster.legendary_actions.map(action => {
-            return {
-                name: action.name,
-                desc: action.desc
-            };
-        }) : [];
-        
-        // Create the monster object
-        return {
-            id: this.app.utils.generateUUID(),
-            name: monster.name,
-            type: 'monster',
-            size: monster.size,
-            cr: monster.challenge_rating,
-            alignment: monster.alignment,
-            maxHp: hp,
-            currentHp: hp,
-            ac: monster.armor_class,
-            initiativeBonus: dexMod,
-            initiative: null,
-            conditions: [],
-            str: monster.strength,
-            dex: monster.dexterity,
-            con: monster.constitution,
-            int: monster.intelligence,
-            wis: monster.wisdom,
-            cha: monster.charisma,
-            speed: monster.speed,
-            senses: monster.senses,
-            languages: monster.languages,
-            damageVulnerabilities: monster.damage_vulnerabilities,
-            damageResistances: monster.damage_resistances,
-            damageImmunities: monster.damage_immunities,
-            conditionImmunities: monster.condition_immunities,
-            actions: actions,
-            specialAbilities: specialAbilities,
-            legendaryActions: legendaryActions.length > 0 ? {
-                actions: legendaryActions,
-                max: 3,
-                used: 0
-            } : null,
-            source: 'Open5e SRD'
-        };
-    }
-    
-    /**
-     * Load the monster compendium
-     * @returns {Promise<Array>} - The monster compendium
-     */
-    async loadMonsterCompendium() {
-        try {
-            const response = await fetch('data/monster-compendium.json');
-            const data = await response.json();
-            
-            this.monsterCompendium = data;
-            console.log(`Loaded ${data.length} monsters into compendium`);
-            return data;
-        } catch (error) {
-            console.error('Error loading monster compendium:', error);
-            return [];
-        }
-    }
-    
-    /**
-     * Open the monster compendium
-     */
-    openMonsterCompendium() {
-        // Load compendium if not already loaded
-        if (!this.monsterCompendium) {
-            this.loadMonsterCompendium().then(data => {
-                if (data.length > 0) {
-                    this.showMonsterCompendiumUI(data);
-                } else {
-                    this.app.showAlert('Failed to load monster compendium.');
-                }
-            });
-        } else {
-            this.showMonsterCompendiumUI(this.monsterCompendium);
-        }
-    }
-    
-    /**
-     * Show the monster compendium UI
-     * @param {Array} monsters - The monster compendium data
-     */
-    showMonsterCompendiumUI(monsters) {
-        const modal = this.app.ui.createModal({
-            title: 'Monster Compendium',
-            content: `
-                <div class="space-y-4">
-                    <div class="flex mb-4">
-                        <input type="text" id="monster-search" class="flex-1 bg-gray-700 text-white px-3 py-2 rounded-l" placeholder="Search monsters...">
-                        <button id="search-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-r">
-                            Search
-                        </button>
-                    </div>
-                    
-                    <div class="flex space-x-4">
-                        <div class="w-1/3">
-                            <h3 class="font-semibold mb-2">Filters</h3>
-                            <div class="space-y-2">
-                                <div>
-                                    <label class="block text-gray-300 mb-1">Challenge Rating</label>
-                                    <select id="cr-filter" class="w-full bg-gray-700 text-white px-3 py-2 rounded">
-                                        <option value="">Any CR</option>
-                                        <option value="0-1">CR 0-1</option>
-                                        <option value="2-5">CR 2-5</option>
-                                        <option value="6-10">CR 6-10</option>
-                                        <option value="11-15">CR 11-15</option>
-                                        <option value="16+">CR 16+</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label class="block text-gray-300 mb-1">Type</label>
-                                    <select id="type-filter" class="w-full bg-gray-700 text-white px-3 py-2 rounded">
-                                        <option value="">Any Type</option>
-                                        <option value="aberration">Aberration</option>
-                                        <option value="beast">Beast</option>
-                                        <option value="celestial">Celestial</option>
-                                        <option value="construct">Construct</option>
-                                        <option value="dragon">Dragon</option>
-                                        <option value="elemental">Elemental</option>
-                                        <option value="fey">Fey</option>
-                                        <option value="fiend">Fiend</option>
-                                        <option value="giant">Giant</option>
-                                        <option value="humanoid">Humanoid</option>
-                                        <option value="monstrosity">Monstrosity</option>
-                                        <option value="ooze">Ooze</option>
-                                        <option value="plant">Plant</option>
-                                        <option value="undead">Undead</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label class="block text-gray-300 mb-1">Size</label>
-                                    <select id="size-filter" class="w-full bg-gray-700 text-white px-3 py-2 rounded">
-                                        <option value="">Any Size</option>
-                                        <option value="tiny">Tiny</option>
-                                        <option value="small">Small</option>
-                                        <option value="medium">Medium</option>
-                                        <option value="large">Large</option>
-                                        <option value="huge">Huge</option>
-                                        <option value="gargantuan">Gargantuan</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="w-2/3">
-                            <h3 class="font-semibold mb-2">Results</h3>
-                            <div id="monster-results" class="bg-gray-700 rounded p-2 max-h-96 overflow-y-auto">
-                                <div class="text-gray-400 text-center py-4">Use the search and filters to find monsters</div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="flex justify-end mt-4">
-                        <button id="close-compendium-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
-                            Close
-                        </button>
-                    </div>
-                </div>
-            `,
-            width: 'max-w-5xl'
-        });
-        
-        // Add event listeners
-        const searchInput = modal.querySelector('#monster-search');
-        const searchBtn = modal.querySelector('#search-btn');
-        const crFilter = modal.querySelector('#cr-filter');
-        const typeFilter = modal.querySelector('#type-filter');
-        const sizeFilter = modal.querySelector('#size-filter');
-        const resultsContainer = modal.querySelector('#monster-results');
-        const closeBtn = modal.querySelector('#close-compendium-btn');
-        
-        // Search function
-        const performSearch = () => {
-            const query = searchInput.value.toLowerCase();
-            const cr = crFilter.value;
-            const type = typeFilter.value;
-            const size = sizeFilter.value;
-            
-            // Filter monsters
-            const filteredMonsters = monsters.filter(monster => {
-                // Name search
-                if (query && !monster.name.toLowerCase().includes(query)) {
-                    return false;
-                }
-                
-                // CR filter
-                if (cr) {
-                    const monsterCR = parseFloat(monster.challenge_rating) || 0;
-                    if (cr === '0-1' && monsterCR > 1) return false;
-                    if (cr === '2-5' && (monsterCR < 2 || monsterCR > 5)) return false;
-                    if (cr === '6-10' && (monsterCR < 6 || monsterCR > 10)) return false;
-                    if (cr === '11-15' && (monsterCR < 11 || monsterCR > 15)) return false;
-                    if (cr === '16+' && monsterCR < 16) return false;
-                }
-                
-                // Type filter
-                if (type && monster.type !== type) {
-                    return false;
-                }
-                
-                // Size filter
-                if (size && monster.size !== size) {
-                    return false;
-                }
-                
-                return true;
-            });
-            
-            // Display results
-            if (filteredMonsters.length === 0) {
-                resultsContainer.innerHTML = `<div class="text-gray-400 text-center py-4">No monsters found matching your criteria</div>`;
-            } else {
-                resultsContainer.innerHTML = filteredMonsters.map(monster => `
-                    <div class="monster-item bg-gray-600 hover:bg-gray-500 p-2 mb-2 rounded cursor-pointer" data-monster-id="${monster.id}">
-                        <div class="flex justify-between">
-                            <div class="font-semibold">${monster.name}</div>
-                            <div class="text-sm">CR ${monster.challenge_rating}</div>
-                        </div>
-                        <div class="text-sm text-gray-300">${monster.size} ${monster.type}, ${monster.alignment}</div>
-                    </div>
-                `).join('');
-                
-                // Add click event for monsters
-                resultsContainer.querySelectorAll('.monster-item').forEach(item => {
-                    item.addEventListener('click', () => {
-                        const monsterId = item.dataset.monsterId;
-                        const monster = monsters.find(m => m.id === monsterId);
-                        if (monster) {
-                            this.app.ui.openMonsterDetailModal(monster);
-                        }
-                    });
-                });
-            }
-        };
-        
-        // Add event listeners
-        searchBtn.addEventListener('click', performSearch);
-        searchInput.addEventListener('keypress', e => {
-            if (e.key === 'Enter') performSearch();
-        });
-        
-        crFilter.addEventListener('change', performSearch);
-        typeFilter.addEventListener('change', performSearch);
-        sizeFilter.addEventListener('change', performSearch);
-        
-        closeBtn.addEventListener('click', () => {
-            this.app.ui.closeModal(modal.parentNode);
-        });
-        
-        // Initial search to show all monsters
-        performSearch();
-    }
-    
-    /**
-     * Load the spell database
-     * @returns {Promise<Array>} - The spell database
-     */
-    async loadSpellDatabase() {
-        try {
-            const response = await fetch('data/spells.json');
-            const data = await response.json();
-            
-            this.spellDatabase = data;
-            console.log(`Loaded ${data.length} spells into database`);
-            return data;
-        } catch (error) {
-            console.error('Error loading spell database:', error);
-            return [];
-        }
-    }
-    
-    /**
-     * Open the spell database
-     */
-    openSpellDatabase() {
-        // Load database if not already loaded
-        if (!this.spellDatabase) {
-            this.loadSpellDatabase().then(data => {
-                if (data.length > 0) {
-                    this.showSpellDatabaseUI(data);
-                } else {
-                    this.app.showAlert('Failed to load spell database.');
-                }
-            });
-        } else {
-            this.showSpellDatabaseUI(this.spellDatabase);
-        }
-    }
-    
-    /**
-     * Show the spell database UI
-     * @param {Array} spells - The spell database data
-     */
-    showSpellDatabaseUI(spells) {
-        const modal = this.app.ui.createModal({
-            title: 'Spell Database',
-            content: `
-                <div class="space-y-4">
-                    <div class="flex mb-4">
-                        <input type="text" id="spell-search" class="flex-1 bg-gray-700 text-white px-3 py-2 rounded-l" placeholder="Search spells...">
-                        <button id="search-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-r">
-                            Search
-                        </button>
-                    </div>
-                    
-                    <div class="flex space-x-4">
-                        <div class="w-1/3">
-                            <h3 class="font-semibold mb-2">Filters</h3>
-                            <div class="space-y-2">
-                                <div>
-                                    <label class="block text-gray-300 mb-1">Level</label>
-                                    <select id="level-filter" class="w-full bg-gray-700 text-white px-3 py-2 rounded">
-                                        <option value="">Any Level</option>
-                                        <option value="0">Cantrip</option>
-                                        <option value="1">1st Level</option>
-                                        <option value="2">2nd Level</option>
-                                        <option value="3">3rd Level</option>
-                                        <option value="4">4th Level</option>
-                                        <option value="5">5th Level</option>
-                                        <option value="6">6th Level</option>
-                                        <option value="7">7th Level</option>
-                                        <option value="8">8th Level</option>
-                                        <option value="9">9th Level</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label class="block text-gray-300 mb-1">School</label>
-                                    <select id="school-filter" class="w-full bg-gray-700 text-white px-3 py-2 rounded">
-                                        <option value="">Any School</option>
-                                        <option value="abjuration">Abjuration</option>
-                                        <option value="conjuration">Conjuration</option>
-                                        <option value="divination">Divination</option>
-                                        <option value="enchantment">Enchantment</option>
-                                        <option value="evocation">Evocation</option>
-                                        <option value="illusion">Illusion</option>
-                                        <option value="necromancy">Necromancy</option>
-                                        <option value="transmutation">Transmutation</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label class="block text-gray-300 mb-1">Class</label>
-                                    <select id="class-filter" class="w-full bg-gray-700 text-white px-3 py-2 rounded">
-                                        <option value="">Any Class</option>
-                                        <option value="bard">Bard</option>
-                                        <option value="cleric">Cleric</option>
-                                        <option value="druid">Druid</option>
-                                        <option value="paladin">Paladin</option>
-                                        <option value="ranger">Ranger</option>
-                                        <option value="sorcerer">Sorcerer</option>
-                                        <option value="warlock">Warlock</option>
-                                        <option value="wizard">Wizard</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label class="block text-gray-300 mb-1">Concentration</label>
-                                    <select id="concentration-filter" class="w-full bg-gray-700 text-white px-3 py-2 rounded">
-                                        <option value="">Any</option>
-                                        <option value="yes">Concentration</option>
-                                        <option value="no">Non-Concentration</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="w-2/3">
-                            <h3 class="font-semibold mb-2">Results</h3>
-                            <div id="spell-results" class="bg-gray-700 rounded p-2 max-h-96 overflow-y-auto">
-                                <div class="text-gray-400 text-center py-4">Use the search and filters to find spells</div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="flex justify-end mt-4">
-                        <button id="close-database-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
-                            Close
-                        </button>
-                    </div>
-                </div>
-            `,
-            width: 'max-w-5xl'
-        });
-        
-        // Add event listeners
-        const searchInput = modal.querySelector('#spell-search');
-        const searchBtn = modal.querySelector('#search-btn');
-        const levelFilter = modal.querySelector('#level-filter');
-        const schoolFilter = modal.querySelector('#school-filter');
-        const classFilter = modal.querySelector('#class-filter');
-        const concentrationFilter = modal.querySelector('#concentration-filter');
-        const resultsContainer = modal.querySelector('#spell-results');
-        const closeBtn = modal.querySelector('#close-database-btn');
-        
-        // Search function
-        const performSearch = () => {
-            const query = searchInput.value.toLowerCase();
-            const level = levelFilter.value;
-            const school = schoolFilter.value;
-            const characterClass = classFilter.value;
-            const concentration = concentrationFilter.value;
-            
-            // Filter spells
-            const filteredSpells = spells.filter(spell => {
-                // Name search
-                if (query && !spell.name.toLowerCase().includes(query)) {
-                    return false;
-                }
-                
-                // Level filter
-                if (level && spell.level.toString() !== level) {
-                    return false;
-                }
-                
-                // School filter
-                if (school && spell.school.toLowerCase() !== school) {
-                    return false;
-                }
-                
-                // Class filter
-                if (characterClass && !spell.classes.includes(characterClass)) {
-                    return false;
-                }
-                
-                // Concentration filter
-                if (concentration === 'yes' && !spell.concentration) {
-                    return false;
-                }
-                if (concentration === 'no' && spell.concentration) {
-                    return false;
-                }
-                
-                return true;
-            });
-            
-            // Display results
-            if (filteredSpells.length === 0) {
-                resultsContainer.innerHTML = `<div class="text-gray-400 text-center py-4">No spells found matching your criteria</div>`;
-            } else {
-                                resultsContainer.innerHTML = filteredSpells.map(spell => `
-                    <div class="spell-item bg-gray-600 hover:bg-gray-500 p-2 mb-2 rounded cursor-pointer" data-spell-id="${spell.id}">
-                        <div class="flex justify-between">
-                            <div class="font-semibold">${spell.name}</div>
-                            <div class="text-sm">${spell.level === 0 ? 'Cantrip' : `Level ${spell.level}`}</div>
-                        </div>
-                        <div class="text-sm text-gray-300">${spell.school} • ${spell.casting_time} • ${spell.concentration ? 'Concentration' : 'Non-Concentration'}</div>
-                    </div>
-                `).join('');
-                
-                // Add click event for spells
-                resultsContainer.querySelectorAll('.spell-item').forEach(item => {
-                    item.addEventListener('click', () => {
-                        const spellId = item.dataset.spellId;
-                        const spell = spells.find(s => s.id === spellId);
-                        if (spell) {
-                            this.showSpellDetailModal(spell);
-                        }
-                    });
-                });
-            }
-        };
-        
-        // Add event listeners
-        searchBtn.addEventListener('click', performSearch);
-        searchInput.addEventListener('keypress', e => {
-            if (e.key === 'Enter') performSearch();
-        });
-        
-        levelFilter.addEventListener('change', performSearch);
-        schoolFilter.addEventListener('change', performSearch);
-        classFilter.addEventListener('change', performSearch);
-        concentrationFilter.addEventListener('change', performSearch);
-        
-        closeBtn.addEventListener('click', () => {
-            this.app.ui.closeModal(modal.parentNode);
-        });
-        
-        // Initial search to show all spells
-        performSearch();
-    }
-    
-    /**
-     * Show the spell detail modal
-     * @param {Object} spell - The spell data
-     */
-    showSpellDetailModal(spell) {
-        const modal = this.app.ui.createModal({
-            title: spell.name,
-            content: `
-                <div class="space-y-4">
-                    <div class="text-sm text-gray-400">
-                        ${spell.level === 0 ? 'Cantrip' : `Level ${spell.level}`} ${spell.school}
-                        ${spell.ritual ? ' (ritual)' : ''}
-                    </div>
-                    
-                    <div class="grid grid-cols-2 gap-4 text-sm">
-                        <div><span class="font-semibold">Casting Time:</span> ${spell.casting_time}</div>
-                        <div><span class="font-semibold">Range:</span> ${spell.range}</div>
-                        <div><span class="font-semibold">Components:</span> ${spell.components}</div>
-                        <div><span class="font-semibold">Duration:</span> ${spell.concentration ? 'Concentration, ' : ''}${spell.duration}</div>
-                    </div>
-                    
-                    <div class="text-sm">
-                        <span class="font-semibold">Classes:</span> ${spell.classes.join(', ')}
-                    </div>
-                    
-                    <div class="border-t border-gray-600 pt-4">
-                        ${spell.description.split('\n').map(p => `<p class="mb-2">${p}</p>`).join('')}
-                    </div>
-                    
-                    ${spell.higher_levels ? `
-                        <div class="mt-2">
-                            <span class="font-semibold">At Higher Levels:</span> ${spell.higher_levels}
-                        </div>
-                    ` : ''}
-                    
-                    <div class="flex justify-between mt-4">
-                        ${spell.concentration ? `
-                            <button id="add-concentration-btn" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded">
-                                Add as Concentration
-                            </button>
-                        ` : `
-                            <div></div>
-                        `}
-                        <button id="close-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
-                            Close
-                        </button>
-                    </div>
-                </div>
-            `,
-            width: 'max-w-2xl'
-        });
-        
-        // Add event listeners
-        const closeBtn = modal.querySelector('#close-btn');
-        closeBtn.addEventListener('click', () => {
-            this.app.ui.closeModal(modal.parentNode);
-        });
-        
-        // Add concentration button
-        const addConcentrationBtn = modal.querySelector('#add-concentration-btn');
-        if (addConcentrationBtn) {
-            addConcentrationBtn.addEventListener('click', () => {
-                // Show creature selection modal
-                this.showConcentrationCreatureSelectionModal(spell);
-            });
-        }
-    }
-    
-    /**
-     * Show the concentration creature selection modal
-     * @param {Object} spell - The spell data
-     */
-    showConcentrationCreatureSelectionModal(spell) {
-        const creatures = this.app.combat.getAllCreatures();
-        
-        if (creatures.length === 0) {
-            this.app.showAlert('No creatures in combat to add concentration to.');
-            return;
-        }
-        
-        const modal = this.app.ui.createModal({
-            title: `Add ${spell.name} as Concentration`,
-            content: `
-                <div class="space-y-4">
-                    <p>Select a creature to add this spell as a concentration spell:</p>
-                    
-                    <div class="max-h-64 overflow-y-auto">
-                        ${creatures.map(creature => `
-                            <div class="creature-select-item bg-gray-700 hover:bg-gray-600 p-2 mb-2 rounded cursor-pointer" data-creature-id="${creature.id}">
-                                <div class="flex justify-between">
-                                    <div>${creature.type === 'hero' ? '👤' : '👹'} ${creature.name}</div>
-                                    ${creature.concentration ? `
-                                        <div class="text-sm text-yellow-400">
-                                            Already concentrating on ${creature.concentration.spell}
-                                        </div>
-                                    ` : ''}
-                                </div>
-                            </div>
-                        `).join('')}
-                    </div>
-                    
-                    <div class="flex justify-end mt-4">
-                        <button id="cancel-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
-                            Cancel
-                        </button>
-                    </div>
-                </div>
-            `,
-            width: 'max-w-md'
-        });
-        
-        // Add event listeners
-        const cancelBtn = modal.querySelector('#cancel-btn');
-        cancelBtn.addEventListener('click', () => {
-            this.app.ui.closeModal(modal.parentNode);
-        });
-        
-        // Add click event for creature selection
-        modal.querySelectorAll('.creature-select-item').forEach(item => {
-            item.addEventListener('click', () => {
-                const creatureId = item.dataset.creatureId;
-                const creature = creatures.find(c => c.id === creatureId);
-                
-                if (creature) {
-                    // If already concentrating, confirm replacement
-                    if (creature.concentration) {
-                        this.app.showConfirm(`${creature.name} is already concentrating on ${creature.concentration.spell}. Replace with ${spell.name}?`, () => {
-                            this.addConcentrationSpell(creatureId, spell);
-                            this.app.ui.closeModal(modal.parentNode);
-                        });
-                    } else {
-                        this.addConcentrationSpell(creatureId, spell);
-                        this.app.ui.closeModal(modal.parentNode);
-                    }
-                }
-            });
-        });
-    }
-    
-    /**
-     * Add a concentration spell to a creature
-     * @param {string} creatureId - The ID of the creature
-     * @param {Object} spell - The spell data
-     */
-    addConcentrationSpell(creatureId, spell) {
-        // Parse duration to get number of rounds
-        let duration = null;
-        if (spell.duration) {
-            const minutesMatch = spell.duration.match(/(\d+) minute/i);
-            if (minutesMatch) {
-                duration = parseInt(minutesMatch[1]) * 10; // 1 minute = 10 rounds
-            }
-            
-            const roundsMatch = spell.duration.match(/(\d+) round/i);
-            if (roundsMatch) {
-                duration = parseInt(roundsMatch[1]);
-            }
-        }
-        
-        // Add concentration to creature
-        this.app.combat.addConcentrationSpell(creatureId, spell.name, duration);
-    }
-    
-    /**
-     * Get the D&D Beyond import script
-     * @returns {string} - The import script
-     */
-    getDnDBeyondImportScript() {
-        return `
-// Jesster's Combat Tracker - D&D Beyond Character Importer
-// Run this script on a D&D Beyond character sheet page
 
-(function() {
-    try {
-        // Check if we're on a D&D Beyond character page
-        if (!window.location.href.includes('dndbeyond.com/characters/')) {
-            console.error('This script must be run on a D&D Beyond character sheet page.');
-            return;
-        }
+    /**
+     * Get a spell from the D&D 5e API
+     * @param {string} spellName - Spell name or index
+     * @returns {Promise<Object>} Spell data
+     */
+    async getSpell(spellName) {
+        // Convert spell name to index format
+        const index = spellName.toLowerCase().replace(/\s+/g, '-');
         
-        // Get character data from the page
-        const characterData = window.CharacterSheet?.characterData;
-        if (!characterData) {
-            console.error('Character data not found. Make sure you are on a character sheet page.');
-            return;
+        try {
+            return await this.getDnd5eData(`spells/${index}`);
+        } catch (error) {
+            console.error(`Error fetching spell ${spellName}:`, error);
+            throw error;
         }
-        
-        // Extract basic character info
-        const character = {
-            name: characterData.name || 'Unknown Character',
-            race: characterData.race?.fullName || characterData.race?.name || 'Unknown Race',
-            classes: characterData.classes.map(c => \`\${c.definition.name} \${c.level}\`).join(', '),
-            level: characterData.classes.reduce((total, c) => total + c.level, 0),
+    }
+
+    /**
+     * Search spells in the D&D 5e API
+     * @param {string} query - Search query
+     * @returns {Promise<Array>} Search results
+     */
+    async searchSpells(query) {
+        try {
+            const results = await this.getDnd5eData(`spells?name=${encodeURIComponent(query)}`);
             
-            // Stats
-            hp: {
-                current: characterData.overrideHitPoints !== null ? characterData.overrideHitPoints : characterData.baseHitPoints + characterData.temporaryHitPoints,
-                max: characterData.baseHitPoints,
-                temp: characterData.temporaryHitPoints || 0
-            },
-            ac: characterData.armorClass,
-            
-            // Abilities
-            abilities: {
-                str: characterData.stats[0].value,
-                dex: characterData.stats[1].value,
-                con: characterData.stats[2].value,
-                int: characterData.stats[3].value,
-                wis: characterData.stats[4].value,
-                cha: characterData.stats[5].value
-            },
-            
-            // Modifiers
-            modifiers: {
-                str: Math.floor((characterData.stats[0].value - 10) / 2),
-                dex: Math.floor((characterData.stats[1].value - 10) / 2),
-                con: Math.floor((characterData.stats[2].value - 10) / 2),
-                int: Math.floor((characterData.stats[3].value - 10) / 2),
-                wis: Math.floor((characterData.stats[4].value - 10) / 2),
-                cha: Math.floor((characterData.stats[5].value - 10) / 2)
-            },
-            
-            // Initiative
-            initiative: Math.floor((characterData.stats[1].value - 10) / 2) + (characterData.initiativeBonus || 0),
-            
-            // Proficiency bonus
-            profBonus: characterData.proficiencyBonus,
-            
-            // Saving throws
-            savingThrows: characterData.stats.map(stat => ({
-                name: stat.name,
-                modifier: stat.saveModifier,
-                proficient: stat.saveProficient
-            })),
-            
-            // Skills
-            skills: characterData.skills.map(skill => ({
-                name: skill.name,
-                modifier: skill.modifier,
-                proficient: skill.proficient
-            })),
-            
-            // Character image
-            imageUrl: characterData.avatarUrl || null
+            return results.results || [];
+        } catch (error) {
+            console.error(`Error searching spells:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * Transform monster data from D&D 5e API format to our format
+     * @private
+     * @param {Object} apiMonster - Monster data from API
+     * @returns {Object} Transformed monster data
+     */
+    _transformMonsterData(apiMonster) {
+        // Extract ability scores
+        const abilities = {
+            str: apiMonster.strength || 10,
+            dex: apiMonster.dexterity || 10,
+            con: apiMonster.constitution || 10,
+            int: apiMonster.intelligence || 10,
+            wis: apiMonster.wisdom || 10,
+            cha: apiMonster.charisma || 10
         };
         
-        console.log('='.repeat(50));
-        console.log('Character data extracted successfully!');
-        console.log('Copy the JSON below and paste it into Jesster\\'s Combat Tracker:');
-        console.log('='.repeat(50));
-        console.log(JSON.stringify(character, null, 2));
-        console.log('='.repeat(50));
+        // Create HP formula
+        let hpFormula = '';
+        if (apiMonster.hit_points_roll) {
+            hpFormula = apiMonster.hit_points_roll;
+        } else if (apiMonster.hit_dice) {
+            const conMod = Math.floor((abilities.con - 10) / 2);
+            const conBonus = conMod * apiMonster.hit_dice;
+            hpFormula = `${apiMonster.hit_dice}d${apiMonster.hit_dice_size || 8}${conMod >= 0 ? '+' : ''}${conBonus}`;
+        }
         
-        return character;
-    } catch (error) {
-        console.error('Error extracting character data:', error);
-        return { error: error.message };
-    }
-})();
-        `;
-    }
-    
-    /**
-     * Parse a D&D Beyond character
-     * @param {Object} data - The character data
-     * @returns {Object} - The parsed character
-     */
-    parseDnDBeyondCharacter(data) {
-        // Create the character object
+        // Transform actions
+        const actions = apiMonster.actions ? apiMonster.actions.map(action => ({
+            name: action.name,
+            description: action.desc
+        })) : [];
+        
+        // Transform special abilities
+        const traits = apiMonster.special_abilities ? apiMonster.special_abilities.map(ability => ({
+            name: ability.name,
+            description: ability.desc
+        })) : [];
+        
+        // Transform legendary actions
+        const legendaryActions = apiMonster.legendary_actions ? apiMonster.legendary_actions.map(action => ({
+            name: action.name,
+            description: action.desc
+        })) : [];
+        
+        // Transform reactions
+        const reactions = apiMonster.reactions ? apiMonster.reactions.map(reaction => ({
+            name: reaction.name,
+            description: reaction.desc
+        })) : [];
+        
+        // Create monster object
         return {
-            id: this.app.utils.generateUUID(),
-            name: data.name,
-            type: 'hero',
-            maxHp: data.hp.max,
-            currentHp: data.hp.current,
-            ac: data.ac,
-            initiativeBonus: data.initiative,
-            initiative: null,
-            conditions: [],
-            imageUrl: data.imageUrl,
-            source: 'D&D Beyond',
+            id: `monster-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+            name: apiMonster.name,
+            type: 'monster',
+            monsterType: apiMonster.type,
+            size: apiMonster.size,
+            alignment: apiMonster.alignment,
+            ac: apiMonster.armor_class,
+            acType: apiMonster.armor_desc,
+            hp: apiMonster.hit_points,
+            maxHp: apiMonster.hit_points,
+            hpFormula: hpFormula,
+            speed: this._formatSpeed(apiMonster.speed),
+            abilities: abilities,
+            savingThrows: this._formatSavingThrows(apiMonster.proficiencies),
+            skills: this._formatSkills(apiMonster.proficiencies),
+            damageResistances: (apiMonster.damage_resistances || []).join(', '),
+            damageImmunities: (apiMonster.damage_immunities || []).join(', '),
+            conditionImmunities: (apiMonster.condition_immunities || []).map(c => c.name).join(', '),
+            senses: this._formatSenses(apiMonster.senses),
+            languages: apiMonster.languages,
+            cr: apiMonster.challenge_rating,
+            xp: apiMonster.xp,
+            traits: traits,
+            actions: actions,
+            reactions: reactions,
+            legendaryActions: legendaryActions,
+            environment: apiMonster.environment || [],
+            source: 'D&D 5e API'
+        };
+    }
+
+    /**
+     * Format speed from API format
+     * @private
+     * @param {Object} speed - Speed object from API
+     * @returns {string} Formatted speed
+     */
+    _formatSpeed(speed) {
+        if (!speed) return '30 ft.';
+        
+        const parts = [];
+        
+        if (speed.walk) parts.push(`${speed.walk}`);
+        if (speed.fly) parts.push(`fly ${speed.fly}`);
+        if (speed.swim) parts.push(`swim ${speed.swim}`);
+        if (speed.climb) parts.push(`climb ${speed.climb}`);
+        if (speed.burrow) parts.push(`burrow ${speed.burrow}`);
+        
+        return parts.join(', ');
+    }
+
+    /**
+     * Format saving throws from API proficiencies
+     * @private
+     * @param {Array} proficiencies - Proficiencies array from API
+     * @returns {string} Formatted saving throws
+     */
+    _formatSavingThrows(proficiencies) {
+        if (!proficiencies) return '';
+        
+        const saves = proficiencies.filter(p => p.proficiency.name.startsWith('Saving Throw:'));
+        
+        if (saves.length === 0) return '';
+        
+        return saves.map(save => {
+            const ability = save.proficiency.name.split(':')[1].trim();
+            const value = save.value >= 0 ? `+${save.value}` : save.value;
+            return `${ability} ${value}`;
+        }).join(', ');
+    }
+
+    /**
+     * Format skills from API proficiencies
+     * @private
+     * @param {Array} proficiencies - Proficiencies array from API
+     * @returns {string} Formatted skills
+     */
+    _formatSkills(proficiencies) {
+        if (!proficiencies) return '';
+        
+        const skills = proficiencies.filter(p => p.proficiency.name.startsWith('Skill:'));
+        
+        if (skills.length === 0) return '';
+        
+        return skills.map(skill => {
+            const skillName = skill.proficiency.name.split(':')[1].trim();
+            const value = skill.value >= 0 ? `+${skill.value}` : skill.value;
+            return `${skillName} ${value}`;
+        }).join(', ');
+    }
+
+    /**
+     * Format senses from API format
+     * @private
+     * @param {Object} senses - Senses object from API
+     * @returns {string} Formatted senses
+     */
+    _formatSenses(senses) {
+        if (!senses) return 'passive Perception 10';
+        
+        const parts = [];
+        
+        if (senses.darkvision) parts.push(`darkvision ${senses.darkvision}`);
+        if (senses.blindsight) parts.push(`blindsight ${senses.blindsight}`);
+        if (senses.tremorsense) parts.push(`tremorsense ${senses.tremorsense}`);
+        if (senses.truesight) parts.push(`truesight ${senses.truesight}`);
+        
+        parts.push(`passive Perception ${senses.passive_perception || 10}`);
+        
+        return parts.join(', ');
+    }
+
+    /**
+     * Generate text using OpenAI API
+     * @param {string} prompt - Text prompt
+     * @param {Object} options - Generation options
+     * @param {string} options.model - Model to use (default: gpt-3.5-turbo)
+     * @param {number} options.maxTokens - Maximum tokens to generate
+     * @param {number} options.temperature - Temperature for generation
+     * @returns {Promise<string>} Generated text
+     */
+    async generateText(prompt, options = {}) {
+        // Check if API is enabled
+        if (!this.config.openAI.enabled) {
+            throw new Error('OpenAI API is disabled. Please set your API key in settings.');
+        }
+        
+        // Check if API key is set
+        if (!this.config.openAI.apiKey) {
+            throw new Error('OpenAI API key is not set');
+        }
+        
+        // Check rate limit
+        if (this._isRateLimited('openAI')) {
+            throw new Error('OpenAI API rate limit exceeded');
+        }
+        
+        // Get options
+        const {
+            model = 'gpt-3.5-turbo',
+            maxTokens = 500,
+            temperature = 0.7
+        } = options;
+        
+        // Increment rate limit counter
+        this._incrementRateLimit('openAI');
+        
+        // Prepare request
+        const url = `${this.config.openAI.baseUrl}/chat/completions`;
+        const headers = {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${this.config.openAI.apiKey}`
+        };
+        
+        const body = JSON.stringify({
+            model: model,
+            messages: [
+                {
+                    role: "system",
+                    content: "You are a helpful assistant for a D&D 5e game master."
+                },
+                {
+                    role: "user",
+                    content: prompt
+                }
+            ],
+            max_tokens: maxTokens,
+            temperature: temperature
+        });
+        
+        // Make request
+        try {
+            const response = await this._fetchWithErrorHandling(url, {
+                method: 'POST',
+                headers,
+                body
+            });
             
-            // Additional character data
-            str: data.abilities.str,
-            dex: data.abilities.dex,
-            con: data.abilities.con,
-            int: data.abilities.int,
-            wis: data.abilities.wis,
-            cha: data.abilities.cha,
+            // Extract generated text
+            if (response.choices && response.choices.length > 0) {
+                return response.choices[0].message.content.trim();
+            } else {
+                throw new Error('No text generated');
+            }
+        } catch (error) {
+            console.error('Error generating text:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Generate a random encounter description
+     * @param {Object} encounter - Encounter object
+     * @returns {Promise<string>} Generated description
+     */
+    async generateEncounterDescription(encounter) {
+        // Create prompt
+        const monsterNames = encounter.monsters.map(m => m.name).join(', ');
+        const environment = encounter.environment || 'dungeon';
+        const difficulty = encounter.difficulty ? encounter.difficulty.difficulty : 'medium';
+        
+        const prompt = `Create a brief, evocative description for a D&D 5e encounter with the following monsters: ${monsterNames}. 
+        The encounter takes place in a ${environment} environment and is of ${difficulty} difficulty. 
+        Include atmospheric details and a tactical setup for the encounter.
+        Keep it under 200 words.`;
+        
+        // Generate description
+        return await this.generateText(prompt, {
+            maxTokens: 300,
+            temperature: 0.8
+        });
+    }
+
+    /**
+     * Generate monster tactics
+     * @param {Object} monster - Monster object
+     * @returns {Promise<string>} Generated tactics
+     */
+    async generateMonsterTactics(monster) {
+        // Create prompt
+        const prompt = `Create tactical advice for a D&D 5e game master on how to effectively use a ${monster.name} (CR ${monster.cr}) in combat.
+        Consider the monster's abilities, strengths, and weaknesses.
+        Include advice on positioning, ability usage, and target prioritization.
+        Keep it under 150 words.`;
+        
+        // Generate tactics
+        return await this.generateText(prompt, {
+            maxTokens: 250,
+            temperature: 0.7
+        });
+    }
+
+    /**
+     * Generate a random NPC
+     * @param {Object} options - NPC options
+     * @param {string} options.race - NPC race
+     * @param {string} options.class - NPC class
+     * @param {string} options.alignment - NPC alignment
+     * @returns {Promise<Object>} Generated NPC
+     */
+    async generateNPC(options = {}) {
+        const {
+            race = '',
+            class: npcClass = '',
+            alignment = ''
+        } = options;
+        
+        // Create prompt
+        let prompt = `Create a D&D 5e NPC with the following format:
+        Name: [Full name]
+        Race: ${race || '[Random race]'}
+        Class/Occupation: ${npcClass || '[Random class or occupation]'}
+        Alignment: ${alignment || '[Random alignment]'}
+        Appearance: [Brief physical description]
+        Personality: [Key personality traits]
+        Motivation: [What drives this character]
+        Secret: [A secret or hidden aspect]
+        Voice: [How they speak]
+        
+        Return only the filled out template with no additional text.`;
+        
+        // Generate NPC
+        const npcText = await this.generateText(prompt, {
+            maxTokens: 350,
+            temperature: 0.8
+        });
+        
+        // Parse NPC text
+        return this._parseNPCText(npcText);
+    }
+
+    /**
+     * Parse NPC text into an object
+     * @private
+     * @param {string} npcText - NPC text
+     * @returns {Object} NPC object
+     */
+    _parseNPCText(npcText) {
+        const npc = {
+            id: `npc-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+            type: 'npc'
+        };
+        
+        // Extract fields
+        const fields = [
+            { key: 'name', pattern: /Name:\s*(.+)/ },
+            { key: 'race', pattern: /Race:\s*(.+)/ },
+            { key: 'class', pattern: /Class\/Occupation:\s*(.+)/ },
+            { key: 'alignment', pattern: /Alignment:\s*(.+)/ },
+            { key: 'appearance', pattern: /Appearance:\s*(.+)/ },
+            { key: 'personality', pattern: /Personality:\s*(.+)/ },
+            { key: 'motivation', pattern: /Motivation:\s*(.+)/ },
+            { key: 'secret', pattern: /Secret:\s*(.+)/ },
+            { key: 'voice', pattern: /Voice:\s*(.+)/ }
+        ];
+        
+        fields.forEach(field => {
+            const match = npcText.match(field.pattern);
+            if (match && match[1]) {
+                npc[field.key] = match[1].trim();
+            }
+        });
+        
+        return npc;
+    }
+
+    /**
+     * Generate a random treasure hoard
+     * @param {number} cr - Challenge rating
+     * @returns {Promise<Object>} Generated treasure
+     */
+    async generateTreasureHoard(cr = 5) {
+        // Create prompt
+        const prompt = `Generate a D&D 5e treasure hoard for CR ${cr} using the standard treasure tables.
+        Format the result as a JSON object with the following structure:
+        {
+          "coins": { "cp": 0, "sp": 0, "gp": 0, "pp": 0 },
+          "gems": [{ "value": 0, "description": "" }],
+          "art": [{ "value": 0, "description": "" }],
+          "magicItems": [{ "name": "", "rarity": "", "description": "" }]
+        }
+        Include only the JSON with no additional text.`;
+        
+        // Generate treasure
+        const treasureText = await this.generateText(prompt, {
+            maxTokens: 500,
+            temperature: 0.7
+        });
+        
+        // Parse treasure JSON
+        try {
+            // Extract JSON from the response
+            const jsonMatch = treasureText.match(/\{[\s\S]*\}/);
+            if (!jsonMatch) {
+                throw new Error('No valid JSON found in response');
+            }
             
-            level: data.level,
-            race: data.race,
-            classes: data.classes,
-            profBonus: data.profBonus,
-            
-            savingThrows: data.savingThrows,
-            skills: data.skills
+            const treasureJson = jsonMatch[0];
+            return JSON.parse(treasureJson);
+        } catch (error) {
+            console.error('Error parsing treasure JSON:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Make a request to a custom API
+     * @param {string} apiId - Custom API ID
+     * @param {string} endpoint - API endpoint
+     * @param {Object} options - Request options
+     * @returns {Promise<Object>} API response
+     */
+    async callCustomApi(apiId, endpoint, options = {}) {
+        // Find custom API
+        const api = this.config.customApis.find(api => api.id === apiId);
+        if (!api) {
+            throw new Error(`Custom API not found: ${apiId}`);
+        }
+        
+        // Normalize endpoint
+        const normalizedEndpoint = endpoint.startsWith('/') ? endpoint.substring(1) : endpoint;
+        
+        // Prepare request
+        const url = `${api.baseUrl}/${normalizedEndpoint}`;
+        const headers = { ...api.headers };
+        
+        // Add authentication if provided
+        if (api.authType === 'bearer' && api.authToken) {
+            headers['Authorization'] = `Bearer ${api.authToken}`;
+        } else if (api.authType === 'basic' && api.username && api.password) {
+            const auth = btoa(`${api.username}:${api.password}`);
+            headers['Authorization'] = `Basic ${auth}`;
+        }
+        
+        // Make request
+        try {
+            return await this._fetchWithErrorHandling(url, {
+                method: options.method || 'GET',
+                headers,
+                body: options.body ? JSON.stringify(options.body) : undefined
+            });
+        } catch (error) {
+            console.error(`Error calling custom API ${apiId}:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * Add a custom API
+     * @param {Object} api - Custom API configuration
+     * @returns {Promise<boolean>} Success status
+     */
+    async addCustomApi(api) {
+        // Generate ID if not provided
+        if (!api.id) {
+            api.id = `api-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+        }
+        
+        // Add to custom APIs
+        this.config.customApis.push(api);
+        
+        // Save to settings
+        await this.settings.set('customApis', this.config.customApis);
+        
+        return true;
+    }
+
+    /**
+     * Update a custom API
+     * @param {string} apiId - Custom API ID
+     * @param {Object} updates - Updates to apply
+     * @returns {Promise<boolean>} Success status
+     */
+    async updateCustomApi(apiId, updates) {
+        // Find custom API
+        const index = this.config.customApis.findIndex(api => api.id === apiId);
+        if (index === -1) {
+            throw new Error(`Custom API not found: ${apiId}`);
+        }
+        
+        // Update API
+        this.config.customApis[index] = { ...this.config.customApis[index], ...updates };
+        
+        // Save to settings
+        await this.settings.set('customApis', this.config.customApis);
+        
+        return true;
+    }
+
+    /**
+     * Remove a custom API
+     * @param {string} apiId - Custom API ID
+     * @returns {Promise<boolean>} Success status
+     */
+    async removeCustomApi(apiId) {
+        // Find custom API
+        const index = this.config.customApis.findIndex(api => api.id === apiId);
+        if (index === -1) {
+            throw new Error(`Custom API not found: ${apiId}`);
+        }
+        
+        // Remove API
+        this.config.customApis.splice(index, 1);
+        
+        // Save to settings
+        await this.settings.set('customApis', this.config.customApis);
+        
+        return true;
+    }
+
+    /**
+     * Get all custom APIs
+     * @returns {Array} Custom APIs
+     */
+    getCustomApis() {
+        return [...this.config.customApis];
+    }
+
+    /**
+     * Set OpenAI API key
+     * @param {string} apiKey - API key
+     * @returns {Promise<boolean>} Success status
+     */
+    async setOpenAIApiKey(apiKey) {
+        // Update config
+        this.config.openAI.apiKey = apiKey;
+        this.config.openAI.enabled = !!apiKey;
+        
+        // Save to settings
+        await this.settings.set('openAIApiKey', apiKey);
+        
+        return true;
+    }
+
+    /**
+     * Check if OpenAI API is enabled
+     * @returns {boolean} Enabled status
+     */
+    isOpenAIEnabled() {
+        return this.config.openAI.enabled;
+    }
+
+    /**
+     * Clear API cache
+     * @param {string} api - API name (dnd5e, openAI, custom, or all)
+     * @returns {boolean} Success status
+     */
+    clearCache(api = 'all') {
+        if (api === 'all') {
+            this.cache = {
+                dnd5e: {},
+                openAI: {},
+                custom: {}
+            };
+        } else if (this.cache[api]) {
+            this.cache[api] = {};
+        } else {
+            return false;
+        }
+        
+        return true;
+    }
+
+    /**
+     * Get cache size
+     * @returns {Object} Cache sizes
+     */
+    getCacheSize() {
+        return {
+            dnd5e: Object.keys(this.cache.dnd5e).length,
+            openAI: Object.keys(this.cache.openAI).length,
+            custom: Object.keys(this.cache.custom).length
+        };
+    }
+
+    /**
+     * Get rate limit status
+     * @returns {Object} Rate limit status
+     */
+    getRateLimitStatus() {
+        const now = Date.now();
+        
+        return {
+            dnd5e: {
+                remaining: Math.max(0, this.rateLimits.dnd5e.requestsPerMinute - this.rateLimits.dnd5e.requestCount),
+                resetsIn: Math.max(0, Math.ceil((this.rateLimits.dnd5e.resetTime - now) / 1000))
+            },
+            openAI: {
+                remaining: Math.max(0, this.rateLimits.openAI.requestsPerMinute - this.rateLimits.openAI.requestCount),
+                resetsIn: Math.max(0, Math.ceil((this.rateLimits.openAI.resetTime - now) / 1000))
+            }
         };
     }
 }
+
+// Export the API class
+export default API;
