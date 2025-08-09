@@ -1,543 +1,626 @@
 /**
- * Audio Manager for Jesster's Combat Tracker
+ * Audio module for Jesster's Combat Tracker
  * Handles sound effects and background music
  */
-class AudioManager {
-    constructor(app) {
-        this.app = app;
-        this.sounds = {};
-        this.backgroundMusic = null;
-        this.soundEnabled = true;
-        this.musicEnabled = false;
-        this.musicVolume = 0.3;
-        this.soundVolume = 0.5;
-        this.audioInitialized = false;
+class Audio {
+    constructor(settings) {
+        // Store reference to settings module
+        this.settings = settings;
         
-        // Define sound mappings
-        this.soundMappings = {
-            'combatStart': 'audio/combat-start.mp3',
-            'roundStart': 'audio/round-start.mp3',
-            'turnStart': 'audio/turn-start.mp3',
-            'turnEnd': 'audio/turn-end.mp3',
-            'diceRoll': 'audio/dice-roll.mp3',
-            'hit': 'audio/hit.mp3',
-            'miss': 'audio/miss.mp3',
-            'criticalHit': 'audio/critical-hit.mp3',
-            'heal': 'audio/heal.mp3',
-            'spellCast': 'audio/spell-cast.mp3'
+        // Audio state
+        this.soundEnabled = this.settings.areSoundsEnabled();
+        this.musicEnabled = this.settings.isMusicEnabled();
+        this.volume = this.settings.getVolume();
+        this.musicVolume = this.settings.getMusicVolume();
+        
+        // Audio elements
+        this.sounds = {};
+        this.music = {};
+        this.currentMusic = null;
+        
+        // Sound paths
+        this.soundPaths = {
+            'dice-roll': 'sounds/dice-roll.mp3',
+            'critical-hit': 'sounds/critical-hit.mp3',
+            'critical-miss': 'sounds/critical-miss.mp3',
+            'damage': 'sounds/damage.mp3',
+            'healing': 'sounds/healing.mp3',
+            'turn-start': 'sounds/turn-start.mp3',
+            'turn-end': 'sounds/turn-end.mp3',
+            'round-start': 'sounds/round-start.mp3',
+            'timer-end': 'sounds/timer-end.mp3',
+            'victory': 'sounds/victory.mp3'
         };
         
-        // Background music options
-        this.musicTracks = [
-            'audio/background-music-1.mp3',
-            'audio/background-music-2.mp3'
-        ];
+        // Music paths (to be populated)
+        this.musicPaths = {
+            'combat': 'sounds/music/combat.mp3',
+            'exploration': 'sounds/music/exploration.mp3',
+            'tension': 'sounds/music/tension.mp3',
+            'victory': 'sounds/music/victory.mp3',
+            'defeat': 'sounds/music/defeat.mp3'
+        };
         
-        console.log("Audio Manager initialized");
+        // Initialize audio context
+        this._initAudioContext();
+        
+        console.log("Audio module initialized");
     }
-    
+
     /**
-     * Initialize the audio manager
+     * Initialize Web Audio API context
+     * @private
      */
-    async init() {
-        // Load settings from localStorage
-        this.loadSettings();
-        
-        // Create the audio controls
-        this.createAudioControls();
-        
-        // Setup audio initialization on user interaction
-        this.setupAudioInitialization();
-        
-        console.log("Audio Manager initialized");
+    _initAudioContext() {
+        try {
+            // Create audio context
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            this.audioContext = new AudioContext();
+            
+            // Create gain nodes for volume control
+            this.soundGain = this.audioContext.createGain();
+            this.musicGain = this.audioContext.createGain();
+            
+            // Connect gain nodes to destination
+            this.soundGain.connect(this.audioContext.destination);
+            this.musicGain.connect(this.audioContext.destination);
+            
+            // Set initial volume
+            this.soundGain.gain.value = this.volume;
+            this.musicGain.gain.value = this.musicVolume;
+            
+            // Flag for audio context state
+            this.audioContextInitialized = true;
+        } catch (error) {
+            console.error('Web Audio API not supported:', error);
+            this.audioContextInitialized = false;
+        }
     }
-    
+
     /**
-     * Setup audio initialization on user interaction
+     * Resume audio context (must be called from a user interaction)
      */
-    setupAudioInitialization() {
-        // Create placeholder objects for all sounds
-        for (const name of Object.keys(this.soundMappings)) {
-            this.sounds[name] = {
-                loaded: false
-            };
+    resumeAudioContext() {
+        if (this.audioContext && this.audioContext.state === 'suspended') {
+            this.audioContext.resume();
+        }
+    }
+
+    /**
+     * Preload all sounds
+     * @returns {Promise<void>} Promise that resolves when all sounds are loaded
+     */
+    async preloadSounds() {
+        if (!this.audioContextInitialized) return;
+        
+        const loadPromises = [];
+        
+        // Preload sound effects
+        for (const [id, path] of Object.entries(this.soundPaths)) {
+            loadPromises.push(this._loadSound(id, path));
         }
         
-        // Add a one-time event listener to initialize audio on first user interaction
-        const initAudioOnUserInteraction = () => {
-            if (!this.audioInitialized) {
-                this.initializeAudio();
-                this.audioInitialized = true;
+        // Wait for all sounds to load
+        await Promise.all(loadPromises);
+    }
+
+    /**
+     * Load a sound
+     * @private
+     * @param {string} id - Sound ID
+     * @param {string} path - Sound file path
+     * @returns {Promise<void>} Promise that resolves when sound is loaded
+     */
+    async _loadSound(id, path) {
+        if (!this.audioContextInitialized) return;
+        
+        try {
+            // Fetch audio file
+            const response = await fetch(path);
+            const arrayBuffer = await response.arrayBuffer();
+            
+            // Decode audio data
+            const audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
+            
+            // Store audio buffer
+            this.sounds[id] = audioBuffer;
+        } catch (error) {
+            console.error(`Error loading sound ${id}:`, error);
+        }
+    }
+
+    /**
+     * Play a sound
+     * @param {string} id - Sound ID
+     * @param {Object} options - Playback options
+     * @param {number} options.volume - Volume override (0-1)
+     * @param {number} options.pitch - Pitch adjustment (0.5-2)
+     * @param {boolean} options.loop - Whether to loop the sound
+     * @returns {Object|null} Sound control object or null if sound couldn't be played
+     */
+    play(id, options = {}) {
+        // Check if sound is enabled
+        if (!this.soundEnabled || !this.audioContextInitialized) return null;
+        
+        // Get options
+        const {
+            volume = 1,
+            pitch = 1,
+            loop = false
+        } = options;
+        
+        // Get sound buffer
+        const buffer = this.sounds[id];
+        if (!buffer) {
+            // Try to load the sound if it's not loaded yet
+            if (this.soundPaths[id]) {
+                this._loadSound(id, this.soundPaths[id]);
             }
-            document.removeEventListener('click', initAudioOnUserInteraction);
-            document.removeEventListener('keydown', initAudioOnUserInteraction);
+            return null;
+        }
+        
+        // Create source node
+        const source = this.audioContext.createBufferSource();
+        source.buffer = buffer;
+        source.loop = loop;
+        
+        // Set playback rate (pitch)
+        source.playbackRate.value = pitch;
+        
+        // Create gain node for this sound
+        const gainNode = this.audioContext.createGain();
+        gainNode.gain.value = volume * this.volume;
+        
+        // Connect nodes
+        source.connect(gainNode);
+        gainNode.connect(this.soundGain);
+        
+        // Start playback
+        source.start(0);
+        
+        // Return control object
+        return {
+            source,
+            gainNode,
+            stop: () => {
+                try {
+                    source.stop();
+                } catch (error) {
+                    // Ignore errors when stopping already stopped sources
+                }
+            },
+            setVolume: (newVolume) => {
+                gainNode.gain.value = newVolume * this.volume;
+            },
+            setPitch: (newPitch) => {
+                source.playbackRate.value = newPitch;
+            }
+        };
+    }
+
+    /**
+     * Play music
+     * @param {string} id - Music ID
+     * @param {Object} options - Playback options
+     * @param {number} options.volume - Volume override (0-1)
+     * @param {boolean} options.loop - Whether to loop the music
+     * @param {number} options.fadeIn - Fade in duration in milliseconds
+     * @returns {Object|null} Music control object or null if music couldn't be played
+     */
+    playMusic(id, options = {}) {
+        // Check if music is enabled
+        if (!this.musicEnabled || !this.audioContextInitialized) return null;
+        
+        // Get options
+        const {
+            volume = 1,
+            loop = true,
+            fadeIn = 1000
+        } = options;
+        
+        // Stop current music
+        this.stopMusic({ fadeOut: fadeIn / 2 });
+        
+        // Get music buffer
+        let buffer = this.sounds[id];
+        if (!buffer) {
+            // Try to load the music if it's not loaded yet
+            if (this.musicPaths[id]) {
+                this._loadSound(id, this.musicPaths[id]);
+            }
+            return null;
+        }
+        
+        // Create source node
+        const source = this.audioContext.createBufferSource();
+        source.buffer = buffer;
+        source.loop = loop;
+        
+        // Create gain node for this music
+        const gainNode = this.audioContext.createGain();
+        gainNode.gain.value = 0; // Start at 0 for fade in
+        
+        // Connect nodes
+        source.connect(gainNode);
+        gainNode.connect(this.musicGain);
+        
+        // Start playback
+        source.start(0);
+        
+        // Fade in
+        const now = this.audioContext.currentTime;
+        gainNode.gain.setValueAtTime(0, now);
+        gainNode.gain.linearRampToValueAtTime(volume * this.musicVolume, now + fadeIn / 1000);
+        
+        // Create control object
+        const control = {
+            source,
+            gainNode,
+            id,
+            stop: (options = {}) => {
+                const { fadeOut = 0 } = options;
+                
+                if (fadeOut > 0) {
+                    // Fade out
+                    const now = this.audioContext.currentTime;
+                    gainNode.gain.setValueAtTime(gainNode.gain.value, now);
+                    gainNode.gain.linearRampToValueAtTime(0, now + fadeOut / 1000);
+                    
+                    // Stop after fade out
+                    setTimeout(() => {
+                        try {
+                            source.stop();
+                        } catch (error) {
+                            // Ignore errors when stopping already stopped sources
+                        }
+                    }, fadeOut);
+                } else {
+                    // Stop immediately
+                    try {
+                        source.stop();
+                    } catch (error) {
+                        // Ignore errors when stopping already stopped sources
+                    }
+                }
+            },
+            setVolume: (newVolume) => {
+                gainNode.gain.value = newVolume * this.musicVolume;
+            }
         };
         
-        document.addEventListener('click', initAudioOnUserInteraction);
-        document.addEventListener('keydown', initAudioOnUserInteraction);
+        // Store current music
+        this.currentMusic = control;
+        
+        return control;
     }
-    
+
     /**
-     * Initialize audio after user interaction
+     * Stop music
+     * @param {Object} options - Stop options
+     * @param {number} options.fadeOut - Fade out duration in milliseconds
      */
-    initializeAudio() {
+    stopMusic(options = {}) {
+        const { fadeOut = 0 } = options;
+        
+        if (this.currentMusic) {
+            this.currentMusic.stop({ fadeOut });
+            this.currentMusic = null;
+        }
+    }
+
+    /**
+     * Set sound volume
+     * @param {number} volume - Volume level (0-1)
+     */
+    setSoundVolume(volume) {
+        this.volume = Math.max(0, Math.min(1, volume));
+        
+        if (this.audioContextInitialized) {
+            this.soundGain.gain.value = this.volume;
+        }
+    }
+
+    /**
+     * Set music volume
+     * @param {number} volume - Volume level (0-1)
+     */
+    setMusicVolume(volume) {
+        this.musicVolume = Math.max(0, Math.min(1, volume));
+        
+        if (this.audioContextInitialized && this.currentMusic) {
+            this.musicGain.gain.value = this.musicVolume;
+        }
+    }
+
+    /**
+     * Enable or disable sound
+     * @param {boolean} enabled - Whether sound is enabled
+     */
+    enableSound(enabled) {
+        this.soundEnabled = enabled;
+        
+        // Update settings
+        this.settings.set('soundEnabled', enabled);
+    }
+
+    /**
+     * Enable or disable music
+     * @param {boolean} enabled - Whether music is enabled
+     */
+    enableMusic(enabled) {
+        this.musicEnabled = enabled;
+        
+        // Update settings
+        this.settings.set('musicEnabled', enabled);
+        
+        // Stop music if disabled
+        if (!enabled && this.currentMusic) {
+            this.stopMusic({ fadeOut: 500 });
+        }
+    }
+
+    /**
+     * Play a sound effect with a random pitch variation
+     * @param {string} id - Sound ID
+     * @param {Object} options - Playback options
+     * @returns {Object|null} Sound control object
+     */
+    playWithVariation(id, options = {}) {
+        // Add random pitch variation
+        const pitchVariation = 0.1; // 10% variation
+        const pitch = 1 + (Math.random() * pitchVariation * 2 - pitchVariation);
+        
+        return this.play(id, { ...options, pitch });
+    }
+
+    /**
+     * Play a dice roll sound
+     * @returns {Object|null} Sound control object
+     */
+    playDiceRoll() {
+        return this.playWithVariation('dice-roll');
+    }
+
+    /**
+     * Play a critical hit sound
+     * @returns {Object|null} Sound control object
+     */
+    playCriticalHit() {
+        return this.play('critical-hit');
+    }
+
+    /**
+     * Play a critical miss sound
+     * @returns {Object|null} Sound control object
+     */
+    playCriticalMiss() {
+        return this.play('critical-miss');
+    }
+
+    /**
+     * Play a damage sound
+     * @returns {Object|null} Sound control object
+     */
+    playDamage() {
+        return this.playWithVariation('damage');
+    }
+
+    /**
+     * Play a healing sound
+     * @returns {Object|null} Sound control object
+     */
+    playHealing() {
+        return this.play('healing');
+    }
+
+    /**
+     * Play a turn start sound
+     * @returns {Object|null} Sound control object
+     */
+    playTurnStart() {
+        return this.play('turn-start');
+    }
+
+    /**
+     * Play a turn end sound
+     * @returns {Object|null} Sound control object
+     */
+    playTurnEnd() {
+        return this.play('turn-end');
+    }
+
+    /**
+     * Play a round start sound
+     * @returns {Object|null} Sound control object
+     */
+    playRoundStart() {
+        return this.play('round-start');
+    }
+
+    /**
+     * Play a timer end sound
+     * @returns {Object|null} Sound control object
+     */
+    playTimerEnd() {
+        return this.play('timer-end');
+    }
+
+    /**
+     * Play a victory sound
+     * @returns {Object|null} Sound control object
+     */
+    playVictory() {
+        return this.play('victory');
+    }
+
+    /**
+     * Add a custom sound
+     * @param {string} id - Sound ID
+     * @param {string} path - Sound file path
+     * @returns {Promise<boolean>} Promise that resolves to true if sound was added successfully
+     */
+    async addCustomSound(id, path) {
+        if (!this.audioContextInitialized) return false;
+        
         try {
-            // Preload all sound effects
-            for (const [name, path] of Object.entries(this.soundMappings)) {
-                // Create a new Audio object for each sound
-                const audio = new Audio();
-                audio.preload = 'auto';
-                audio.src = path;
-                
-                // Store the audio object
-                this.sounds[name] = {
-                    audio: audio,
-                    loaded: true
-                };
-                
-                // Add error handler
-                audio.onerror = (e) => {
-                    console.warn(`Error loading sound ${name} from ${path}:`, e);
-                    this.sounds[name].loaded = false;
-                };
-                
-                // Add load handler
-                audio.oncanplaythrough = () => {
-                    console.log(`Sound ${name} loaded successfully`);
-                    this.sounds[name].loaded = true;
-                };
-            }
-            
-            console.log("Audio initialized after user interaction");
-            
-            // If music was enabled in settings, start it now
-            if (this.musicEnabled) {
-                this.startBackgroundMusic();
-            }
-            
-            // Play a silent sound to unlock audio on iOS
-            const silentSound = new Audio("data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4LjI5LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAABIADAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV6urq6urq6urq6urq6urq6urq6urq6urq6v////////////////////////////////8AAAAATGF2YzU4LjU0AAAAAAAAAAAAAAAAJAAAAAAAAAAAASDs90hvAAAAAAAAAAAAAAAAAAAA//MUZAAAAAGkAAAAAAAAA0gAAAAATEFN//MUZAMAAAGkAAAAAAAAA0gAAAAARTMu//MUZAYAAAGkAAAAAAAAA0gAAAAAOTku//MUZAkAAAGkAAAAAAAAA0gAAAAANVVV");
-            silentSound.volume = 0.01;
-            silentSound.play().catch(e => console.warn("Silent sound playback failed:", e));
-            
+            await this._loadSound(id, path);
+            this.soundPaths[id] = path;
             return true;
-        } catch (e) {
-            console.error("Error initializing audio:", e);
+        } catch (error) {
+            console.error(`Error adding custom sound ${id}:`, error);
             return false;
         }
     }
-    
+
     /**
-     * Load settings from localStorage
+     * Add a custom music track
+     * @param {string} id - Music ID
+     * @param {string} path - Music file path
+     * @returns {Promise<boolean>} Promise that resolves to true if music was added successfully
      */
-    loadSettings() {
+    async addCustomMusic(id, path) {
+        if (!this.audioContextInitialized) return false;
+        
         try {
-            const settings = JSON.parse(localStorage.getItem('jesstersCombatAudioSettings'));
-            if (settings) {
-                this.soundEnabled = settings.soundEnabled !== undefined ? settings.soundEnabled : true;
-                this.musicEnabled = settings.musicEnabled !== undefined ? settings.musicEnabled : false;
-                this.musicVolume = settings.musicVolume !== undefined ? settings.musicVolume : 0.3;
-                this.soundVolume = settings.soundVolume !== undefined ? settings.soundVolume : 0.5;
-            }
+            await this._loadSound(id, path);
+            this.musicPaths[id] = path;
+            return true;
         } catch (error) {
-            console.error("Error loading audio settings:", error);
+            console.error(`Error adding custom music ${id}:`, error);
+            return false;
         }
     }
-    
+
     /**
-     * Save settings to localStorage
+     * Check if audio context is initialized
+     * @returns {boolean} True if audio context is initialized
      */
-    saveSettings() {
-        try {
-            const settings = {
-                soundEnabled: this.soundEnabled,
-                musicEnabled: this.musicEnabled,
-                musicVolume: this.musicVolume,
-                soundVolume: this.soundVolume
-            };
-            localStorage.setItem('jesstersCombatAudioSettings', JSON.stringify(settings));
-        } catch (error) {
-            console.error("Error saving audio settings:", error);
-        }
+    isAudioContextInitialized() {
+        return this.audioContextInitialized;
     }
-    
+
     /**
-     * Create the audio controls
+     * Get current music ID
+     * @returns {string|null} Current music ID or null if no music is playing
      */
-    createAudioControls() {
-        // Check if controls already exist
-        if (document.getElementById('audio-controls')) return;
-        
-        // Create the controls container
-        const controls = document.createElement('div');
-        controls.id = 'audio-controls';
-        controls.className = 'fixed bottom-4 left-4 bg-gray-800 rounded-lg shadow-lg p-2 z-30 flex items-center space-x-2';
-        
-        // Create the controls content
-        controls.innerHTML = `
-            <button id="toggle-sound-btn" class="text-gray-400 hover:text-white p-1 rounded" title="Toggle Sound Effects">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${this.soundEnabled ? 
-                        'M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z' : 
-                        'M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2'}" />
-                </svg>
-            </button>
-            
-            <button id="toggle-music-btn" class="text-gray-400 hover:text-white p-1 rounded" title="Toggle Background Music">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
-                </svg>
-            </button>
-            
-            <button id="audio-settings-btn" class="text-gray-400 hover:text-white p-1 rounded" title="Audio Settings">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-            </button>
-        `;
-        
-        // Add the controls to the document
-        document.body.appendChild(controls);
-        
-        // Add event listeners
-        const toggleSoundBtn = document.getElementById('toggle-sound-btn');
-        const toggleMusicBtn = document.getElementById('toggle-music-btn');
-        const audioSettingsBtn = document.getElementById('audio-settings-btn');
-        
-        if (toggleSoundBtn) {
-            toggleSoundBtn.addEventListener('click', () => {
-                this.toggleSound();
-            });
-        }
-        
-        if (toggleMusicBtn) {
-            toggleMusicBtn.addEventListener('click', () => {
-                this.toggleMusic();
-            });
-        }
-        
-        if (audioSettingsBtn) {
-            audioSettingsBtn.addEventListener('click', () => {
-                this.openAudioSettingsModal();
-            });
-        }
-        
-        // Update initial UI state
-        this.updateAudioControlsUI();
+    getCurrentMusicId() {
+        return this.currentMusic ? this.currentMusic.id : null;
     }
-    
+
     /**
-     * Play a sound effect
-     * @param {string} soundName - The name of the sound to play
+     * Check if a sound is loaded
+     * @param {string} id - Sound ID
+     * @returns {boolean} True if sound is loaded
      */
-    play(soundName) {
-        if (!this.soundEnabled || !this.audioInitialized) {
-            console.log(`Sound ${soundName} not played: sound disabled or audio not initialized`);
-            return;
-        }
+    isSoundLoaded(id) {
+        return !!this.sounds[id];
+    }
+
+    /**
+     * Get all available sound IDs
+     * @returns {string[]} Array of sound IDs
+     */
+    getAvailableSounds() {
+        return Object.keys(this.soundPaths);
+    }
+
+    /**
+     * Get all available music IDs
+     * @returns {string[]} Array of music IDs
+     */
+    getAvailableMusic() {
+        return Object.keys(this.musicPaths);
+    }
+
+    /**
+     * Play ambient sound
+     * @param {string} id - Sound ID
+     * @param {Object} options - Playback options
+     * @returns {Object|null} Sound control object
+     */
+    playAmbient(id, options = {}) {
+        return this.play(id, { ...options, loop: true, volume: 0.3 });
+    }
+
+    /**
+     * Create a sound sequence
+     * @param {string[]} soundIds - Array of sound IDs
+     * @param {number} interval - Interval between sounds in milliseconds
+     * @returns {Object} Sequence control object
+     */
+    createSequence(soundIds, interval = 1000) {
+        let currentIndex = 0;
+        let isPlaying = false;
+        let timeoutId = null;
+        let currentSound = null;
         
-        // Check if sound exists
-        if (!this.sounds[soundName] || !this.sounds[soundName].loaded) {
-            console.warn(`Sound ${soundName} not found or not loaded`);
-            return;
-        }
-        
-        try {
-            // Create a new audio element to allow overlapping sounds
-            const audio = new Audio(this.soundMappings[soundName]);
-            audio.volume = this.soundVolume;
+        const playNext = () => {
+            if (!isPlaying) return;
             
-            // Play the sound
-            audio.play().catch(e => {
-                console.warn(`Error playing sound ${soundName}:`, e);
-                
-                // If this is a user interaction error, try to initialize audio again
-                if (e.name === 'NotAllowedError') {
-                    this.audioInitialized = false;
-                    this.initializeAudio();
+            const id = soundIds[currentIndex];
+            currentSound = this.play(id);
+            
+            currentIndex = (currentIndex + 1) % soundIds.length;
+            
+            timeoutId = setTimeout(playNext, interval);
+        };
+        
+        return {
+            start: () => {
+                isPlaying = true;
+                playNext();
+            },
+            stop: () => {
+                isPlaying = false;
+                if (timeoutId) {
+                    clearTimeout(timeoutId);
+                    timeoutId = null;
                 }
-            });
-            
-            console.log(`Playing sound: ${soundName}`);
-        } catch (e) {
-            console.error(`Error playing sound ${soundName}:`, e);
-        }
-    }
-    
-    /**
-     * Toggle sound effects on/off
-     */
-    toggleSound() {
-        this.soundEnabled = !this.soundEnabled;
-        this.updateAudioControlsUI();
-        this.saveSettings();
-        this.app.logEvent(`Sound effects ${this.soundEnabled ? 'enabled' : 'disabled'}.`);
-        
-        // Initialize audio if this is the first user interaction
-        if (!this.audioInitialized && this.soundEnabled) {
-            this.initializeAudio();
-            this.audioInitialized = true;
-        }
-        
-        // Play a test sound if enabled
-        if (this.soundEnabled) {
-            // Use a small timeout to ensure the audio context is ready
-            setTimeout(() => {
-                this.play('diceRoll');
-            }, 100);
-        }
-    }
-    
-        /**
-     * Toggle background music on/off
-     */
-    toggleMusic() {
-        this.musicEnabled = !this.musicEnabled;
-        
-        if (this.musicEnabled) {
-            // Initialize audio if this is the first user interaction
-            if (!this.audioInitialized) {
-                this.initializeAudio();
-                this.audioInitialized = true;
-            }
-            this.startBackgroundMusic();
-        } else {
-            this.stopBackgroundMusic();
-        }
-        
-        this.updateAudioControlsUI();
-        this.saveSettings();
-        this.app.logEvent(`Background music ${this.musicEnabled ? 'enabled' : 'disabled'}.`);
-    }
-    
-    /**
-     * Start playing background music
-     */
-    startBackgroundMusic() {
-        // Stop any existing music
-        this.stopBackgroundMusic();
-        
-        // Check if we have any music tracks
-        if (this.musicTracks.length === 0) {
-            console.warn("No music tracks available");
-            return;
-        }
-        
-        try {
-            // Select a random track
-            const trackIndex = Math.floor(Math.random() * this.musicTracks.length);
-            const trackPath = this.musicTracks[trackIndex];
-            
-            // Create and configure the audio element
-            this.backgroundMusic = new Audio(trackPath);
-            this.backgroundMusic.volume = this.musicVolume;
-            this.backgroundMusic.loop = true;
-            
-            // Play the music
-            this.backgroundMusic.play().catch(e => {
-                console.warn("Error playing background music:", e);
-                
-                // If this is a user interaction error, try to initialize audio again
-                if (e.name === 'NotAllowedError') {
-                    this.audioInitialized = false;
-                    this.initializeAudio();
+                if (currentSound) {
+                    currentSound.stop();
+                    currentSound = null;
                 }
-            });
-            
-            console.log(`Playing background music: ${trackPath}`);
-        } catch (e) {
-            console.error("Error starting background music:", e);
-        }
+            },
+            isPlaying: () => isPlaying
+        };
     }
-    
+
     /**
-     * Stop playing background music
+     * Create a crossfade between two music tracks
+     * @param {string} fromId - Current music ID
+     * @param {string} toId - Target music ID
+     * @param {number} duration - Crossfade duration in milliseconds
+     * @returns {Promise<Object|null>} Promise that resolves to the new music control object
      */
-    stopBackgroundMusic() {
-        if (this.backgroundMusic) {
+    async crossfadeMusic(fromId, toId, duration = 2000) {
+        if (!this.musicEnabled || !this.audioContextInitialized) return null;
+        
+        // If no current music, just play the new one
+        if (!this.currentMusic) {
+            return this.playMusic(toId, { fadeIn: duration });
+        }
+        
+        // Start fading out current music
+        const currentGain = this.currentMusic.gainNode.gain.value;
+        const now = this.audioContext.currentTime;
+        this.currentMusic.gainNode.gain.setValueAtTime(currentGain, now);
+        this.currentMusic.gainNode.gain.linearRampToValueAtTime(0, now + duration / 1000);
+        
+        // Schedule stopping the current music
+        const currentMusic = this.currentMusic;
+        setTimeout(() => {
             try {
-                this.backgroundMusic.pause();
-                this.backgroundMusic.currentTime = 0;
-                this.backgroundMusic = null;
-                console.log("Background music stopped");
-            } catch (e) {
-                console.error("Error stopping background music:", e);
+                currentMusic.source.stop();
+            } catch (error) {
+                // Ignore errors when stopping already stopped sources
             }
-        }
-    }
-    
-    /**
-     * Update the audio controls UI
-     */
-    updateAudioControlsUI() {
-        // Update sound button
-        const soundBtn = document.getElementById('toggle-sound-btn');
-        if (soundBtn) {
-            soundBtn.className = `p-1 rounded ${this.soundEnabled ? 'text-white' : 'text-gray-400'} hover:text-white`;
-            
-            // Update the SVG path
-            const soundPath = soundBtn.querySelector('path');
-            if (soundPath) {
-                soundPath.setAttribute('d', this.soundEnabled ? 
-                    'M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z' : 
-                    'M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2');
-            }
-        }
+        }, duration);
         
-        // Update music button
-        const musicBtn = document.getElementById('toggle-music-btn');
-        if (musicBtn) {
-            musicBtn.className = `p-1 rounded ${this.musicEnabled ? 'text-white' : 'text-gray-400'} hover:text-white`;
-        }
-    }
-    
-    /**
-     * Set sound enabled/disabled
-     * @param {boolean} enabled - Whether sound should be enabled
-     */
-    setEnabled(enabled) {
-        this.soundEnabled = enabled;
-        this.updateAudioControlsUI();
-        this.saveSettings();
-    }
-    
-    /**
-     * Set sound volume
-     * @param {number} volume - The volume level (0-1)
-     */
-    setVolume(volume) {
-        this.soundVolume = volume;
-        this.saveSettings();
-    }
-    
-    /**
-     * Open the audio settings modal
-     */
-    openAudioSettingsModal() {
-        const modal = this.app.ui.createModal({
-            title: 'Audio Settings',
-            content: `
-                <div class="space-y-4">
-                    <div class="mb-4">
-                        <label class="flex items-center justify-between">
-                            <span class="text-gray-300">Sound Effects:</span>
-                            <input type="checkbox" id="sound-toggle" class="form-checkbox h-5 w-5 text-blue-600" ${this.soundEnabled ? 'checked' : ''}>
-                        </label>
-                    </div>
-                    
-                    <div class="mb-4">
-                        <label class="block text-gray-300 mb-2">Sound Volume:</label>
-                        <input type="range" id="sound-volume" class="w-full" min="0" max="1" step="0.1" value="${this.soundVolume}">
-                        <div class="flex justify-between text-xs text-gray-400 mt-1">
-                            <span>0%</span>
-                            <span>50%</span>
-                            <span>100%</span>
-                        </div>
-                    </div>
-                    
-                    <div class="mb-4">
-                        <label class="flex items-center justify-between">
-                            <span class="text-gray-300">Background Music:</span>
-                            <input type="checkbox" id="music-toggle" class="form-checkbox h-5 w-5 text-blue-600" ${this.musicEnabled ? 'checked' : ''}>
-                        </label>
-                    </div>
-                    
-                    <div class="mb-6">
-                        <label class="block text-gray-300 mb-2">Music Volume:</label>
-                        <input type="range" id="music-volume" class="w-full" min="0" max="1" step="0.1" value="${this.musicVolume}">
-                        <div class="flex justify-between text-xs text-gray-400 mt-1">
-                            <span>0%</span>
-                            <span>50%</span>
-                            <span>100%</span>
-                        </div>
-                    </div>
-                    
-                    <div class="flex justify-end space-x-2">
-                        <button id="audio-settings-cancel-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
-                            Cancel
-                        </button>
-                        <button id="audio-settings-save-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                            Save Settings
-                        </button>
-                    </div>
-                </div>
-            `,
-            width: 'max-w-md'
-        });
-        
-        // Add event listeners
-        const soundToggle = modal.querySelector('#sound-toggle');
-        const soundVolume = modal.querySelector('#sound-volume');
-        const musicToggle = modal.querySelector('#music-toggle');
-        const musicVolume = modal.querySelector('#music-volume');
-        const cancelBtn = modal.querySelector('#audio-settings-cancel-btn');
-        const saveBtn = modal.querySelector('#audio-settings-save-btn');
-        
-        // Test sound button
-        const testSoundBtn = document.createElement('button');
-        testSoundBtn.className = 'bg-gray-600 hover:bg-gray-700 text-white font-bold py-1 px-2 rounded text-xs ml-2';
-        testSoundBtn.textContent = 'Test';
-        soundToggle.parentNode.appendChild(testSoundBtn);
-        
-        testSoundBtn.addEventListener('click', () => {
-            // Initialize audio if needed
-            if (!this.audioInitialized) {
-                this.initializeAudio();
-                this.audioInitialized = true;
-            }
-            
-            // Play a test sound
-            const tempEnabled = this.soundEnabled;
-            this.soundEnabled = true;
-            this.soundVolume = parseFloat(soundVolume.value);
-            this.play('diceRoll');
-            this.soundEnabled = tempEnabled;
-        });
-        
-        if (cancelBtn) {
-            cancelBtn.addEventListener('click', () => {
-                this.app.ui.closeModal(modal.parentNode);
-            });
-        }
-        
-        if (saveBtn) {
-            saveBtn.addEventListener('click', () => {
-                // Update settings
-                this.soundEnabled = soundToggle.checked;
-                this.soundVolume = parseFloat(soundVolume.value);
-                this.musicEnabled = musicToggle.checked;
-                this.musicVolume = parseFloat(musicVolume.value);
-                
-                // Initialize audio if this is the first user interaction and either sound or music is enabled
-                if (!this.audioInitialized && (this.soundEnabled || this.musicEnabled)) {
-                    this.initializeAudio();
-                    this.audioInitialized = true;
-                }
-                
-                // Apply settings
-                if (this.musicEnabled) {
-                    this.startBackgroundMusic();
-                } else {
-                    this.stopBackgroundMusic();
-                }
-                
-                // Update volume if background music is playing
-                if (this.backgroundMusic) {
-                    this.backgroundMusic.volume = this.musicVolume;
-                }
-                
-                // Save settings
-                this.saveSettings();
-                
-                // Update UI
-                this.updateAudioControlsUI();
-                
-                // Close modal
-                this.app.ui.closeModal(modal.parentNode);
-                
-                this.app.logEvent('Audio settings updated.');
-            });
-        }
+        // Start new music
+        this.currentMusic = null; // Prevent stopMusic from being called
+        return this.playMusic(toId, { fadeIn: duration });
     }
 }
+
+// Export the Audio class
+export default Audio;
