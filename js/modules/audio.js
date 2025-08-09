@@ -27,6 +27,12 @@ class AudioManager {
             'spellCast': 'audio/spell-cast.mp3'
         };
         
+        // Background music options
+        this.musicTracks = [
+            'audio/background-music-1.mp3',
+            'audio/background-music-2.mp3'
+        ];
+        
         console.log("Audio Manager initialized");
     }
     
@@ -74,33 +80,31 @@ class AudioManager {
      */
     initializeAudio() {
         try {
-            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            
-            // Create a silent oscillator
-            const oscillator = audioContext.createOscillator();
-            oscillator.type = 'sine';
-            oscillator.frequency.setValueAtTime(0, audioContext.currentTime); // Silent
-            
-            // Create dummy audio for each sound
+            // Preload all sound effects
             for (const [name, path] of Object.entries(this.soundMappings)) {
-                const gainNode = audioContext.createGain();
-                gainNode.gain.setValueAtTime(0, audioContext.currentTime); // Silent
+                // Create a new Audio object for each sound
+                const audio = new Audio();
+                audio.preload = 'auto';
+                audio.src = path;
                 
-                oscillator.connect(gainNode);
-                gainNode.connect(audioContext.destination);
-                
-                // Store the audio context and nodes
+                // Store the audio object
                 this.sounds[name] = {
-                    context: audioContext,
-                    oscillator: oscillator,
-                    gainNode: gainNode,
+                    audio: audio,
                     loaded: true
                 };
+                
+                // Add error handler
+                audio.onerror = (e) => {
+                    console.warn(`Error loading sound ${name} from ${path}:`, e);
+                    this.sounds[name].loaded = false;
+                };
+                
+                // Add load handler
+                audio.oncanplaythrough = () => {
+                    console.log(`Sound ${name} loaded successfully`);
+                    this.sounds[name].loaded = true;
+                };
             }
-            
-            // Start the oscillator
-            oscillator.start();
-            setTimeout(() => oscillator.stop(), 100); // Stop after 100ms
             
             console.log("Audio initialized after user interaction");
             
@@ -108,18 +112,16 @@ class AudioManager {
             if (this.musicEnabled) {
                 this.startBackgroundMusic();
             }
-        } catch (e) {
-            console.warn("Web Audio API not supported, using silent audio elements instead");
             
-            // Fallback to silent audio elements
-            for (const name of Object.keys(this.soundMappings)) {
-                const audio = new Audio();
-                audio.volume = 0;
-                this.sounds[name] = {
-                    audio: audio,
-                    loaded: true
-                };
-            }
+            // Play a silent sound to unlock audio on iOS
+            const silentSound = new Audio("data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4LjI5LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAABIADAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV6urq6urq6urq6urq6urq6urq6urq6urq6v////////////////////////////////8AAAAATGF2YzU4LjU0AAAAAAAAAAAAAAAAJAAAAAAAAAAAASDs90hvAAAAAAAAAAAAAAAAAAAA//MUZAAAAAGkAAAAAAAAA0gAAAAATEFN//MUZAMAAAGkAAAAAAAAA0gAAAAARTMu//MUZAYAAAGkAAAAAAAAA0gAAAAAOTku//MUZAkAAAGkAAAAAAAAA0gAAAAANVVV");
+            silentSound.volume = 0.01;
+            silentSound.play().catch(e => console.warn("Silent sound playback failed:", e));
+            
+            return true;
+        } catch (e) {
+            console.error("Error initializing audio:", e);
+            return false;
         }
     }
     
@@ -228,22 +230,37 @@ class AudioManager {
      * @param {string} soundName - The name of the sound to play
      */
     play(soundName) {
-        if (!this.soundEnabled || !this.audioInitialized) return;
-        
-        // Check if sound exists
-        if (!this.sounds[soundName]) {
-            console.warn(`Sound ${soundName} not found`);
+        if (!this.soundEnabled || !this.audioInitialized) {
+            console.log(`Sound ${soundName} not played: sound disabled or audio not initialized`);
             return;
         }
         
-        // In a real implementation, we would play the actual sound file
-        console.log(`Playing sound: ${soundName}`);
+        // Check if sound exists
+        if (!this.sounds[soundName] || !this.sounds[soundName].loaded) {
+            console.warn(`Sound ${soundName} not found or not loaded`);
+            return;
+        }
         
-        // If we have actual audio files, we would play them here
-        // For example:
-        // const audio = new Audio(this.soundMappings[soundName]);
-        // audio.volume = this.soundVolume;
-        // audio.play();
+        try {
+            // Create a new audio element to allow overlapping sounds
+            const audio = new Audio(this.soundMappings[soundName]);
+            audio.volume = this.soundVolume;
+            
+            // Play the sound
+            audio.play().catch(e => {
+                console.warn(`Error playing sound ${soundName}:`, e);
+                
+                // If this is a user interaction error, try to initialize audio again
+                if (e.name === 'NotAllowedError') {
+                    this.audioInitialized = false;
+                    this.initializeAudio();
+                }
+            });
+            
+            console.log(`Playing sound: ${soundName}`);
+        } catch (e) {
+            console.error(`Error playing sound ${soundName}:`, e);
+        }
     }
     
     /**
@@ -259,6 +276,14 @@ class AudioManager {
         if (!this.audioInitialized && this.soundEnabled) {
             this.initializeAudio();
             this.audioInitialized = true;
+        }
+        
+        // Play a test sound if enabled
+        if (this.soundEnabled) {
+            // Use a small timeout to ensure the audio context is ready
+            setTimeout(() => {
+                this.play('diceRoll');
+            }, 100);
         }
     }
     
@@ -288,29 +313,56 @@ class AudioManager {
      * Start playing background music
      */
     startBackgroundMusic() {
-        // In a real implementation, we would play actual background music
-        console.log("Background music started (silent)");
+        // Stop any existing music
+        this.stopBackgroundMusic();
         
-        // If we had actual music files, we would play them here
-        // For example:
-        // this.backgroundMusic = new Audio('audio/background-music.mp3');
-        // this.backgroundMusic.volume = this.musicVolume;
-        // this.backgroundMusic.loop = true;
-        // this.backgroundMusic.play();
+        // Check if we have any music tracks
+        if (this.musicTracks.length === 0) {
+            console.warn("No music tracks available");
+            return;
+        }
+        
+        try {
+            // Select a random track
+            const trackIndex = Math.floor(Math.random() * this.musicTracks.length);
+            const trackPath = this.musicTracks[trackIndex];
+            
+            // Create and configure the audio element
+            this.backgroundMusic = new Audio(trackPath);
+            this.backgroundMusic.volume = this.musicVolume;
+            this.backgroundMusic.loop = true;
+            
+            // Play the music
+            this.backgroundMusic.play().catch(e => {
+                console.warn("Error playing background music:", e);
+                
+                // If this is a user interaction error, try to initialize audio again
+                if (e.name === 'NotAllowedError') {
+                    this.audioInitialized = false;
+                    this.initializeAudio();
+                }
+            });
+            
+            console.log(`Playing background music: ${trackPath}`);
+        } catch (e) {
+            console.error("Error starting background music:", e);
+        }
     }
     
     /**
      * Stop playing background music
      */
     stopBackgroundMusic() {
-        console.log("Background music stopped");
-        
-        // If we had actual music playing, we would stop it here
-        // For example:
-        // if (this.backgroundMusic) {
-        //     this.backgroundMusic.pause();
-        //     this.backgroundMusic.currentTime = 0;
-        // }
+        if (this.backgroundMusic) {
+            try {
+                this.backgroundMusic.pause();
+                this.backgroundMusic.currentTime = 0;
+                this.backgroundMusic = null;
+                console.log("Background music stopped");
+            } catch (e) {
+                console.error("Error stopping background music:", e);
+            }
+        }
     }
     
     /**
@@ -321,6 +373,14 @@ class AudioManager {
         const soundBtn = document.getElementById('toggle-sound-btn');
         if (soundBtn) {
             soundBtn.className = `p-1 rounded ${this.soundEnabled ? 'text-white' : 'text-gray-400'} hover:text-white`;
+            
+            // Update the SVG path
+            const soundPath = soundBtn.querySelector('path');
+            if (soundPath) {
+                soundPath.setAttribute('d', this.soundEnabled ? 
+                    'M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z' : 
+                    'M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2');
+            }
         }
         
         // Update music button
@@ -393,9 +453,30 @@ class AudioManager {
         const cancelBtn = modal.querySelector('#audio-settings-cancel-btn');
         const saveBtn = modal.querySelector('#audio-settings-save-btn');
         
+        // Test sound button
+        const testSoundBtn = document.createElement('button');
+        testSoundBtn.className = 'bg-gray-600 hover:bg-gray-700 text-white font-bold py-1 px-2 rounded text-xs ml-2';
+        testSoundBtn.textContent = 'Test';
+        soundToggle.parentNode.appendChild(testSoundBtn);
+        
+        testSoundBtn.addEventListener('click', () => {
+            // Initialize audio if needed
+            if (!this.audioInitialized) {
+                this.initializeAudio();
+                this.audioInitialized = true;
+            }
+            
+            // Play a test sound
+            const tempEnabled = this.soundEnabled;
+            this.soundEnabled = true;
+            this.soundVolume = parseFloat(soundVolume.value);
+            this.play('diceRoll');
+            this.soundEnabled = tempEnabled;
+        });
+        
         if (cancelBtn) {
             cancelBtn.addEventListener('click', () => {
-                this.app.ui.closeModal(modal);
+                this.app.ui.closeModal(modal.parentNode);
             });
         }
         
@@ -420,6 +501,11 @@ class AudioManager {
                     this.stopBackgroundMusic();
                 }
                 
+                // Update volume if background music is playing
+                if (this.backgroundMusic) {
+                    this.backgroundMusic.volume = this.musicVolume;
+                }
+                
                 // Save settings
                 this.saveSettings();
                 
@@ -427,7 +513,7 @@ class AudioManager {
                 this.updateAudioControlsUI();
                 
                 // Close modal
-                this.app.ui.closeModal(modal);
+                this.app.ui.closeModal(modal.parentNode);
                 
                 this.app.logEvent('Audio settings updated.');
             });
