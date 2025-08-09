@@ -54,6 +54,13 @@ class UIManager {
                 this.openEditCreatureModal(creatureId);
             }
             
+            // Stat Block button
+            if (event.target.closest('.stat-block-btn')) {
+                const btn = event.target.closest('.stat-block-btn');
+                const creatureId = btn.dataset.creatureId;
+                this.openStatBlockModal(creatureId);
+            }
+            
             // Damage button
             if (event.target.closest('.damage-btn')) {
                 const btn = event.target.closest('.damage-btn');
@@ -86,11 +93,23 @@ class UIManager {
                 const card = event.target.closest('.creature-card');
                 // Only handle right-click in a separate handler
                 if (!event.target.closest('.edit-btn') && 
+                    !event.target.closest('.stat-block-btn') &&
                     !event.target.closest('.damage-btn') && 
                     !event.target.closest('.heal-btn') && 
                     !event.target.closest('.remove-btn')) {
                     // Handle left-click on creature card
                     // For example, show details or select the creature
+                }
+            }
+            
+            // Roll attack button
+            if (event.target.closest('.roll-attack-btn')) {
+                const btn = event.target.closest('.roll-attack-btn');
+                const creatureId = btn.dataset.creatureId;
+                const actionName = btn.dataset.actionName;
+                const creature = this.app.combat.getCreatureById(creatureId);
+                if (creature) {
+                    this.rollMonsterAttack(creature, actionName);
                 }
             }
         });
@@ -181,6 +200,11 @@ class UIManager {
                         <button class="edit-btn bg-blue-600 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded text-xs" data-creature-id="${creature.id}">
                             Edit
                         </button>
+                        ${creature.type === 'monster' && (creature.actions || creature.specialAbilities) ? `
+                        <button class="stat-block-btn bg-purple-600 hover:bg-purple-700 text-white font-bold py-1 px-2 rounded text-xs" data-creature-id="${creature.id}">
+                            Stat Block
+                        </button>
+                        ` : ''}
                         <button class="damage-btn bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-2 rounded text-xs" data-creature-id="${creature.id}">
                             Damage
                         </button>
@@ -235,76 +259,229 @@ class UIManager {
     }
     
     /**
-     * Render the initiative order
+     * Open the monster stat block modal
+     * @param {string} creatureId - The ID of the creature
      */
-    renderInitiativeOrder() {
-        const container = document.getElementById('initiative-container');
-        if (!container) return;
+    openStatBlockModal(creatureId) {
+        const creature = this.app.combat.getCreatureById(creatureId);
+        if (!creature || creature.type !== 'monster') return;
         
-        const creatures = this.app.combat.getInitiativeOrder();
+        // Get additional monster data if available
+        const monsterData = creature;
         
-        if (creatures.length === 0) {
-            container.innerHTML = `
-                <div class="text-center text-gray-400 py-4">
-                    No initiative rolled yet
+        // Format ability scores with modifiers
+        const formatAbilityScore = (score) => {
+            const modifier = Math.floor((score - 10) / 2);
+            const sign = modifier >= 0 ? '+' : '';
+            return `${score} (${sign}${modifier})`;
+        };
+        
+        // Format actions with attack buttons
+        const formatActions = (actions) => {
+            if (!actions || actions.length === 0) return '<div class="text-gray-400">No actions available</div>';
+            
+            return actions.map(action => {
+                // Check if this is an attack action
+                const isAttack = action.desc && (action.desc.includes('Attack:') || action.desc.includes('Hit:'));
+                const attackButton = isAttack ? 
+                    `<button class="roll-attack-btn bg-red-600 hover:bg-red-700 text-white text-xs py-1 px-2 rounded ml-2" 
+                        data-creature-id="${creature.id}" 
+                        data-action-name="${action.name}">
+                        Roll Attack
+                    </button>` : '';
+                
+                return `
+                    <div class="mb-3">
+                        <div class="font-semibold flex justify-between">
+                            ${action.name}
+                            ${attackButton}
+                        </div>
+                        <div class="text-sm">${action.desc}</div>
+                    </div>
+                `;
+            }).join('');
+        };
+        
+        // Get ability scores
+        const str = monsterData.abilities?.str || monsterData.str || 10;
+        const dex = monsterData.abilities?.dex || monsterData.dex || 10;
+        const con = monsterData.abilities?.con || monsterData.con || 10;
+        const int = monsterData.abilities?.int || monsterData.int || 10;
+        const wis = monsterData.abilities?.wis || monsterData.wis || 10;
+        const cha = monsterData.abilities?.cha || monsterData.cha || 10;
+        
+        const modal = this.createModal({
+            title: `${creature.name} - Stat Block`,
+            content: `
+                <div class="space-y-4 stat-block">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h3 class="text-xl font-bold">${creature.name}</h3>
+                            <div class="text-gray-400">
+                                ${monsterData.size || ''} ${monsterData.type || 'monster'}, ${monsterData.alignment || 'unaligned'}
+                            </div>
+                        </div>
+                        ${creature.imageUrl ? `<img src="${creature.imageUrl}" alt="${creature.name}" class="w-20 h-20 rounded object-cover">` : ''}
+                    </div>
+                    
+                    <hr class="border-gray-600">
+                    
+                    <div class="grid grid-cols-2 gap-2">
+                        <div><span class="font-semibold">Armor Class:</span> ${creature.ac}</div>
+                        <div><span class="font-semibold">Hit Points:</span> ${creature.currentHp}/${creature.maxHp}</div>
+                        <div><span class="font-semibold">Speed:</span> ${monsterData.speed || 'Unknown'}</div>
+                        <div><span class="font-semibold">Challenge Rating:</span> ${monsterData.cr || 'Unknown'}</div>
+                    </div>
+                    
+                    <hr class="border-gray-600">
+                    
+                    <div class="grid grid-cols-6 gap-2 text-center">
+                        <div>
+                            <div class="font-semibold">STR</div>
+                            <div>${formatAbilityScore(str)}</div>
+                        </div>
+                        <div>
+                            <div class="font-semibold">DEX</div>
+                            <div>${formatAbilityScore(dex)}</div>
+                        </div>
+                        <div>
+                            <div class="font-semibold">CON</div>
+                            <div>${formatAbilityScore(con)}</div>
+                        </div>
+                        <div>
+                            <div class="font-semibold">INT</div>
+                            <div>${formatAbilityScore(int)}</div>
+                        </div>
+                        <div>
+                            <div class="font-semibold">WIS</div>
+                            <div>${formatAbilityScore(wis)}</div>
+                        </div>
+                        <div>
+                            <div class="font-semibold">CHA</div>
+                            <div>${formatAbilityScore(cha)}</div>
+                        </div>
+                    </div>
+                    
+                    <hr class="border-gray-600">
+                    
+                    <div class="grid grid-cols-2 gap-2 text-sm">
+                        ${monsterData.senses ? `<div><span class="font-semibold">Senses:</span> ${monsterData.senses}</div>` : ''}
+                        ${monsterData.languages ? `<div><span class="font-semibold">Languages:</span> ${monsterData.languages}</div>` : ''}
+                        ${monsterData.damageVulnerabilities ? `<div><span class="font-semibold">Vulnerabilities:</span> ${monsterData.damageVulnerabilities}</div>` : ''}
+                        ${monsterData.damageResistances ? `<div><span class="font-semibold">Resistances:</span> ${monsterData.damageResistances}</div>` : ''}
+                        ${monsterData.damageImmunities ? `<div><span class="font-semibold">Immunities:</span> ${monsterData.damageImmunities}</div>` : ''}
+                        ${monsterData.conditionImmunities ? `<div><span class="font-semibold">Condition Immunities:</span> ${monsterData.conditionImmunities}</div>` : ''}
+                    </div>
+                    
+                    ${monsterData.specialAbilities && monsterData.specialAbilities.length > 0 ? `
+                        <hr class="border-gray-600">
+                        <div>
+                            <h4 class="font-bold mb-2">Special Abilities</h4>
+                            ${formatActions(monsterData.specialAbilities)}
+                        </div>
+                    ` : ''}
+                    
+                    ${monsterData.actions && monsterData.actions.length > 0 ? `
+                        <hr class="border-gray-600">
+                        <div>
+                            <h4 class="font-bold mb-2">Actions</h4>
+                            ${formatActions(monsterData.actions)}
+                        </div>
+                    ` : ''}
+                    
+                    ${monsterData.legendaryActions && monsterData.legendaryActions.length > 0 ? `
+                        <hr class="border-gray-600">
+                        <div>
+                            <h4 class="font-bold mb-2">Legendary Actions</h4>
+                            ${formatActions(monsterData.legendaryActions)}
+                        </div>
+                    ` : ''}
+                    
+                    <div class="flex justify-end mt-4">
+                        <button id="close-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
+                            Close
+                        </button>
+                    </div>
                 </div>
-            `;
-            return;
-        }
+            `,
+            width: 'max-w-3xl'
+        });
         
-        container.innerHTML = '';
+        // Add event listeners
+        const closeBtn = modal.querySelector('#close-btn');
+        closeBtn.addEventListener('click', () => {
+            this.closeModal(modal.parentNode);
+        });
         
-        creatures.forEach((creature, index) => {
-            const typeIcon = creature.type === 'hero' ? '👤' : '👹';
-            const isActive = this.app.state.combatStarted && this.app.state.currentTurn === creature.id;
-            
-            // Handle character image
-            let imageHtml = '';
-            if (creature.imageUrl) {
-                imageHtml = `<img src="${creature.imageUrl}" alt="${creature.name}" class="character-image w-6 h-6 mr-2">`;
-            }
-            
-            const itemElement = document.createElement('div');
-            itemElement.className = `initiative-item p-2 mb-1 rounded flex justify-between items-center ${isActive ? 'bg-blue-900' : 'bg-gray-700'}`;
-            
-            itemElement.innerHTML = `
-                <div class="flex items-center">
-                    <span class="w-6 h-6 flex items-center justify-center bg-gray-600 rounded-full text-sm mr-2">${index + 1}</span>
-                    ${imageHtml}
-                    <span>${typeIcon} ${creature.name}</span>
-                </div>
-                <div class="font-bold">${creature.initiative}</div>
-            `;
-            
-            container.appendChild(itemElement);
+        // Add event listeners for attack rolls
+        modal.querySelectorAll('.roll-attack-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const actionName = btn.dataset.actionName;
+                this.rollMonsterAttack(creature, actionName);
+            });
         });
     }
     
     /**
-     * Render the combat log
+     * Roll a monster attack
+     * @param {Object} monster - The monster
+     * @param {string} actionName - The name of the action
      */
-    renderCombatLog() {
-        const container = document.getElementById('combat-log');
-        if (!container) return;
+    rollMonsterAttack(monster, actionName) {
+        // Find the action
+        const action = monster.actions?.find(a => a.name === actionName) || 
+                      monster.specialAbilities?.find(a => a.name === actionName) ||
+                      monster.legendaryActions?.find(a => a.name === actionName);
         
-        const log = this.app.state.combatLog;
+        if (!action) return;
         
-        if (log.length === 0) {
-            container.innerHTML = `<div class="text-gray-400">Combat log will appear here...</div>`;
-            return;
+        // Parse attack bonus from description
+        const attackBonusMatch = action.desc.match(/\+(\d+) to hit/);
+        const attackBonus = attackBonusMatch ? parseInt(attackBonusMatch[1]) : 0;
+        
+        // Parse damage from description
+        const damageMatch = action.desc.match(/(\d+d\d+(?:\s*\+\s*\d+)?) (\w+) damage/);
+        const damageDice = damageMatch ? damageMatch[1].replace(/\s+/g, '') : null;
+        const damageType = damageMatch ? damageMatch[2] : null;
+        
+        // Roll attack
+        const attackRoll = this.app.dice.roll(20);
+        const isCrit = attackRoll.rolls[0] === 20;
+        const isFumble = attackRoll.rolls[0] === 1;
+        const attackTotal = isFumble ? 0 : (attackRoll.total + attackBonus);
+        
+        // Roll damage if applicable
+        let damageRoll = null;
+        if (damageDice) {
+            damageRoll = this.app.dice.roll(damageDice);
+            // Double damage dice on crit
+            if (isCrit) {
+                const critDamageRoll = this.app.dice.roll(damageDice);
+                damageRoll.rolls = [...damageRoll.rolls, ...critDamageRoll.rolls];
+                damageRoll.total = damageRoll.total + critDamageRoll.total;
+            }
         }
         
-        container.innerHTML = '';
+        // Display results
+        let resultMessage = `<div class="text-xl font-bold">${monster.name} uses ${actionName}</div>`;
         
-        log.forEach(entry => {
-            const entryElement = document.createElement('div');
-            entryElement.className = 'log-entry text-sm';
-            entryElement.textContent = entry;
-            container.appendChild(entryElement);
-        });
+        if (isCrit) {
+            resultMessage += `<div class="text-green-400 font-bold">CRITICAL HIT!</div>`;
+        } else if (isFumble) {
+            resultMessage += `<div class="text-red-400 font-bold">CRITICAL MISS!</div>`;
+        }
         
-        // Scroll to bottom
-        container.scrollTop = container.scrollHeight;
+        resultMessage += `<div>Attack roll: ${attackRoll.rolls[0]} + ${attackBonus} = ${attackTotal}</div>`;
+        
+        if (damageRoll) {
+            resultMessage += `<div>Damage${isCrit ? ' (critical)' : ''}: ${damageRoll.rolls.join(' + ')} = ${damageRoll.total} ${damageType}</div>`;
+        }
+        
+        // Show the result
+        this.app.showAlert(resultMessage, `${monster.name} - ${actionName}`);
+        
+        // Log the event
+        this.app.logEvent(`${monster.name} uses ${actionName}: ${attackTotal} to hit${damageRoll ? `, ${damageRoll.total} ${damageType} damage` : ''}`);
     }
     
     /**
@@ -329,7 +506,16 @@ class UIManager {
         
         // Menu items
         const items = [
-            { text: 'Edit Character', icon: '✏️', action: () => this.openEditCreatureModal(creatureId) },
+            { text: 'Edit Character', icon: '✏️', action: () => this.openEditCreatureModal(creatureId) }
+        ];
+        
+        // Add stat block option for monsters
+        if (creature.type === 'monster' && (creature.actions || creature.specialAbilities)) {
+            items.push({ text: 'View Stat Block', icon: '📋', action: () => this.openStatBlockModal(creatureId) });
+        }
+        
+        // Add other options
+        items.push(
             { text: 'Apply Damage', icon: '🗡️', action: () => this.app.damage.openDamageModal(creatureId) },
             { text: 'Apply Healing', icon: '❤️', action: () => this.app.damage.openHealModal(creatureId) },
             { text: 'Add Condition', icon: '⚠️', action: () => this.app.conditions.openAddConditionModal(creatureId) },
@@ -340,7 +526,7 @@ class UIManager {
                     this.app.combat.removeCreature(creatureId);
                 });
             }}
-        ];
+        );
         
         // Create menu items
         items.forEach(item => {
@@ -362,6 +548,8 @@ class UIManager {
             document.addEventListener('click', this.closeContextMenu);
         }, 0);
     }
+    
+    // ... rest of the UIManager class remains the same ...
     
     /**
      * Close the context menu
@@ -449,7 +637,7 @@ class UIManager {
                 img.src = url;
                 imagePreview.classList.remove('hidden');
                 
-                // Handle image load error
+                                // Handle image load error
                 img.onerror = () => {
                     img.src = 'data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2232%22%20height%3D%2232%22%20viewBox%3D%220%200%2032%2032%22%3E%3Cpath%20fill%3D%22%23D32F2F%22%20d%3D%22M16%202C8.268%202%202%208.268%202%2016s6.268%2014%2014%2014%2014-6.268%2014-14S23.732%202%2016%202zm0%2025.6c-6.408%200-11.6-5.192-11.6-11.6S9.592%204.4%2016%204.4%2027.6%209.592%2027.6%2016%2022.408%2027.6%2016%2027.6z%22%2F%3E%3Cpath%20fill%3D%22%23D32F2F%22%20d%3D%22M14.8%2010.4h2.4v8h-2.4v-8zm0%2010.4h2.4v2.4h-2.4v-2.4z%22%2F%3E%3C%2Fsvg%3E';
                 };
@@ -653,7 +841,7 @@ class UIManager {
             width: 'max-w-2xl'
         });
         
-                // Add event listeners
+        // Add event listeners
         const nameInput = modal.querySelector('#hero-name');
         const initiativeInput = modal.querySelector('#hero-initiative');
         const maxHpInput = modal.querySelector('#hero-max-hp');
@@ -1052,7 +1240,7 @@ class UIManager {
         // Set the import script
         importScript.value = this.app.api.getDnDBeyondImportScript();
         
-        // Copy script button
+                // Copy script button
         copyScriptBtn.addEventListener('click', () => {
             importScript.select();
             document.execCommand('copy');
@@ -1134,6 +1322,155 @@ class UIManager {
                 console.error('JSON parsing error:', error);
                 console.log('Attempted to parse:', jsonText);
             }
+        });
+    }
+    
+    /**
+     * Open the initiative management modal
+     */
+    openInitiativeManagementModal() {
+        const creatures = this.app.combat.getAllCreatures();
+        
+        if (creatures.length === 0) {
+            this.app.showAlert('No creatures to manage initiative for.');
+            return;
+        }
+        
+        const modal = this.createModal({
+            title: 'Manage Initiative Order',
+            content: `
+                <div class="space-y-4">
+                    <p class="text-sm text-gray-400">Edit initiative values directly or use the up/down buttons to reorder.</p>
+                    
+                    <div id="initiative-list" class="space-y-2">
+                        ${creatures.map((creature, index) => `
+                            <div class="initiative-item bg-gray-700 p-2 rounded flex justify-between items-center" data-id="${creature.id}">
+                                <div class="flex items-center">
+                                    <span>${creature.type === 'hero' ? '👤' : '👹'} ${creature.name}</span>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <input type="number" class="initiative-input bg-gray-600 text-white w-16 px-2 py-1 rounded" 
+                                        value="${creature.initiative !== null ? creature.initiative : ''}" 
+                                        placeholder="Init">
+                                    <div class="flex flex-col">
+                                        <button class="move-up-btn text-xs bg-gray-600 hover:bg-gray-500 px-2 py-0.5 rounded-t ${index === 0 ? 'opacity-50 cursor-not-allowed' : ''}" 
+                                            ${index === 0 ? 'disabled' : ''}>▲</button>
+                                        <button class="move-down-btn text-xs bg-gray-600 hover:bg-gray-500 px-2 py-0.5 rounded-b ${index === creatures.length - 1 ? 'opacity-50 cursor-not-allowed' : ''}" 
+                                            ${index === creatures.length - 1 ? 'disabled' : ''}>▼</button>
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                    
+                    <div class="flex justify-end space-x-2">
+                        <button id="cancel-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
+                            Cancel
+                        </button>
+                        <button id="save-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                            Save Order
+                        </button>
+                    </div>
+                </div>
+            `,
+            width: 'max-w-lg'
+        });
+        
+        // Add event listeners
+        const cancelBtn = modal.querySelector('#cancel-btn');
+        const saveBtn = modal.querySelector('#save-btn');
+        const initiativeList = modal.querySelector('#initiative-list');
+        
+        // Add event listeners for move up/down buttons
+        initiativeList.querySelectorAll('.move-up-btn').forEach((btn, index) => {
+            if (index > 0) {
+                btn.addEventListener('click', () => {
+                    const item = btn.closest('.initiative-item');
+                    const prevItem = item.previousElementSibling;
+                    if (prevItem) {
+                        initiativeList.insertBefore(item, prevItem);
+                        updateMoveButtons();
+                    }
+                });
+            }
+        });
+        
+        initiativeList.querySelectorAll('.move-down-btn').forEach((btn, index) => {
+            if (index < creatures.length - 1) {
+                btn.addEventListener('click', () => {
+                    const item = btn.closest('.initiative-item');
+                    const nextItem = item.nextElementSibling;
+                    if (nextItem) {
+                        initiativeList.insertBefore(nextItem, item);
+                        updateMoveButtons();
+                    }
+                });
+            }
+        });
+        
+        // Function to update move buttons after reordering
+        function updateMoveButtons() {
+            const items = initiativeList.querySelectorAll('.initiative-item');
+            items.forEach((item, index) => {
+                const upBtn = item.querySelector('.move-up-btn');
+                const downBtn = item.querySelector('.move-down-btn');
+                
+                if (index === 0) {
+                    upBtn.disabled = true;
+                    upBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                } else {
+                    upBtn.disabled = false;
+                    upBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                }
+                
+                if (index === items.length - 1) {
+                    downBtn.disabled = true;
+                    downBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                } else {
+                    downBtn.disabled = false;
+                    downBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                }
+            });
+        }
+        
+        cancelBtn.addEventListener('click', () => {
+            this.closeModal(modal.parentNode);
+        });
+        
+        saveBtn.addEventListener('click', () => {
+            // Get the new order and initiative values
+            const initiativeItems = modal.querySelectorAll('.initiative-item');
+            const newOrder = [];
+            
+            initiativeItems.forEach(item => {
+                const id = item.dataset.id;
+                const initiativeInput = item.querySelector('.initiative-input');
+                const initiative = initiativeInput.value.trim() !== '' ? parseInt(initiativeInput.value) : null;
+                
+                newOrder.push({ id, initiative });
+            });
+            
+            // Update the initiative values
+            newOrder.forEach(item => {
+                const creature = this.app.combat.getCreatureById(item.id);
+                if (creature) {
+                    creature.initiative = item.initiative;
+                }
+            });
+            
+            // Reorder the creatures array
+            this.app.combat.reorderCreatures(newOrder.map(item => item.id));
+            
+            // Update UI
+            this.app.ui.renderCreatures();
+            this.app.ui.renderInitiativeOrder();
+            this.app.updatePlayerView();
+            
+            // Close the modal
+            this.closeModal(modal.parentNode);
+            
+            // Log the event
+            this.app.logEvent('Initiative order updated manually.');
         });
     }
     
@@ -1238,7 +1575,7 @@ class UIManager {
             title: title,
             content: `
                 <div class="space-y-4">
-                    <p>${message}</p>
+                    <div class="alert-message">${message}</div>
                     <div class="flex justify-end">
                         <button id="alert-ok-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
                             OK
@@ -1364,7 +1701,7 @@ class UIManager {
                     } else {
                         hpDisplay = 'Healthy';
                     }
-                                } else {
+                } else {
                     hpDisplay = '—';
                 }
                 
