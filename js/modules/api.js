@@ -53,64 +53,66 @@ class APIManager {
     }
     
     /**
-     * Convert Open5e monster data to our format
-     * @param {Object} monsterData - The Open5e monster data
-     * @returns {Object} - The monster in our format
-     */
-    convertOpen5eMonster(monsterData) {
-        // Calculate ability modifiers
-        const getModifier = (score) => Math.floor((score - 10) / 2);
-        
-        // Parse hit points
-        let maxHp = 10;
-        const hpMatch = monsterData.hit_points_roll?.match(/(\d+)/);
-        if (hpMatch) {
-            maxHp = parseInt(hpMatch[1]);
-        } else if (typeof monsterData.hit_points === 'number') {
-            maxHp = monsterData.hit_points;
-        }
-        
-        // Parse initiative bonus (based on DEX modifier)
-        const initiativeBonus = getModifier(monsterData.dexterity);
-        
-        // Create monster object
-        return {
-            id: this.app.utils.generateUUID(),
-            name: monsterData.name,
-            type: 'monster',
-            maxHp: maxHp,
-            currentHp: maxHp,
-            ac: monsterData.armor_class,
-            initiativeBonus: initiativeBonus,
-            initiative: null,
-            conditions: [],
-            imageUrl: null,
-            // Additional data from Open5e
-            size: monsterData.size,
-            alignment: monsterData.alignment,
-            cr: monsterData.challenge_rating,
-            source: 'Open5e SRD',
-            abilities: {
-                str: monsterData.strength,
-                dex: monsterData.dexterity,
-                con: monsterData.constitution,
-                int: monsterData.intelligence,
-                wis: monsterData.wisdom,
-                cha: monsterData.charisma
-            },
-            actions: monsterData.actions || [],
-            specialAbilities: monsterData.special_abilities || [],
-            legendaryActions: monsterData.legendary_actions || [],
-            speed: monsterData.speed,
-            senses: monsterData.senses,
-            languages: monsterData.languages,
-            damageVulnerabilities: monsterData.damage_vulnerabilities,
-            damageResistances: monsterData.damage_resistances,
-            damageImmunities: monsterData.damage_immunities,
-            conditionImmunities: monsterData.condition_immunities
-        };
+ * Convert Open5e monster data to our format
+ * @param {Object} monsterData - The Open5e monster data
+ * @returns {Object} - The monster in our format
+ */
+convertOpen5eMonster(monsterData) {
+    // Calculate ability modifiers
+    const getModifier = (score) => Math.floor((score - 10) / 2);
+    
+    // Parse hit points
+    let maxHp = 10;
+    const hpMatch = monsterData.hit_points_roll?.match(/(\d+)/);
+    if (hpMatch) {
+        maxHp = parseInt(hpMatch[1]);
+    } else if (typeof monsterData.hit_points === 'number') {
+        maxHp = monsterData.hit_points;
     }
     
+    // Parse initiative bonus (based on DEX modifier)
+    const initiativeBonus = getModifier(monsterData.dexterity);
+    
+    // Create monster object
+    return {
+        id: this.app.utils.generateUUID(),
+        name: monsterData.name,
+        type: 'monster',
+        maxHp: maxHp,
+        currentHp: maxHp,
+        ac: monsterData.armor_class,
+        initiativeBonus: initiativeBonus,
+        initiative: null,
+        conditions: [],
+        imageUrl: null,
+        // Additional data from Open5e
+        size: monsterData.size,
+        alignment: monsterData.alignment,
+        cr: monsterData.challenge_rating,
+        source: 'Open5e SRD',
+        abilities: {
+            str: monsterData.strength,
+            dex: monsterData.dexterity,
+            con: monsterData.constitution,
+            int: monsterData.intelligence,
+            wis: monsterData.wisdom,
+            cha: monsterData.charisma
+        },
+        actions: monsterData.actions || [],
+        specialAbilities: monsterData.special_abilities || [],
+        legendaryActions: monsterData.legendary_actions || [],
+        speed: monsterData.speed,
+        senses: monsterData.senses,
+        languages: monsterData.languages,
+        damageVulnerabilities: monsterData.damage_vulnerabilities,
+        damageResistances: monsterData.damage_resistances,
+        damageImmunities: monsterData.damage_immunities,
+        conditionImmunities: monsterData.condition_immunities,
+        // Store the original data for reference
+        originalData: monsterData
+    };
+}
+ 
     /**
      * Get the D&D Beyond import script
      * @returns {string} - The import script
