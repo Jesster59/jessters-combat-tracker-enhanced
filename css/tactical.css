@@ -1,1 +1,211 @@
+/**
+ * Jesster's Combat Tracker
+ * Tactical Map Stylesheet
+ * Version 2.3.1
+ */
 
+/* Tactical map container */
+.jct-tactical-view {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Map canvas */
+.jct-map-canvas-container {
+  position: relative;
+  width: 100%;
+  height: 400px;
+  background-color: #f0f0f0;
+  border: 1px solid var(--jct-border);
+  border-radius: var(--jct-border-radius-sm);
+  overflow: hidden;
+}
+
+.jct-map-canvas {
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+}
+
+.jct-map-canvas:active {
+  cursor: grabbing;
+}
+
+/* Map controls */
+.jct-map-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--jct-spacing-sm);
+  justify-content: center;
+  margin-top: var(--jct-spacing-sm);
+}
+
+/* Token context menu */
+.jct-token-context-menu {
+  position: absolute;
+  background-color: var(--jct-background);
+  border: 1px solid var(--jct-border);
+  border-radius: var(--jct-border-radius-sm);
+  box-shadow: var(--jct-shadow-md);
+  z-index: 100;
+  min-width: 150px;
+}
+
+.jct-token-context-menu-item {
+  padding: var(--jct-spacing-sm) var(--jct-spacing-md);
+  cursor: pointer;
+  transition: background-color var(--jct-transition-fast);
+}
+
+.jct-token-context-menu-item:hover {
+  background-color: var(--jct-surface);
+}
+
+.jct-token-context-menu-divider {
+  height: 1px;
+  background-color: var(--jct-border);
+  margin: var(--jct-spacing-xs) 0;
+}
+
+/* Map tools panel */
+.jct-map-tools {
+  position: absolute;
+  top: var(--jct-spacing-sm);
+  left: var(--jct-spacing-sm);
+  background-color: var(--jct-background);
+  border: 1px solid var(--jct-border);
+  border-radius: var(--jct-border-radius-sm);
+  box-shadow: var(--jct-shadow-sm);
+  padding: var(--jct-spacing-xs);
+  display: flex;
+  flex-direction: column;
+  gap: var(--jct-spacing-xs);
+}
+
+.jct-map-tool {
+  width: 32px;
+  height: 32px;
+  border: 1px solid transparent;
+  border-radius: var(--jct-border-radius-sm);
+  background-color: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color var(--jct-transition-fast);
+}
+
+.jct-map-tool:hover {
+  background-color: var(--jct-surface);
+}
+
+.jct-map-tool.jct-active {
+  background-color: var(--jct-primary);
+  color: white;
+}
+
+/* Token drag and drop */
+.jct-token-drag-preview {
+  position: absolute;
+  pointer-events: none;
+  z-index: 1000;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background-color: var(--jct-primary);
+  opacity: 0.7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: bold;
+}
+
+/* Map measurement */
+.jct-measurement-line {
+  position: absolute;
+  pointer-events: none;
+  z-index: 90;
+  border-top: 2px dashed var(--jct-primary);
+}
+
+.jct-measurement-label {
+  position: absolute;
+  pointer-events: none;
+  z-index: 91;
+  background-color: var(--jct-primary);
+  color: white;
+  padding: 2px 4px;
+  border-radius: var(--jct-border-radius-sm);
+  font-size: var(--jct-font-size-xs);
+  transform: translate(-50%, -50%);
+}
+
+/* Map fog of war */
+.jct-fog-of-war {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 80;
+}
+
+/* Map grid overlay */
+.jct-grid-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 70;
+}
+
+/* Map coordinates display */
+.jct-coordinates-display {
+  position: absolute;
+  bottom: var(--jct-spacing-sm);
+  right: var(--jct-spacing-sm);
+  background-color: rgba(0, 0, 0, 0.5);
+  color: white;
+  padding: var(--jct-spacing-xs) var(--jct-spacing-sm);
+  border-radius: var(--jct-border-radius-sm);
+  font-size: var(--jct-font-size-xs);
+  pointer-events: none;
+}
+
+/* Map scale indicator */
+.jct-scale-indicator {
+  position: absolute;
+  bottom: var(--jct-spacing-sm);
+  left: var(--jct-spacing-sm);
+  background-color: rgba(0, 0, 0, 0.5);
+  color: white;
+  padding: var(--jct-spacing-xs) var(--jct-spacing-sm);
+  border-radius: var(--jct-border-radius-sm);
+  font-size: var(--jct-font-size-xs);
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  gap: var(--jct-spacing-xs);
+}
+
+.jct-scale-bar {
+  height: 4px;
+  background-color: white;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .jct-map-canvas-container {
+    height: 300px;
+  }
+  
+  .jct-map-tools {
+    flex-direction: row;
+    top: auto;
+    bottom: var(--jct-spacing-sm);
+  }
+}
