@@ -1,5 +1,7 @@
 Jesster's Combat Tracker (JCT)
+
 Version 2.3.1
+
 A comprehensive combat tracker for tabletop role-playing games, designed to streamline combat management and enhance your gaming experience.
 
 
