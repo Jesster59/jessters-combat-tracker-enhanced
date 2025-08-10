@@ -759,34 +759,44 @@ export class CombatTrackerApp {
   }
 
   /**
-   * Create the tactical map
-   * @private
-   */
-  _createTacticalMap() {
-    const mapContainer = new Container({
-      className: 'jct-map-container',
-      layout: 'vertical',
-      gap: 8,
-      padding: 8
-    });
-    
-    // Create map canvas container
-    const canvasContainer = createComponent(ComponentType.CUSTOM, {
-      className: 'jct-map-canvas-container'
-    });
-    
-    // Create canvas element
-    const canvas = document.createElement('canvas');
-    canvas.className = 'jct-map-canvas';
-    canvas.width = 800;
-    canvas.height = 600;
-    
-    // Store canvas reference for later use
-    this.tacticalCanvas = canvas;
-    
-    // Add canvas to container
+ * Create the tactical map
+ * @private
+ */
+_createTacticalMap() {
+  const mapContainer = new Container({
+    className: 'jct-map-container',
+    layout: 'vertical',
+    gap: 8,
+    padding: 8
+  });
+  
+  // Create map canvas container
+  const canvasContainer = createComponent(ComponentType.CUSTOM, {
+    className: 'jct-map-canvas-container'
+  });
+  
+  // Create canvas element
+  const canvas = document.createElement('canvas');
+  canvas.className = 'jct-map-canvas';
+  canvas.width = 800;
+  canvas.height = 600;
+  
+  // Store canvas reference for later use
+  this.tacticalCanvas = canvas;
+  
+  // Add canvas to container - Add a check to prevent null reference error
+  if (canvasContainer && canvasContainer.element) {
     canvasContainer.element.appendChild(canvas);
-    
+  } else {
+    console.error('Canvas container element is null or undefined');
+    // Create a fallback container if needed
+    const fallbackContainer = document.createElement('div');
+    fallbackContainer.className = 'jct-map-canvas-container';
+    fallbackContainer.appendChild(canvas);
+    canvasContainer = { element: fallbackContainer };
+  }
+  
+} 
     // Create map controls
     const controlsContainer = new Container({
       className: 'jct-map-controls',
