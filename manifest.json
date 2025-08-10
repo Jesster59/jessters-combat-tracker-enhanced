@@ -1,1 +1,142 @@
+{
+  "name": "Jesster's Combat Tracker",
+  "short_name": "JCT",
+  "description": "A comprehensive combat tracker for tabletop role-playing games",
+  "version": "2.3.1",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#ffffff",
+  "theme_color": "#3f51b5",
+  "icons": [
+    {
+      "src": "images/icon-72x72.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "images/icon-96x96.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "images/icon-128x128.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "images/icon-144x144.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "images/icon-152x152.png",
+      "sizes": "152x152",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "images/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "images/icon-384x384.png",
+      "sizes": "384x384",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "images/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "images/maskable-icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "images/maskable-icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "images/screenshot-1.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "platform": "wide",
+      "label": "Combat Tracker Main Interface"
+    },
+    {
+      "src": "images/screenshot-2.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "platform": "wide",
+      "label": "Tactical Map View"
+    },
+    {
+      "src": "images/screenshot-mobile-1.png",
+      "sizes": "750x1334",
+      "type": "image/png",
+      "platform": "narrow",
+      "label": "Mobile Combat Tracker"
+    }
+  ],
+  "categories": ["utilities", "games", "productivity"],
+  "shortcuts": [
+    {
+      "name": "New Combat",
+      "short_name": "New",
+      "description": "Start a new combat encounter",
+      "url": "./index.html?action=new",
+      "icons": [{ "src": "images/shortcut-new.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Load Combat",
+      "short_name": "Load",
+      "description": "Load a saved combat encounter",
+      "url": "./index.html?action=load",
+      "icons": [{ "src": "images/shortcut-load.png", "sizes": "96x96" }]
+    }
+  ],
+  "related_applications": [],
+  "prefer_related_applications": false,
+  "lang": "en-US",
+  "dir": "ltr",
+  "iarc_rating_id": "",
+  "share_target": {
+    "action": "./index.html?share",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "name",
+      "text": "description",
+      "files": [
+        {
+          "name": "combat",
+          "accept": ["application/json"]
+        }
+      ]
+    }
+  },
+  "file_handlers": [
+    {
+      "action": "./index.html?file",
+      "accept": {
+        "application/json": [".jct", ".json"]
+      }
+    }
+  ]
+}
 
