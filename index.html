@@ -1,259 +1,124 @@
 <!DOCTYPE html>
-<html lang="en" class="theme-default">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Jesster's Combat Tracker - A comprehensive combat tracker for tabletop role-playing games">
+    <meta name="theme-color" content="#3f51b5">
     <title>Jesster's Combat Tracker</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
-    <link rel="stylesheet" href="css/styles.css">
-    <link rel="icon" href="favicon.ico" type="image/x-icon">
+    
+    <!-- Favicon -->
+    <link rel="icon" href="images/favicon.ico">
+    <link rel="apple-touch-icon" href="images/icon-192x192.png">
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Mono&display=swap" rel="stylesheet">
+    
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="css/normalize.css">
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/tactical.css">
+    <link rel="stylesheet" href="css/themes.css">
+    
+    <!-- PWA support -->
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- Preload critical JavaScript -->
+    <link rel="preload" href="js/app.js" as="script">
+    <link rel="preload" href="js/ui.js" as="script">
 </head>
-<body class="bg-gray-900 text-white">
-    <div class="container mx-auto px-4 py-8">
-        <header class="flex justify-between items-center mb-8">
-            <h1 class="text-3xl font-bold text-indigo-400">Jesster's Combat Tracker</h1>
-            <div class="flex space-x-2">
-                <button id="settings-btn" class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded">
-                    Settings
-                </button>
-                <button id="help-btn" class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded">
-                    Help
-                </button>
+<body>
+    <!-- App loading screen -->
+    <div id="loading-screen">
+        <div class="loading-container">
+            <div class="loading-logo">
+                <img src="images/logo.svg" alt="Jesster's Combat Tracker Logo">
             </div>
-        </header>
-        
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <!-- Main combat area -->
-            <div class="lg:col-span-2 space-y-4">
-                <!-- Combat controls -->
-                <div class="bg-gray-800 rounded-lg p-4">
-                    <h2 class="text-xl font-bold mb-4">Combat Controls</h2>
-                    <div class="flex flex-wrap gap-2">
-                        <button id="add-hero-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                            Add Hero
-                        </button>
-                        <button id="add-monster-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">
-                            Add Monster
-                        </button>
-                        <button id="add-monster-group-btn" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded">
-                            Add Monster Group
-                        </button>
-                        <button id="search-monster-btn" class="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded">
-                            Search Monster
-                        </button>
-                        <button id="import-dndbeyond-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
-                            Import from D&D Beyond
-                        </button>
-                    </div>
-                    
-                    <div class="border-t border-gray-700 my-4"></div>
-                    
-                    <div class="flex flex-wrap gap-2">
-                        <button id="roll-initiative-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded">
-                            Roll Initiative
-                        </button>
-                        <button id="start-combat-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
-                            Start Combat
-                        </button>
-                        <button id="next-turn-btn" class="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded">
-                            Next Turn
-                        </button>
-                        <button id="end-combat-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">
-                            End Combat
-                        </button>
-                    </div>
-                    
-                    <div class="border-t border-gray-700 my-4"></div>
-                    
-                    <div class="flex flex-wrap gap-2">
-                        <button id="manage-initiative-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
-                            Manage Initiative
-                        </button>
-                        <button id="open-player-view-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                            Open Player View
-                        </button>
-                        <button id="encounter-builder-btn" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded">
-                            Encounter Builder
-                        </button>
-                        <button id="save-combat-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
-                            Save Combat
-                        </button>
-                        <button id="load-combat-btn" class="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded">
-                            Load Combat
-                        </button>
-                    </div>
-                </div>
-                
-                <!-- Combat status -->
-                <div id="combat-status" class="bg-gray-800 rounded-lg p-4 hidden">
-                    <div class="flex justify-between items-center">
-                        <div>
-                            <span class="text-lg font-bold">Round: <span id="round-number">1</span></span>
-                        </div>
-                        <div>
-                            <span class="text-lg font-bold">Current Turn: <span id="current-turn">-</span></span>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Creatures -->
-                <div class="bg-gray-800 rounded-lg p-4">
-                    <h2 class="text-xl font-bold mb-4">Creatures</h2>
-                    <div id="creatures-container" class="space-y-4">
-                        <div class="text-center text-gray-400 py-8">
-                            No creatures added yet. Click "Add Hero" or "Add Monster" to begin.
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Combat log -->
-                <div class="bg-gray-800 rounded-lg p-4">
-                    <h2 class="text-xl font-bold mb-4">Combat Log</h2>
-                    <div id="combat-log" class="bg-gray-900 rounded p-4 max-h-64 overflow-y-auto">
-                        <div class="text-gray-400">Combat log will appear here...</div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Sidebar -->
-            <div class="space-y-4">
-                <!-- Initiative order -->
-                <div class="bg-gray-800 rounded-lg p-4">
-                    <h2 class="text-xl font-bold mb-4">Initiative Order</h2>
-                    <div id="initiative-container" class="space-y-2">
-                        <div class="text-center text-gray-400 py-4">
-                            No initiative rolled yet
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Dice roller -->
-                <div class="bg-gray-800 rounded-lg p-4">
-                    <h2 class="text-xl font-bold mb-4">Dice Roller</h2>
-                    <div class="grid grid-cols-3 gap-2 mb-4">
-                        <button class="dice-btn bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded" data-dice="4">d4</button>
-                        <button class="dice-btn bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded" data-dice="6">d6</button>
-                        <button class="dice-btn bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded" data-dice="8">d8</button>
-                        <button class="dice-btn bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded" data-dice="10">d10</button>
-                        <button class="dice-btn bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded" data-dice="12">d12</button>
-                        <button class="dice-btn bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded" data-dice="20">d20</button>
-                        <button class="dice-btn bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded" data-dice="100">d100</button>
-                        <button class="dice-btn bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded" data-dice="2d6">2d6</button>
-                        <button class="dice-btn bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded" data-dice="4d6">4d6</button>
-                    </div>
-                    
-                    <div class="flex space-x-2 mb-4">
-                        <input type="text" id="custom-dice-input" class="flex-1 bg-gray-700 text-white px-3 py-2 rounded" placeholder="e.g., 2d6+3">
-                        <button id="roll-custom-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded">
-                            Roll
-                        </button>
-                    </div>
-                    
-                    <div id="dice-results" class="bg-gray-900 rounded p-4 text-center">
-                        <div class="text-2xl font-bold">-</div>
-                        <div class="text-sm text-gray-400">Roll some dice</div>
-                    </div>
-                </div>
-                
-                <!-- Tools -->
-                <div class="bg-gray-800 rounded-lg p-4">
-                    <h2 class="text-xl font-bold mb-4">Tools</h2>
-                    <div class="space-y-2">
-                        <button id="monster-compendium-btn" class="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded">
-                            Monster Compendium
-                        </button>
-                        <button id="spell-database-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                            Spell Database
-                        </button>
-                    </div>
-                </div>
-            </div>
+            <h1>Jesster's Combat Tracker</h1>
+            <div class="loading-spinner"></div>
+            <p>Loading application...</p>
         </div>
-        
-        <footer class="mt-8 text-center text-gray-500 text-sm">
-            <p>Jesster's Combat Tracker v2.3.1</p>
-            <p>Dungeons & Dragons, D&D, their respective logos, and all Wizards titles and characters are property of Wizards of the Coast LLC in the U.S.A. and other countries. ©2024 Wizards.</p>
-        </footer>
     </div>
     
-    <!-- Templates -->
-    <template id="creature-template">
-        <div class="creature-card bg-gray-700 rounded-lg shadow mb-4 p-3" data-id="${id}">
-            <div class="flex justify-between items-center mb-2">
-                <div class="flex items-center">
-                    ${imageHtml}
-                    <span class="text-xl font-bold">${typeIcon} ${name}</span>
-                    ${sourceHtml}
-                </div>
-                <div class="flex space-x-1">
-                    <button class="edit-btn bg-blue-600 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded text-xs" data-creature-id="${id}">
-                        Edit
-                    </button>
-                    <button class="stat-block-btn bg-purple-600 hover:bg-purple-700 text-white font-bold py-1 px-2 rounded text-xs" data-creature-id="${id}">
-                        Stat Block
-                    </button>
-                    <button class="damage-btn bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-2 rounded text-xs" data-creature-id="${id}">
-                        Damage
-                    </button>
-                    <button class="heal-btn bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-2 rounded text-xs" data-creature-id="${id}">
-                        Heal
-                    </button>
-                    <button class="remove-btn bg-gray-600 hover:bg-gray-700 text-white font-bold py-1 px-2 rounded text-xs" data-creature-id="${id}">
-                        Remove
-                    </button>
-                </div>
-            </div>
-            
-            <div class="grid grid-cols-2 gap-2 mb-2">
-                <div>
-                    <div class="text-xs text-gray-400">HP</div>
-                    <div class="flex items-center">
-                        <span class="font-semibold">${currentHp}/${maxHp}</span>
-                                                <div class="ml-2 flex-1 hp-bar bg-gray-600">
-                            <div class="bg-green-600 h-full" style="width: ${hpPercentage}%"></div>
-                        </div>
-                    </div>
-                </div>
-                <div>
-                    <div class="text-xs text-gray-400">AC</div>
-                    <div class="font-semibold">${ac}</div>
-                </div>
-            </div>
-            
-            <div class="grid grid-cols-2 gap-2 mb-2">
-                <div>
-                    <div class="text-xs text-gray-400">Initiative</div>
-                    <div class="font-semibold">${initiative !== null ? initiative : '-'}</div>
-                </div>
-                <div>
-                    <div class="text-xs text-gray-400">Conditions</div>
-                    <div class="flex flex-wrap gap-1">
-                        ${conditionsHtml}
-                    </div>
-                </div>
-            </div>
-            
-            ${monsterDetailsHtml}
-            ${concentrationHtml}
-            ${deathSavesHtml}
-            ${legendaryActionsHtml}
-        </div>
-    </template>
+    <!-- Main application container -->
+    <div id="jct-app" class="jct-app"></div>
     
-    <!-- Scripts -->
-<script src="js/modules/utils.js"></script>
-<script src="js/modules/storage.js"></script>
-<script src="js/modules/settings.js"></script>
-<script src="js/modules/ui.js"></script>
-<script src="js/modules/combat.js"></script>
-<script src="js/modules/dice.js"></script>
-<script src="js/modules/keyboard.js"></script>
-<script src="js/modules/api.js"></script>
-<script src="js/modules/audio.js"></script>
-<script src="js/modules/conditions.js"></script>
-<script src="js/modules/damage.js"></script>
-<script src="js/app.js"></script>
-
+    <!-- Error message for unsupported browsers -->
+    <div id="browser-error" style="display: none;">
+        <div class="error-container">
+            <h2>Browser Not Supported</h2>
+            <p>Your browser doesn't support all the features needed to run Jesster's Combat Tracker.</p>
+            <p>Please use a modern browser like Chrome, Firefox, Safari, or Edge.</p>
+        </div>
+    </div>
+    
+    <!-- Browser compatibility check -->
+    <script>
+        // Check for required browser features
+        const isCompatible = (
+            'localStorage' in window &&
+            'Promise' in window &&
+            'fetch' in window &&
+            'Map' in window &&
+            'HTMLCanvasElement' in window
+        );
+        
+        if (!isCompatible) {
+            document.getElementById('loading-screen').style.display = 'none';
+            document.getElementById('browser-error').style.display = 'block';
+        }
+    </script>
+    
+    <!-- Application scripts -->
+    <script type="module">
+        import { createCombatTrackerApp } from './js/app.js';
+        
+        // Wait for DOM to be fully loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            // Initialize the application
+            const app = createCombatTrackerApp({
+                containerId: 'jct-app',
+                storageKey: 'jct-data',
+                autoSave: true,
+                autoSaveInterval: 60000, // 1 minute
+                defaultTheme: 'system'
+            });
+            
+            // Hide loading screen when app is initialized
+            app.addEventListener('initialized', () => {
+                const loadingScreen = document.getElementById('loading-screen');
+                loadingScreen.classList.add('fade-out');
+                
+                setTimeout(() => {
+                    loadingScreen.style.display = 'none';
+                }, 500);
+            });
+            
+            // Make app available globally for debugging
+            window.jctApp = app;
+        });
+        
+        // Register service worker for offline support
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./service-worker.js')
+                    .then(registration => {
+                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                    })
+                    .catch(error => {
+                        console.log('ServiceWorker registration failed: ', error);
+                    });
+            });
+        }
+    </script>
+    
+    <!-- Fallback for older browsers -->
+    <script nomodule>
+        document.getElementById('loading-screen').style.display = 'none';
+        document.getElementById('browser-error').style.display = 'block';
+    </script>
 </body>
 </html>
-
