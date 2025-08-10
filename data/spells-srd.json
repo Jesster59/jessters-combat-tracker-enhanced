@@ -1,1 +1,1316 @@
-
+{
+  "version": "2.3.1",
+  "source": "SRD 5.1",
+  "spells": [
+    {
+      "id": "acid-splash",
+      "name": "Acid Splash",
+      "level": 0,
+      "school": "conjuration",
+      "castingTime": "1 action",
+      "range": "60 feet",
+      "components": {
+        "verbal": true,
+        "somatic": true,
+        "material": false,
+        "materials": ""
+      },
+      "duration": "Instantaneous",
+      "description": "You hurl a bubble of acid. Choose one creature you can see within range, or choose two creatures you can see within range that are within 5 feet of each other. A target must succeed on a Dexterity saving throw or take 1d6 acid damage.\nThis spell's damage increases by 1d6 when you reach 5th level (2d6), 11th level (3d6), and 17th level (4d6).",
+      "atHigherLevels": "",
+      "damageType": "acid",
+      "savingThrow": "dexterity",
+      "damageAtCharacterLevel": {
+        "1": "1d6",
+        "5": "2d6",
+        "11": "3d6",
+        "17": "4d6"
+      },
+      "areaOfEffect": {
+        "type": "sphere",
+        "size": 5
+      },
+      "tags": ["artificer", "sorcerer", "wizard", "cantrip", "damage"]
+    },
+    {
+      "id": "aid",
+      "name": "Aid",
+      "level": 2,
+      "school": "abjuration",
+      "castingTime": "1 action",
+      "range": "30 feet",
+      "components": {
+        "verbal": true,
+        "somatic": true,
+        "material": true,
+        "materials": "a tiny strip of white cloth"
+      },
+      "duration": "8 hours",
+      "description": "Your spell bolsters your allies with toughness and resolve. Choose up to three creatures within range. Each target's hit point maximum and current hit points increase by 5 for the duration.",
+      "atHigherLevels": "When you cast this spell using a spell slot of 3rd level or higher, a target's hit points increase by an additional 5 for each slot level above 2nd.",
+      "damageType": "",
+      "savingThrow": "",
+      "effectAtHigherLevels": {
+        "2": 5,
+        "3": 10,
+        "4": 15,
+        "5": 20,
+        "6": 25,
+        "7": 30,
+        "8": 35,
+        "9": 40
+      },
+      "tags": ["artificer", "cleric", "paladin", "ranger", "buff", "healing"]
+    },
+    {
+      "id": "alarm",
+      "name": "Alarm",
+      "level": 1,
+      "school": "abjuration",
+      "castingTime": "1 minute",
+      "ritual": true,
+      "range": "30 feet",
+      "components": {
+        "verbal": true,
+        "somatic": true,
+        "material": true,
+        "materials": "a tiny bell and a piece of fine silver wire"
+      },
+      "duration": "8 hours",
+      "description": "You set an alarm against unwanted intrusion. Choose a door, a window, or an area within range that is no larger than a 20-foot cube. Until the spell ends, an alarm alerts you whenever a Tiny or larger creature touches or enters the warded area. When you cast the spell, you can designate creatures that won't set off the alarm. You also choose whether the alarm is mental or audible.\n\nA mental alarm alerts you with a ping in your mind if you are within 1 mile of the warded area. This ping awakens you if you are sleeping.\n\nAn audible alarm produces the sound of a hand bell for 10 seconds within 60 feet.",
+      "atHigherLevels": "",
+      "areaOfEffect": {
+        "type": "cube",
+        "size": 20
+      },
+      "tags": ["artificer", "ranger", "wizard", "ritual", "utility"]
+    },
+    {
+      "id": "alter-self",
+      "name": "Alter Self",
+      "level": 2,
+      "school": "transmutation",
+      "castingTime": "1 action",
+      "range": "Self",
+      "components": {
+        "verbal": true,
+        "somatic": true,
+        "material": false,
+        "materials": ""
+      },
+      "duration": "Concentration, up to 1 hour",
+      "description": "You assume a different form. When you cast the spell, choose one of the following options, the effects of which last for the duration of the spell. While the spell lasts, you can end one option as an action to gain the benefits of a different one.\n\nAquatic Adaptation. You adapt your body to an aquatic environment, sprouting gills and growing webbing between your fingers. You can breathe underwater and gain a swimming speed equal to your walking speed.\n\nChange Appearance. You transform your appearance. You decide what you look like, including your height, weight, facial features, sound of your voice, hair length, coloration, and distinguishing characteristics, if any. You can make yourself appear as a member of another race, though none of your statistics change. You also can't appear as a creature of a different size than you, and your basic shape stays the same; if you're bipedal, you can't use this spell to become quadrupedal, for instance. At any time for the duration of the spell, you can use your action to change your appearance in this way again.\n\nNatural Weapons. You grow claws, fangs, spines, horns, or a different natural weapon of your choice. Your unarmed strikes deal 1d6 bludgeoning, piercing, or slashing damage, as appropriate to the natural weapon you chose, and you are proficient with your unarmed strikes. Finally, the natural weapon is magic and you have a +1 bonus to the attack and damage rolls you make using it.",
+      "atHigherLevels": "",
+      "tags": ["artificer", "sorcerer", "wizard", "transformation", "utility"]
+    },
+    {
+      "id": "animal-friendship",
+      "name": "Animal Friendship",
+      "level": 1,
+      "school": "enchantment",
+      "castingTime": "1 action",
+      "range": "30 feet",
+      "components": {
+        "verbal": true,
+        "somatic": true,
+        "material": true,
+        "materials": "a morsel of food"
+      },
+      "duration": "24 hours",
+      "description": "This spell lets you convince a beast that you mean it no harm. Choose a beast that you can see within range. It must see and hear you. If the beast's Intelligence is 4 or higher, the spell fails. Otherwise, the beast must succeed on a Wisdom saving throw or be charmed by you for the spell's duration. If you or one of your companions harms the target, the spell ends.",
+      "atHigherLevels": "When you cast this spell using a spell slot of 2nd level or higher, you can affect one additional beast for each slot level above 1st.",
+      "savingThrow": "wisdom",
+      "tags": ["bard", "druid", "ranger", "charm", "social"]
+    },
+    {
+      "id": "animate-dead",
+      "name": "Animate Dead",
+      "level": 3,
+      "school": "necromancy",
+      "castingTime": "1 minute",
+      "range": "10 feet",
+      "components": {
+        "verbal": true,
+        "somatic": true,
+        "material": true,
+        "materials": "a drop of blood, a piece of flesh, and a pinch of bone dust"
+      },
+      "duration": "Instantaneous",
+      "description": "This spell creates an undead servant. Choose a pile of bones or a corpse of a Medium or Small humanoid within range. Your spell imbues the target with a foul mimicry of life, raising it as an undead creature. The target becomes a skeleton if you chose bones or a zombie if you chose a corpse (the DM has the creature's game statistics).\n\nOn each of your turns, you can use a bonus action to mentally command any creature you made with this spell if the creature is within 60 feet of you (if you control multiple creatures, you can command any or all of them at the same time, issuing the same command to each one). You decide what action the creature will take and where it will move during its next turn, or you can issue a general command, such as to guard a particular chamber or corridor. If you issue no commands, the creature only defends itself against hostile creatures. Once given an order, the creature continues to follow it until its task is complete.\n\nThe creature is under your control for 24 hours, after which it stops obeying any command you've given it. To maintain control of the creature for another 24 hours, you must cast this spell on the creature again before the current 24-hour period ends. This use of the spell reasserts your control over up to four creatures you have animated with this spell, rather than animating a new one.",
+      "atHigherLevels": "When you cast this spell using a spell slot of 4th level or higher, you animate or reassert control over two additional undead creatures for each slot level above 3rd. Each of the creatures must come from a different corpse or pile of bones.",
+      "tags": ["cleric", "wizard", "necromancy", "summoning"]
+    },
+    {
+      "id": "arcane-eye",
+      "name": "Arcane Eye",
+      "level": 4,
+      "school": "divination",
+      "castingTime": "1 action",
+      "range": "30 feet",
+      "components": {
+        "verbal": true,
+        "somatic": true,
+        "material": true,
+        "materials": "a bit of bat fur"
+      },
+      "duration": "Concentration, up to 1 hour",
+      "description": "You create an invisible, magical eye within range that hovers in the air for the duration.\n\nYou mentally receive visual information from the eye, which has normal vision and darkvision out to 30 feet. The eye can look in every direction.\n\nAs an action, you can move the eye up to 30 feet in any direction. There is no limit to how far away from you the eye can move, but it can't enter another plane of existence. A solid barrier blocks the eye's movement, but the eye can pass through an opening as small as 1 inch in diameter.",
+      "atHigherLevels": "",
+      "tags": ["artificer", "wizard", "divination", "scouting"]
+    },
+    {
+      "id": "bane",
+      "name": "Bane",
+      "level": 1,
+      "school": "enchantment",
+      "castingTime": "1 action",
+      "range": "30 feet",
+      "components": {
+        "verbal": true,
+        "somatic": true,
+        "material": true,
+        "materials": "a drop of blood"
+      },
+      "duration": "Concentration, up to 1 minute",
+      "description": "Up to three creatures of your choice that you can see within range must make Charisma saving throws. Whenever a target that fails this saving throw makes an attack roll or a saving throw before the spell ends, the target must roll a d4 and subtract the number rolled from the attack roll or saving throw.",
+      "atHigherLevels": "When you cast this spell using a spell slot of 2nd level or higher, you can target one additional creature for each slot level above 1st.",
+      "savingThrow": "charisma",
+      "tags": ["bard", "cleric", "debuff", "control"]
+    },
+    {
+      "id": "banishment",
+      "name": "Banishment",
+      "level": 4,
+      "school": "abjuration",
+      "castingTime": "1 action",
+      "range": "60 feet",
+      "components": {
+        "verbal": true,
+        "somatic": true,
+        "material": true,
+        "materials": "an item distasteful to the target"
+      },
+      "duration": "Concentration, up to 1 minute",
+      "description": "You attempt to send one creature that you can see within range to another plane of existence. The target must succeed on a Charisma saving throw or be banished.\n\nIf the target is native to the plane of existence you're on, you banish the target to a harmless demiplane. While there, the target is incapacitated. The target remains there until the spell ends, at which point the target reappears in the space it left or in the nearest unoccupied space if that space is occupied.\n\nIf the target is native to a different plane of existence than the one you're on, the target is banished with a faint popping noise, returning to its home plane. If the spell ends before 1 minute has passed, the target reappears in the space it left or in the nearest unoccupied space if that space is occupied. Otherwise, the target doesn't return.",
+      "atHigherLevels": "When you cast this spell using a spell slot of 5th level or higher, you can target one additional creature for each slot level above 4th.",
+      "savingThrow": "charisma",
+      "tags": ["cleric", "paladin", "sorcerer", "warlock", "wizard", "control", "banishment"]
+    },
+    {
+      "id": "barkskin",
+      "name": "Barkskin",
+      "level": 2,
+      "school": "transmutation",
+      "castingTime": "1 action",
+      "range": "Touch",
+      "components": {
+        "verbal": true,
+        "somatic": true,
+        "material": true,
+        "materials": "a handful of oak bark"
+      },
+      "duration": "Concentration, up to 1 hour",
+      "description": "You touch a willing creature. Until the spell ends, the target's skin has a rough, bark-like appearance, and the target's AC can't be less than 16, regardless of what kind of armor it is wearing.",
+      "atHigherLevels": "",
+      "tags": ["druid", "ranger", "protection", "buff"]
+    },
+    {
+      "id": "blade-barrier",
+      "name": "Blade Barrier",
+      "level": 6,
+      "school": "evocation",
+      "castingTime": "1 action",
+      "range": "90 feet",
+      "components": {
+        "verbal": true,
+        "somatic": true,
+        "material": false,
+        "materials": ""
+      },
+      "duration": "Concentration, up to 10 minutes",
+      "description": "You create a vertical wall of whirling, razor-sharp blades made of magical energy. The wall appears within range and lasts for the duration. You can make a straight wall up to 100 feet long, 20 feet high, and 5 feet thick, or a ringed wall up to 60 feet in diameter, 20 feet high, and 5 feet thick. The wall provides three-quarters cover to creatures behind it, and its space is difficult terrain.\n\nWhen a creature enters the wall's area for the first time on a turn or starts its turn there, the creature must make a Dexterity saving throw. On a failed save, the creature takes 6d10 slashing damage. On a successful save, the creature takes half as much damage.",
+      "atHigherLevels": "",
+      "damageType": "slashing",
+      "savingThrow": "dexterity",
+      "damage": "6d10",
+      "areaOfEffect": {
+        "type": "wall",
+        "length": 100,
+        "height": 20,
+        "thickness": 5
+      },
+      "tags": ["cleric", "damage", "control", "barrier"]
+    },
+    {
+      "id": "bless",
+      "name": "Bless",
+      "level": 1,
+      "school": "enchantment",
+      "castingTime": "1 action",
+      "range": "30 feet",
+      "components": {
+        "verbal": true,
+        "somatic": true,
+        "material": true,
+        "materials": "a sprinkling of holy water"
+      },
+      "duration": "Concentration, up to 1 minute",
+      "description": "You bless up to three creatures of your choice within range. Whenever a target makes an attack roll or a saving throw before the spell ends, the target can roll a d4 and add the number rolled to the attack roll or saving throw.",
+      "atHigherLevels": "When you cast this spell using a spell slot of 2nd level or higher, you can target one additional creature for each slot level above 1st.",
+      "tags": ["cleric", "paladin", "buff", "support"]
+    },
+    {
+      "id": "burning-hands",
+      "name": "Burning Hands",
+      "level": 1,
+      "school": "evocation",
+      "castingTime": "1 action",
+      "range": "Self (15-foot cone)",
+      "components": {
+        "verbal": true,
+        "somatic": true,
+        "material": false,
+        "materials": ""
+      },
+      "duration": "Instantaneous",
+      "description": "As you hold your hands with thumbs touching and fingers spread, a thin sheet of flames shoots forth from your outstretched fingertips. Each creature in a 15-foot cone must make a Dexterity saving throw. A creature takes 3d6 fire damage on a failed save, or half as much damage on a successful one.\n\nThe fire ignites any flammable objects in the area that aren't being worn or carried.",
+      "atHigherLevels": "When you cast this spell using a spell slot of 2nd level or higher, the damage increases by 1d6 for each slot level above 1st.",
+      "damageType": "fire",
+      "savingThrow": "dexterity",
+      "damage": "3d6",
+      "damageAtHigherLevels": {
+        "1": "3d6",
+        "2": "4d6",
+        "3": "5d6",
+        "4": "6d6",
+        "5": "7d6",
+        "6": "8d6",
+        "7": "9d6",
+        "8": "10d6",
+        "9": "11d6"
+      },
+      "areaOfEffect": {
+        "type": "cone",
+        "size": 15
+      },
+      "tags": ["sorcerer", "wizard", "damage", "area"]
+    },
+    {
+      "id": "chain-lightning",
+      "name": "Chain Lightning",
+      "level": 6,
+      "school": "evocation",
+      "castingTime": "1 action",
+      "range": "150 feet",
+      "components": {
+        "verbal": true,
+        "somatic": true,
+        "material": true,
+        "materials": "a bit of fur; a piece of amber, glass, or a crystal rod; and three silver pins"
+      },
+      "duration": "Instantaneous",
+      "description": "You create a bolt of lightning that arcs toward a target of your choice that you can see within range. Three bolts then leap from that target to as many as three other targets, each of which must be within 30 feet of the first target. A target can be a creature or an object and can be targeted by only one of the bolts.\n\nA target must make a Dexterity saving throw. The target takes 10d8 lightning damage on a failed save, or half as much damage on a successful one.",
+      "atHigherLevels": "When you cast this spell using a spell slot of 7th level or higher, one additional bolt leaps from the first target to another target for each slot level above 6th.",
+      "damageType": "lightning",
+      "savingThrow": "dexterity",
+      "damage": "10d8",
+      "tags": ["sorcerer", "wizard", "damage", "lightning"]
+    },
+    {
+      "id": "charm-person",
+      "name": "Charm Person",
+      "level": 1,
+      "school": "enchantment",
+      "castingTime": "1 action",
+      "range": "30 feet",
+      "components": {
+        "verbal": true,
+        "somatic": true,
+        "material": false,
+        "materials": ""
+      },
+      "duration": "1 hour",
+      "description": "You attempt to charm a humanoid you can see within range. It must make a Wisdom saving throw, and does so with advantage if you or your companions are fighting it. If it fails the saving throw, it is charmed by you until the spell ends or until you or your companions do anything harmful to it. The charmed creature regards you as a friendly acquaintance. When the spell ends, the creature knows it was charmed by you.",
+      "atHigherLevels": "When you cast this spell using a spell slot of 2nd level or higher, you can target one additional creature for each slot level above 1st. The creatures must be within 30 feet of each other when you target them.",
+      "savingThrow": "wisdom",
+      "tags": ["bard", "druid", "sorcerer", "warlock", "wizard", "charm", "social"]
+    },
+    {
+      "id": "cloudkill",
+      "name": "Cloudkill",
+      "level": 5,
+      "school": "conjuration",
+      "castingTime": "1 action",
+      "range": "120 feet",
+      "components": {
+        "verbal": true,
+        "somatic": true,
+        "material": false,
+        "materials": ""
+      },
+      "duration": "Concentration, up to 10 minutes",
+      "description": "You create a 20-foot-radius sphere of poisonous, yellow-green fog centered on a point you choose within range. The fog spreads around corners. It lasts for the duration or until strong wind disperses the fog, ending the spell. Its area is heavily obscured.\n\nWhen a creature enters the spell's area for the first time on a turn or starts its turn there, that creature must make a Constitution saving throw. The creature takes 5d8 poison damage on a failed save, or half as much damage on a successful one. Creatures are affected even if they hold their breath or don't need to breathe.\n\nThe fog moves 10 feet away from you at the start of each of your turns, rolling along the surface of the ground. The vapors, being heavier than air, sink to the lowest level of the land, even pouring down openings.",
+      "atHigherLevels": "When you cast this spell using a spell slot of 6th level or higher, the damage increases by 1d8 for each slot level above 5th.",
+      "damageType": "poison",
+      "savingThrow": "constitution",
+      "damage": "5d8",
+      "damageAtHigherLevels": {
+        "5": "5d8",
+        "6": "6d8",
+        "7": "7d8",
+        "8": "8d8",
+        "9": "9d8"
+      },
+      "areaOfEffect": {
+        "type": "sphere",
+        "size": 20
+      },
+      "tags": ["sorcerer", "wizard", "damage", "area", "control"]
+    },
+    {
+      "id": "color-spray",
+      "name": "Color Spray",
+      "level": 1,
+      "school": "illusion",
+      "castingTime": "1 action",
+      "range": "Self (15-foot cone)",
+      "components": {
+        "verbal": true,
+        "somatic": true,
+        "material": true,
+        "materials": "a pinch of powder or sand that is colored red, yellow, and blue"
+      },
+      "duration": "1 round",
+      "description": "A dazzling array of flashing, colored light springs from your hand. Roll 6d10; the total is how many hit points of creatures this spell can affect. Creatures in a 15-foot cone originating from you are affected in ascending order of their current hit points (ignoring unconscious creatures and creatures that can't see).\n\nStarting with the creature that has the lowest current hit points, each creature affected by this spell is blinded until the spell ends. Subtract each creature's hit points from the total before moving on to the creature with the next lowest hit points. A creature's hit points must be equal to or less than the remaining total for that creature to be affected.",
+      "atHigherLevels": "When you cast this spell using a spell slot of 2nd level or higher, roll an additional 2d10 for each slot level above 1st.",
+      "areaOfEffect": {
+        "type": "cone",
+        "size": 15
+      },
+      "tags": ["sorcerer", "wizard", "control", "debuff"]
+    },
+    {
+      "id": "cone-of-cold",
+      "name": "Cone of Cold",
+      "level": 5,
+      "school": "evocation",
+      "castingTime": "1 action",
+      "range": "Self (60-foot cone)",
+      "components": {
+        "verbal": true,
+        "somatic": true,
+        "material": true,
+        "materials": "a small crystal or glass cone"
+      },
+      "duration": "Instantaneous",
+      "description": "A blast of cold air erupts from your hands. Each creature in a 60-foot cone must make a Constitution saving throw. A creature takes 8d8 cold damage on a failed save, or half as much damage on a successful one.\n\nA creature killed by this spell becomes a frozen statue until it thaws.",
+      "atHigherLevels": "When you cast this spell using a spell slot of 6th level or higher, the damage increases by 1d8 for each slot level above 5th.",
+      "damageType": "cold",
+      "savingThrow": "constitution",
+      "damage": "8d8",
+      "damageAtHigherLevels": {
+        "5": "8d8",
+        "6": "9d8",
+        "7": "10d8",
+        "8": "11d8",
+        "9": "12d8"
+      },
+      "areaOfEffect": {
+        "type": "cone",
+        "size": 60
+      },
+      "tags": ["sorcerer", "wizard", "damage", "area"]
+    },
+    {
+      "id": "counterspell",
+      "name": "Counterspell",
+      "level": 3,
+      "school": "abjuration",
+      "castingTime": "1 reaction, which you take when you see a creature within 60 feet of you casting a spell",
+      "range": "60 feet",
+      "components": {
+        "verbal": false,
+        "somatic": true,
+        "material": false,
+        "materials": ""
+      },
+      "duration": "Instantaneous",
+      "description": "You attempt to interrupt a creature in the process of casting a spell. If the creature is casting a spell of 3rd level or lower, its spell fails and has no effect. If it is casting a spell of 4th level or higher, make an ability check using your spellcasting ability. The DC equals 10 + the spell's level. On a success, the creature's spell fails and has no effect.",
+      "atHigherLevels": "When you cast this spell using a spell slot of 4th level or higher, the interrupted spell has no effect if its level is less than or equal to the level of the spell slot you used.",
+      "tags": ["sorcerer", "warlock", "wizard", "control", "reaction"]
+    },
+    {
+      "id": "cure-wounds",
+      "name": "Cure Wounds",
+      "level": 1,
+      "school": "evocation",
+      "castingTime": "1 action",
+      "range": "Touch",
+      "components": {
+        "verbal": true,
+        "somatic": true,
+        "material": false,
+        "materials": ""
+      },
+      "duration": "Instantaneous",
+      "description": "A creature you touch regains a number of hit points equal to 1d8 + your spellcasting ability modifier. This spell has no effect on undead or constructs.",
+      "atHigherLevels": "When you cast this spell using a spell slot of 2nd level or higher, the healing increases by 1d8 for each slot level above 1st.",
+      "healing": "1d8 + spellcasting ability modifier",
+      "healingAtHigherLevels": {
+        "1": "1d8",
+        "2": "2d8",
+        "3": "3d8",
+        "4": "4d8",
+        "5": "5d8",
+        "6": "6d8",
+        "7": "7d8",
+        "8": "8d8",
+        "9": "9d8"
+      },
+      "tags": ["artificer", "bard", "cleric", "druid", "paladin", "ranger", "healing"]
+    },
+    {
+      "id": "dancing-lights",
+      "name": "Dancing Lights",
+      "level": 0,
+      "school": "evocation",
+      "castingTime": "1 action",
+      "range": "120 feet",
+      "components": {
+        "verbal": true,
+        "somatic": true,
+        "material": true,
+        "materials": "a bit of phosphorus or wychwood, or a glowworm"
+      },
+      "duration": "Concentration, up to 1 minute",
+      "description": "You create up to four torch-sized lights within range, making them appear as torches, lanterns, or glowing orbs that hover in the air for the duration. You can also combine the four lights into one glowing vaguely humanoid form of Medium size. Whichever form you choose, each light sheds dim light in a 10-foot radius.\n\nAs a bonus action on your turn, you can move the lights up to 60 feet to a new spot within range. A light must be within 20 feet of another light created by this spell, and a light winks out if it exceeds the spell's range.",
+      "atHigherLevels": "",
+      "tags": ["artificer", "bard", "sorcerer", "wizard", "cantrip", "utility", "light"]
+    },
+    {
+      "id": "darkness",
+      "name": "Darkness",
+      "level": 2,
+      "school": "evocation",
+      "castingTime": "1 action",
+      "range": "60 feet",
+      "components": {
+        "verbal": true,
+        "somatic": false,
+        "material": true,
+        "materials": "bat fur and a drop of pitch or piece of coal"
+      },
+      "duration": "Concentration, up to 10 minutes",
+      "description": "Magical darkness spreads from a point you choose within range to fill a 15-foot-radius sphere for the duration. The darkness spreads around corners. A creature with darkvision can't see through this darkness, and nonmagical light can't illuminate it.\n\nIf the point you choose is on an object you are holding or one that isn't being worn or carried, the darkness emanates from the object and moves with it. Completely covering the source of the darkness with an opaque object, such as a bowl or a helm, blocks the darkness.\n\nIf any of this spell's area overlaps with an area of light created by a spell of 2nd level or lower, the spell that created the light is dispelled.",
+      "atHigherLevels": "",
+      "areaOfEffect": {
+        "type": "sphere",
+        "size": 15
+      },
+      "tags": ["sorcerer", "warlock", "wizard", "control", "utility"]
+    },
+    {
+      "id": "detect-magic",
+      "name": "Detect Magic",
+      "level": 1,
+      "school": "divination",
+      "castingTime": "1 action",
+      "ritual": true,
+      "range": "Self",
+      "components": {
+        "verbal": true,
+        "somatic": true,
+        "material": false,
+        "materials": ""
+      },
+      "duration": "Concentration, up to 10 minutes",
+            "description": "For the duration, you sense the presence of magic within 30 feet of you. If you sense magic in this way, you can use your action to see a faint aura around any visible creature or object in the area that bears magic, and you learn its school of magic, if any.\n\nThe spell can penetrate most barriers, but it is blocked by 1 foot of stone, 1 inch of common metal, a thin sheet of lead, or 3 feet of wood or dirt.",
+      "atHigherLevels": "",
+      "areaOfEffect": {
+        "type": "sphere",
+        "size": 30
+      },
+      "tags": ["artificer", "bard", "cleric", "druid", "paladin", "ranger", "sorcerer", "wizard", "ritual", "divination", "utility"]
+    },
+    {
+      "id": "dispel-magic",
+      "name": "Dispel Magic",
+      "level": 3,
+      "school": "abjuration",
+      "castingTime": "1 action",
+      "range": "120 feet",
+      "components": {
+        "verbal": true,
+        "somatic": true,
+        "material": false,
+        "materials": ""
+      },
+      "duration": "Instantaneous",
+      "description": "Choose one creature, object, or magical effect within range. Any spell of 3rd level or lower on the target ends. For each spell of 4th level or higher on the target, make an ability check using your spellcasting ability. The DC equals 10 + the spell's level. On a successful check, the spell ends.",
+      "atHigherLevels": "When you cast this spell using a spell slot of 4th level or higher, you automatically end the effects of a spell on the target if the spell's level is equal to or less than the level of the spell slot you used.",
+      "tags": ["bard", "cleric", "druid", "paladin", "sorcerer", "warlock", "wizard", "utility", "abjuration"]
+    },
+    {
+      "id": "fireball",
+      "name": "Fireball",
+      "level": 3,
+      "school": "evocation",
+      "castingTime": "1 action",
+      "range": "150 feet",
+      "components": {
+        "verbal": true,
+        "somatic": true,
+        "material": true,
+        "materials": "a tiny ball of bat guano and sulfur"
+      },
+      "duration": "Instantaneous",
+      "description": "A bright streak flashes from your pointing finger to a point you choose within range and then blossoms with a low roar into an explosion of flame. Each creature in a 20-foot-radius sphere centered on that point must make a Dexterity saving throw. A target takes 8d6 fire damage on a failed save, or half as much damage on a successful one.\n\nThe fire spreads around corners. It ignites flammable objects in the area that aren't being worn or carried.",
+      "atHigherLevels": "When you cast this spell using a spell slot of 4th level or higher, the damage increases by 1d6 for each slot level above 3rd.",
+      "damageType": "fire",
+      "savingThrow": "dexterity",
+      "damage": "8d6",
+      "damageAtHigherLevels": {
+        "3": "8d6",
+        "4": "9d6",
+        "5": "10d6",
+        "6": "11d6",
+        "7": "12d6",
+        "8": "13d6",
+        "9": "14d6"
+      },
+      "areaOfEffect": {
+        "type": "sphere",
+        "size": 20
+      },
+      "tags": ["sorcerer", "wizard", "damage", "area"]
+    },
+    {
+      "id": "fly",
+      "name": "Fly",
+      "level": 3,
+      "school": "transmutation",
+      "castingTime": "1 action",
+      "range": "Touch",
+      "components": {
+        "verbal": true,
+        "somatic": true,
+        "material": true,
+        "materials": "a wing feather from any bird"
+      },
+      "duration": "Concentration, up to 10 minutes",
+      "description": "You touch a willing creature. The target gains a flying speed of 60 feet for the duration. When the spell ends, the target falls if it is still aloft, unless it can stop the fall.",
+      "atHigherLevels": "When you cast this spell using a spell slot of 4th level or higher, you can target one additional creature for each slot level above 3rd.",
+      "tags": ["artificer", "sorcerer", "warlock", "wizard", "movement", "buff"]
+    },
+    {
+      "id": "greater-invisibility",
+      "name": "Greater Invisibility",
+      "level": 4,
+      "school": "illusion",
+      "castingTime": "1 action",
+      "range": "Touch",
+      "components": {
+        "verbal": true,
+        "somatic": true,
+        "material": false,
+        "materials": ""
+      },
+      "duration": "Concentration, up to 1 minute",
+      "description": "You or a creature you touch becomes invisible until the spell ends. Anything the target is wearing or carrying is invisible as long as it is on the target's person.",
+      "atHigherLevels": "",
+      "tags": ["bard", "sorcerer", "wizard", "stealth", "buff"]
+    },
+    {
+      "id": "healing-word",
+      "name": "Healing Word",
+      "level": 1,
+      "school": "evocation",
+      "castingTime": "1 bonus action",
+      "range": "60 feet",
+      "components": {
+        "verbal": true,
+        "somatic": false,
+        "material": false,
+        "materials": ""
+      },
+      "duration": "Instantaneous",
+      "description": "A creature of your choice that you can see within range regains hit points equal to 1d4 + your spellcasting ability modifier. This spell has no effect on undead or constructs.",
+      "atHigherLevels": "When you cast this spell using a spell slot of 2nd level or higher, the healing increases by 1d4 for each slot level above 1st.",
+      "healing": "1d4 + spellcasting ability modifier",
+      "healingAtHigherLevels": {
+        "1": "1d4",
+        "2": "2d4",
+        "3": "3d4",
+        "4": "4d4",
+        "5": "5d4",
+        "6": "6d4",
+        "7": "7d4",
+        "8": "8d4",
+        "9": "9d4"
+      },
+      "tags": ["bard", "cleric", "druid", "healing", "bonus action"]
+    },
+    {
+      "id": "hold-person",
+      "name": "Hold Person",
+      "level": 2,
+      "school": "enchantment",
+      "castingTime": "1 action",
+      "range": "60 feet",
+      "components": {
+        "verbal": true,
+        "somatic": true,
+        "material": true,
+        "materials": "a small, straight piece of iron"
+      },
+      "duration": "Concentration, up to 1 minute",
+      "description": "Choose a humanoid that you can see within range. The target must succeed on a Wisdom saving throw or be paralyzed for the duration. At the end of each of its turns, the target can make another Wisdom saving throw. On a success, the spell ends on the target.",
+      "atHigherLevels": "When you cast this spell using a spell slot of 3rd level or higher, you can target one additional humanoid for each slot level above 2nd. The humanoids must be within 30 feet of each other when you target them.",
+      "savingThrow": "wisdom",
+      "tags": ["bard", "cleric", "druid", "sorcerer", "warlock", "wizard", "control", "paralysis"]
+    },
+    {
+      "id": "identify",
+      "name": "Identify",
+      "level": 1,
+      "school": "divination",
+      "castingTime": "1 minute",
+      "ritual": true,
+      "range": "Touch",
+      "components": {
+        "verbal": true,
+        "somatic": true,
+        "material": true,
+        "materials": "a pearl worth at least 100 gp and an owl feather"
+      },
+      "duration": "Instantaneous",
+      "description": "You choose one object that you must touch throughout the casting of the spell. If it is a magic item or some other magic-imbued object, you learn its properties and how to use them, whether it requires attunement to use, and how many charges it has, if any. You learn whether any spells are affecting the item and what they are. If the item was created by a spell, you learn which spell created it.\n\nIf you instead touch a creature throughout the casting, you learn what spells, if any, are currently affecting it.",
+      "atHigherLevels": "",
+      "tags": ["artificer", "bard", "wizard", "ritual", "divination", "utility"]
+    },
+    {
+      "id": "invisibility",
+      "name": "Invisibility",
+      "level": 2,
+      "school": "illusion",
+      "castingTime": "1 action",
+      "range": "Touch",
+      "components": {
+        "verbal": true,
+        "somatic": true,
+        "material": true,
+        "materials": "an eyelash encased in gum arabic"
+      },
+      "duration": "Concentration, up to 1 hour",
+      "description": "A creature you touch becomes invisible until the spell ends. Anything the target is wearing or carrying is invisible as long as it is on the target's person. The spell ends for a target that attacks or casts a spell.",
+      "atHigherLevels": "When you cast this spell using a spell slot of 3rd level or higher, you can target one additional creature for each slot level above 2nd.",
+      "tags": ["artificer", "bard", "sorcerer", "warlock", "wizard", "stealth", "buff"]
+    },
+    {
+      "id": "lightning-bolt",
+      "name": "Lightning Bolt",
+      "level": 3,
+      "school": "evocation",
+      "castingTime": "1 action",
+      "range": "Self (100-foot line)",
+      "components": {
+        "verbal": true,
+        "somatic": true,
+        "material": true,
+        "materials": "a bit of fur and a rod of amber, crystal, or glass"
+      },
+      "duration": "Instantaneous",
+      "description": "A stroke of lightning forming a line 100 feet long and 5 feet wide blasts out from you in a direction you choose. Each creature in the line must make a Dexterity saving throw. A creature takes 8d6 lightning damage on a failed save, or half as much damage on a successful one.\n\nThe lightning ignites flammable objects in the area that aren't being worn or carried.",
+      "atHigherLevels": "When you cast this spell using a spell slot of 4th level or higher, the damage increases by 1d6 for each slot level above 3rd.",
+      "damageType": "lightning",
+      "savingThrow": "dexterity",
+      "damage": "8d6",
+      "damageAtHigherLevels": {
+        "3": "8d6",
+        "4": "9d6",
+        "5": "10d6",
+        "6": "11d6",
+        "7": "12d6",
+        "8": "13d6",
+        "9": "14d6"
+      },
+      "areaOfEffect": {
+        "type": "line",
+        "length": 100,
+        "width": 5
+      },
+      "tags": ["sorcerer", "wizard", "damage", "area"]
+    },
+    {
+      "id": "mage-armor",
+      "name": "Mage Armor",
+      "level": 1,
+      "school": "abjuration",
+      "castingTime": "1 action",
+      "range": "Touch",
+      "components": {
+        "verbal": true,
+        "somatic": true,
+        "material": true,
+        "materials": "a piece of cured leather"
+      },
+      "duration": "8 hours",
+      "description": "You touch a willing creature who isn't wearing armor, and a protective magical force surrounds it until the spell ends. The target's base AC becomes 13 + its Dexterity modifier. The spell ends if the target dons armor or if you dismiss the spell as an action.",
+      "atHigherLevels": "",
+      "tags": ["sorcerer", "wizard", "protection", "buff"]
+    },
+    {
+      "id": "magic-missile",
+      "name": "Magic Missile",
+      "level": 1,
+      "school": "evocation",
+      "castingTime": "1 action",
+      "range": "120 feet",
+      "components": {
+        "verbal": true,
+        "somatic": true,
+        "material": false,
+        "materials": ""
+      },
+      "duration": "Instantaneous",
+      "description": "You create three glowing darts of magical force. Each dart hits a creature of your choice that you can see within range. A dart deals 1d4 + 1 force damage to its target. The darts all strike simultaneously, and you can direct them to hit one creature or several.",
+      "atHigherLevels": "When you cast this spell using a spell slot of 2nd level or higher, the spell creates one more dart for each slot level above 1st.",
+      "damageType": "force",
+      "damage": "1d4+1 per dart",
+      "tags": ["sorcerer", "wizard", "damage", "force"]
+    },
+    {
+      "id": "mass-cure-wounds",
+      "name": "Mass Cure Wounds",
+      "level": 5,
+      "school": "evocation",
+      "castingTime": "1 action",
+      "range": "60 feet",
+      "components": {
+        "verbal": true,
+        "somatic": true,
+        "material": false,
+        "materials": ""
+      },
+      "duration": "Instantaneous",
+      "description": "A wave of healing energy washes out from a point of your choice within range. Choose up to six creatures in a 30-foot-radius sphere centered on that point. Each target regains hit points equal to 3d8 + your spellcasting ability modifier. This spell has no effect on undead or constructs.",
+      "atHigherLevels": "When you cast this spell using a spell slot of 6th level or higher, the healing increases by 1d8 for each slot level above 5th.",
+      "healing": "3d8 + spellcasting ability modifier",
+      "healingAtHigherLevels": {
+        "5": "3d8",
+        "6": "4d8",
+        "7": "5d8",
+        "8": "6d8",
+        "9": "7d8"
+      },
+      "areaOfEffect": {
+        "type": "sphere",
+        "size": 30
+      },
+      "tags": ["bard", "cleric", "druid", "healing", "area"]
+    },
+    {
+      "id": "mass-healing-word",
+      "name": "Mass Healing Word",
+      "level": 3,
+      "school": "evocation",
+      "castingTime": "1 bonus action",
+      "range": "60 feet",
+      "components": {
+        "verbal": true,
+        "somatic": false,
+        "material": false,
+        "materials": ""
+      },
+      "duration": "Instantaneous",
+      "description": "As you call out words of restoration, up to six creatures of your choice that you can see within range regain hit points equal to 1d4 + your spellcasting ability modifier. This spell has no effect on undead or constructs.",
+      "atHigherLevels": "When you cast this spell using a spell slot of 4th level or higher, the healing increases by 1d4 for each slot level above 3rd.",
+      "healing": "1d4 + spellcasting ability modifier",
+      "healingAtHigherLevels": {
+        "3": "1d4",
+        "4": "2d4",
+        "5": "3d4",
+        "6": "4d4",
+        "7": "5d4",
+        "8": "6d4",
+        "9": "7d4"
+      },
+      "tags": ["bard", "cleric", "healing", "area", "bonus action"]
+    },
+    {
+      "id": "meteor-swarm",
+      "name": "Meteor Swarm",
+      "level": 9,
+      "school": "evocation",
+      "castingTime": "1 action",
+      "range": "1 mile",
+      "components": {
+        "verbal": true,
+        "somatic": true,
+        "material": false,
+        "materials": ""
+      },
+      "duration": "Instantaneous",
+      "description": "Blazing orbs of fire plummet to the ground at four different points you can see within range. Each creature in a 40-foot-radius sphere centered on each point you choose must make a Dexterity saving throw. The sphere spreads around corners. A creature takes 20d6 fire damage and 20d6 bludgeoning damage on a failed save, or half as much damage on a successful one. A creature in the area of more than one fiery burst is affected only once.\n\nThe spell damages objects in the area and ignites flammable objects that aren't being worn or carried.",
+      "atHigherLevels": "",
+      "damageType": ["fire", "bludgeoning"],
+      "savingThrow": "dexterity",
+      "damage": "20d6 fire and 20d6 bludgeoning",
+      "areaOfEffect": {
+        "type": "spheres",
+        "count": 4,
+        "size": 40
+      },
+      "tags": ["sorcerer", "wizard", "damage", "area"]
+    },
+    {
+      "id": "misty-step",
+      "name": "Misty Step",
+      "level": 2,
+      "school": "conjuration",
+      "castingTime": "1 bonus action",
+      "range": "Self",
+      "components": {
+        "verbal": true,
+        "somatic": false,
+        "material": false,
+        "materials": ""
+      },
+      "duration": "Instantaneous",
+      "description": "Briefly surrounded by silvery mist, you teleport up to 30 feet to an unoccupied space that you can see.",
+      "atHigherLevels": "",
+      "tags": ["sorcerer", "warlock", "wizard", "teleportation", "movement", "bonus action"]
+    },
+    {
+      "id": "polymorph",
+      "name": "Polymorph",
+      "level": 4,
+      "school": "transmutation",
+      "castingTime": "1 action",
+      "range": "60 feet",
+      "components": {
+        "verbal": true,
+        "somatic": true,
+        "material": true,
+        "materials": "a caterpillar cocoon"
+      },
+      "duration": "Concentration, up to 1 hour",
+      "description": "This spell transforms a creature that you can see within range into a new form. An unwilling creature must make a Wisdom saving throw to avoid the effect. The spell has no effect on a shapechanger or a creature with 0 hit points.\n\nThe transformation lasts for the duration, or until the target drops to 0 hit points or dies. The new form can be any beast whose challenge rating is equal to or less than the target's (or the target's level, if it doesn't have a challenge rating). The target's game statistics, including mental ability scores, are replaced by the statistics of the chosen beast. It retains its alignment and personality.\n\nThe target assumes the hit points of its new form. When it reverts to its normal form, the creature returns to the number of hit points it had before it transformed. If it reverts as a result of dropping to 0 hit points, any excess damage carries over to its normal form. As long as the excess damage doesn't reduce the creature's normal form to 0 hit points, it isn't knocked unconscious.\n\nThe creature is limited in the actions it can perform by the nature of its new form, and it can't speak, cast spells, or take any other action that requires hands or speech.\n\nThe target's gear melds into the new form. The creature can't activate, use, wield, or otherwise benefit from any of its equipment.",
+      "atHigherLevels": "",
+      "savingThrow": "wisdom",
+      "tags": ["bard", "druid", "sorcerer", "wizard", "transformation", "control"]
+    },
+    {
+      "id": "power-word-kill",
+      "name": "Power Word Kill",
+      "level": 9,
+      "school": "enchantment",
+      "castingTime": "1 action",
+      "range": "60 feet",
+      "components": {
+        "verbal": true,
+        "somatic": false,
+        "material": false,
+        "materials": ""
+      },
+      "duration": "Instantaneous",
+      "description": "You utter a word of power that can compel one creature you can see within range to die instantly. If the creature you choose has 100 hit points or fewer, it dies. Otherwise, the spell has no effect.",
+      "atHigherLevels": "",
+      "tags": ["bard", "sorcerer", "warlock", "wizard", "death", "instant"]
+    },
+    {
+      "id": "prestidigitation",
+      "name": "Prestidigitation",
+      "level": 0,
+      "school": "transmutation",
+      "castingTime": "1 action",
+      "range": "10 feet",
+      "components": {
+        "verbal": true,
+        "somatic": true,
+        "material": false,
+        "materials": ""
+      },
+      "duration": "Up to 1 hour",
+      "description": "This spell is a minor magical trick that novice spellcasters use for practice. You create one of the following magical effects within range:\n\n• You create an instantaneous, harmless sensory effect, such as a shower of sparks, a puff of wind, faint musical notes, or an odd odor.\n• You instantaneously light or snuff out a candle, a torch, or a small campfire.\n• You instantaneously clean or soil an object no larger than 1 cubic foot.\n• You chill, warm, or flavor up to 1 cubic foot of nonliving material for 1 hour.\n• You make a color, a small mark, or a symbol appear on an object or a surface for 1 hour.\n• You create a nonmagical trinket or an illusory image that can fit in your hand and that lasts until the end of your next turn.\n\nIf you cast this spell multiple times, you can have up to three of its non-instantaneous effects active at a time, and you can dismiss such an effect as an action.",
+      "atHigherLevels": "",
+      "tags": ["artificer", "bard", "sorcerer", "warlock", "wizard", "cantrip", "utility"]
+    },
+    {
+      "id": "protection-from-evil-and-good",
+      "name": "Protection from Evil and Good",
+      "level": 1,
+      "school": "abjuration",
+      "castingTime": "1 action",
+      "range": "Touch",
+      "components": {
+        "verbal": true,
+        "somatic": true,
+        "material": true,
+        "materials": "holy water or powdered silver and iron, which the spell consumes"
+      },
+      "duration": "Concentration, up to 10 minutes",
+      "description": "Until the spell ends, one willing creature you touch is protected against certain types of creatures: aberrations, celestials, elementals, fey, fiends, and undead.\n\nThe protection grants several benefits. Creatures of those types have disadvantage on attack rolls against the target. The target also can't be charmed, frightened, or possessed by them. If the target is already charmed, frightened, or possessed by such a creature, the target has advantage on any new saving throw against the relevant effect.",
+      "atHigherLevels": "",
+      "tags": ["cleric", "paladin", "warlock", "wizard", "protection", "buff"]
+    },
+    {
+      "id": "raise-dead",
+      "name": "Raise Dead",
+      "level": 5,
+      "school": "necromancy",
+      "castingTime": "1 hour",
+      "range": "Touch",
+      "components": {
+        "verbal": true,
+        "somatic": true,
+        "material": true,
+        "materials": "a diamond worth at least 500 gp, which the spell consumes"
+      },
+      "duration": "Instantaneous",
+      "description": "You return a dead creature you touch to life, provided that it has been dead no longer than 10 days. If the creature's soul is both willing and at liberty to rejoin the body, the creature returns to life with 1 hit point.\n\nThis spell also neutralizes any poisons and cures nonmagical diseases that affected the creature at the time it died. This spell doesn't, however, remove magical diseases, curses, or similar effects; if these aren't first removed prior to casting the spell, they take effect when the creature returns to life. The spell can't return an undead creature to life.\n\nThis spell closes all mortal wounds, but it doesn't restore missing body parts. If the creature is lacking body parts or organs integral for its survival—its head, for instance—the spell automatically fails.\n\nComing back from the dead is an ordeal. The target takes a −4 penalty to all attack rolls, saving throws, and ability checks. Every time the target finishes a long rest, the penalty is reduced by 1 until it disappears.",
+      "atHigherLevels": "",
+      "tags": ["bard", "cleric", "paladin", "resurrection", "healing"]
+    },
+    {
+      "id": "revivify",
+      "name": "Revivify",
+      "level": 3,
+      "school": "necromancy",
+      "castingTime": "1 action",
+      "range": "Touch",
+      "components": {
+        "verbal": true,
+        "somatic": true,
+        "material": true,
+        "materials": "diamonds worth 300 gp, which the spell consumes"
+      },
+      "duration": "Instantaneous",
+      "description": "You touch a creature that has died within the last minute. That creature returns to life with 1 hit point. This spell can't return to life a creature that has died of old age, nor can it restore any missing body parts.",
+      "atHigherLevels": "",
+      "tags": ["artificer", "cleric", "paladin", "ranger", "resurrection", "healing"]
+    },
+    {
+      "id": "sacred-flame",
+      "name": "Sacred Flame",
+      "level": 0,
+      "school": "evocation",
+      "castingTime": "1 action",
+      "range": "60 feet",
+      "components": {
+        "verbal": true,
+        "somatic": true,
+        "material": false,
+        "materials": ""
+      },
+      "duration": "Instantaneous",
+      "description": "Flame-like radiance descends on a creature that you can see within range. The target must succeed on a Dexterity saving throw or take 1d8 radiant damage. The target gains no benefit from cover for this saving throw.\n\nThe spell's damage increases by 1d8 when you reach 5th level (2d8), 11th level (3d8), and 17th level (4d8).",
+      "atHigherLevels": "",
+      "damageType": "radiant",
+      "savingThrow": "dexterity",
+      "damageAtCharacterLevel": {
+        "1": "1d8",
+        "5": "2d8",
+        "11": "3d8",
+        "17": "4d8"
+      },
+      "tags": ["cleric", "cantrip", "damage", "radiant"]
+    },
+    {
+      "id": "shield",
+      "name": "Shield",
+      "level": 1,
+      "school": "abjuration",
+      "castingTime": "1 reaction, which you take when you are hit by an attack or targeted by the magic missile spell",
+      "range": "Self",
+      "components": {
+        "verbal": true,
+        "somatic": true,
+        "material": false,
+        "materials": ""
+      },
+      "duration": "1 round",
+      "description": "An invisible barrier of magical force appears and protects you. Until the start of your next turn, you have a +5 bonus to AC, including against the triggering attack, and you take no damage from magic missile.",
+      "atHigherLevels": "",
+      "tags": ["sorcerer", "wizard", "protection", "reaction"]
+    },
+    {
+      "id": "silence",
+      "name": "Silence",
+      "level": 2,
+      "school": "illusion",
+      "castingTime": "1 action",
+      "ritual": true,
+      "range": "120 feet",
+      "components": {
+        "verbal": true,
+        "somatic": true,
+        "material": false,
+        "materials": ""
+      },
+      "duration": "Concentration, up to 10 minutes",
+      "description": "For the duration, no sound can be created within or pass through a 20-foot-radius sphere centered on a point you choose within range. Any creature or object entirely inside the sphere is immune to thunder damage, and creatures are deafened while entirely inside it. Casting a spell that includes a verbal component is impossible there.",
+      "atHigherLevels": "",
+      "areaOfEffect": {
+        "type": "sphere",
+        "size": 20
+      },
+      "tags": ["bard", "cleric", "ranger", "ritual", "control", "utility"]
+    },
+    {
+      "id": "sleep",
+      "name": "Sleep",
+      "level": 1,
+      "school": "enchantment",
+      "castingTime": "1 action",
+      "range": "90 feet",
+      "components": {
+        "verbal": true,
+        "somatic": true,
+        "material": true,
+        "materials": "a pinch of fine sand, rose petals, or a cricket"
+      },
+      "duration": "1 minute",
+      "description": "This spell sends creatures into a magical slumber. Roll 5d8; the total is how many hit points of creatures this spell can affect. Creatures within 20 feet of a point you choose within range are affected in ascending order of their current hit points (ignoring unconscious creatures).\n\nStarting with the creature that has the lowest current hit points, each creature affected by this spell falls unconscious until the spell ends, the sleeper takes damage, or someone uses an action to shake or slap the sleeper awake. Subtract each creature's hit points from the total before moving on to the creature with the next lowest hit points. A creature's hit points must be equal to or less than the remaining total for that creature to be affected.\n\nUndead and creatures immune to being charmed aren't affected by this spell.",
+      "atHigherLevels": "When you cast this spell using a spell slot of 2nd level or higher, roll an additional 2d8 for each slot level above 1st.",
+      "areaOfEffect": {
+        "type": "sphere",
+        "size": 20
+      },
+      "tags": ["bard", "sorcerer", "wizard", "control", "enchantment"]
+    },
+    {
+      "id": "spiritual-weapon",
+      "name": "Spiritual Weapon",
+      "level": 2,
+      "school": "evocation",
+      "castingTime": "1 bonus action",
+      "range": "60 feet",
+      "components": {
+        "verbal": true,
+        "somatic": true,
+        "material": false,
+        "materials": ""
+      },
+      "duration": "1 minute",
+            "description": "You create a floating, spectral weapon within range that lasts for the duration or until you cast this spell again. When you cast the spell, you can make a melee spell attack against a creature within 5 feet of the weapon. On a hit, the target takes force damage equal to 1d8 + your spellcasting ability modifier.\n\nAs a bonus action on your turn, you can move the weapon up to 20 feet and repeat the attack against a creature within 5 feet of it.",
+      "atHigherLevels": "When you cast this spell using a spell slot of 3rd level or higher, the damage increases by 1d8 for every two slot levels above 2nd.",
+      "damageType": "force",
+      "damage": "1d8 + spellcasting ability modifier",
+      "damageAtHigherLevels": {
+        "2": "1d8",
+        "3": "2d8",
+        "4": "2d8",
+        "5": "3d8",
+        "6": "3d8",
+        "7": "4d8",
+        "8": "4d8",
+        "9": "5d8"
+      },
+      "tags": ["cleric", "damage", "bonus action", "force"]
+    },
+    {
+      "id": "suggestion",
+      "name": "Suggestion",
+      "level": 2,
+      "school": "enchantment",
+      "castingTime": "1 action",
+      "range": "30 feet",
+      "components": {
+        "verbal": true,
+        "somatic": false,
+        "material": true,
+        "materials": "a snake's tongue and either a bit of honeycomb or a drop of sweet oil"
+      },
+      "duration": "Concentration, up to 8 hours",
+      "description": "You suggest a course of activity (limited to a sentence or two) and magically influence a creature you can see within range that can hear and understand you. Creatures that can't be charmed are immune to this effect. The suggestion must be worded in such a manner as to make the course of action sound reasonable. Asking the creature to stab itself, throw itself onto a spear, immolate itself, or do some other obviously harmful act ends the spell.\n\nThe target must make a Wisdom saving throw. On a failed save, it pursues the course of action you described to the best of its ability. The suggested course of action can continue for the entire duration. If the suggested activity can be completed in a shorter time, the spell ends when the subject finishes what it was asked to do.\n\nYou can also specify conditions that will trigger a special activity during the duration. For example, you might suggest that a knight give her warhorse to the first beggar she meets. If the condition isn't met before the spell expires, the activity isn't performed.\n\nIf you or any of your companions damage the target, the spell ends.",
+      "atHigherLevels": "",
+      "savingThrow": "wisdom",
+      "tags": ["bard", "sorcerer", "warlock", "wizard", "charm", "social", "control"]
+    },
+    {
+      "id": "teleport",
+      "name": "Teleport",
+      "level": 7,
+      "school": "conjuration",
+      "castingTime": "1 action",
+      "range": "10 feet",
+      "components": {
+        "verbal": true,
+        "somatic": false,
+        "material": false,
+        "materials": ""
+      },
+      "duration": "Instantaneous",
+      "description": "This spell instantly transports you and up to eight willing creatures of your choice that you can see within range, or a single object that you can see within range, to a destination you select. If you target an object, it must be able to fit entirely inside a 10-foot cube, and it can't be held or carried by an unwilling creature.\n\nThe destination you choose must be known to you, and it must be on the same plane of existence as you. Your familiarity with the destination determines whether you arrive there successfully. The DM rolls d100 and consults the table.\n\nFamiliarity | Mishap | Similar Area | Off Target | On Target\n--- | --- | --- | --- | ---\nPermanent circle | — | — | — | 01–100\nAssociated object | — | — | — | 01–100\nVery familiar | 01–05 | 06–13 | 14–24 | 25–100\nSeen casually | 01–33 | 34–43 | 44–53 | 54–100\nViewed once | 01–43 | 44–53 | 54–73 | 74–100\nDescription | 01–43 | 44–53 | 54–73 | 74–100\nFalse destination | 01–50 | 51–100 | — | —\n\nFamiliarity. \"Permanent circle\" means a permanent teleportation circle whose sigil sequence you know. \"Associated object\" means that you possess an object taken from the desired destination within the last six months, such as a book from a wizard's library, bed linen from a royal suite, or a chunk of marble from a lich's secret tomb.\n\n\"Very familiar\" is a place you have been very often, a place you have carefully studied, or a place you can see when you cast the spell. \"Seen casually\" is someplace you have seen more than once but with which you aren't very familiar. \"Viewed once\" is a place you have seen once, possibly using magic. \"Description\" is a place whose location and appearance you know through someone else's description, perhaps from a map.\n\n\"False destination\" is a place that doesn't exist. Perhaps you tried to scry an enemy's sanctum but instead viewed an illusion, or you are attempting to teleport to a familiar location that no longer exists.\n\nOn Target. You and your group (or the target object) appear where you want to.\n\nOff Target. You and your group (or the target object) appear a random distance away from the destination in a random direction. Distance off target is 1d10 × 1d10 percent of the distance that was to be traveled. For example, if you tried to travel 120 miles, landed off target, and rolled a 5 and a 3 on the two d10s, then you would be off target by 15 percent, or 18 miles. The DM determines the direction off target randomly by rolling a d8 and designating 1 as north, 2 as northeast, 3 as east, and so on around the points of the compass. If you were teleporting to a coastal city and wound up 18 miles out at sea, you could be in trouble.\n\nSimilar Area. You and your group (or the target object) wind up in a different area that's visually or thematically similar to the target area. If you are heading for your home laboratory, for example, you might wind up in another wizard's laboratory or in an alchemical supply shop that has many of the same tools and implements as your laboratory. Generally, you appear in the closest similar place, but since the spell has no range limit, you could conceivably wind up anywhere on the plane.\n\nMishap. The spell's unpredictable magic results in a difficult journey. Each teleporting creature (or the target object) takes 3d10 force damage, and the DM rerolls on the table to see where you wind up (multiple mishaps can occur, dealing damage each time).",
+      "atHigherLevels": "",
+      "tags": ["bard", "sorcerer", "wizard", "teleportation", "movement"]
+    },
+    {
+      "id": "thaumaturgy",
+      "name": "Thaumaturgy",
+      "level": 0,
+      "school": "transmutation",
+      "castingTime": "1 action",
+      "range": "30 feet",
+      "components": {
+        "verbal": true,
+        "somatic": false,
+        "material": false,
+        "materials": ""
+      },
+      "duration": "Up to 1 minute",
+      "description": "You manifest a minor wonder, a sign of supernatural power, within range. You create one of the following magical effects within range:\n\n• Your voice booms up to three times as loud as normal for 1 minute.\n• You cause flames to flicker, brighten, dim, or change color for 1 minute.\n• You cause harmless tremors in the ground for 1 minute.\n• You create an instantaneous sound that originates from a point of your choice within range, such as a rumble of thunder, the cry of a raven, or ominous whispers.\n• You instantaneously cause an unlocked door or window to fly open or slam shut.\n• You alter the appearance of your eyes for 1 minute.\n\nIf you cast this spell multiple times, you can have up to three of its 1-minute effects active at a time, and you can dismiss such an effect as an action.",
+      "atHigherLevels": "",
+      "tags": ["cleric", "cantrip", "utility"]
+    },
+    {
+      "id": "thunderwave",
+      "name": "Thunderwave",
+      "level": 1,
+      "school": "evocation",
+      "castingTime": "1 action",
+      "range": "Self (15-foot cube)",
+      "components": {
+        "verbal": true,
+        "somatic": true,
+        "material": false,
+        "materials": ""
+      },
+      "duration": "Instantaneous",
+      "description": "A wave of thunderous force sweeps out from you. Each creature in a 15-foot cube originating from you must make a Constitution saving throw. On a failed save, a creature takes 2d8 thunder damage and is pushed 10 feet away from you. On a successful save, the creature takes half as much damage and isn't pushed.\n\nIn addition, unsecured objects that are completely within the area of effect are automatically pushed 10 feet away from you by the spell's effect, and the spell emits a thunderous boom audible out to 300 feet.",
+      "atHigherLevels": "When you cast this spell using a spell slot of 2nd level or higher, the damage increases by 1d8 for each slot level above 1st.",
+      "damageType": "thunder",
+      "savingThrow": "constitution",
+      "damage": "2d8",
+      "damageAtHigherLevels": {
+        "1": "2d8",
+        "2": "3d8",
+        "3": "4d8",
+        "4": "5d8",
+        "5": "6d8",
+        "6": "7d8",
+        "7": "8d8",
+        "8": "9d8",
+        "9": "10d8"
+      },
+      "areaOfEffect": {
+        "type": "cube",
+        "size": 15
+      },
+      "tags": ["bard", "druid", "sorcerer", "wizard", "damage", "area", "force"]
+    },
+    {
+      "id": "time-stop",
+      "name": "Time Stop",
+      "level": 9,
+      "school": "transmutation",
+      "castingTime": "1 action",
+      "range": "Self",
+      "components": {
+        "verbal": true,
+        "somatic": false,
+        "material": false,
+        "materials": ""
+      },
+      "duration": "Instantaneous",
+      "description": "You briefly stop the flow of time for everyone but yourself. No time passes for other creatures, while you take 1d4 + 1 turns in a row, during which you can use actions and move as normal.\n\nThis spell ends if one of the actions you use during this period, or any effects that you create during this period, affects a creature other than you or an object being worn or carried by someone other than you. In addition, the spell ends if you move to a place more than 1,000 feet from the location where you cast it.",
+      "atHigherLevels": "",
+      "tags": ["sorcerer", "wizard", "time", "control"]
+    },
+    {
+      "id": "true-resurrection",
+      "name": "True Resurrection",
+      "level": 9,
+      "school": "necromancy",
+      "castingTime": "1 hour",
+      "range": "Touch",
+      "components": {
+        "verbal": true,
+        "somatic": true,
+        "material": true,
+        "materials": "a sprinkle of holy water and diamonds worth at least 25,000 gp, which the spell consumes"
+      },
+      "duration": "Instantaneous",
+      "description": "You touch a creature that has been dead for no longer than 200 years and that died for any reason except old age. If the creature's soul is free and willing, the creature is restored to life with all its hit points.\n\nThis spell closes all wounds, neutralizes any poison, cures all diseases, and lifts any curses affecting the creature when it died. The spell replaces damaged or missing organs and limbs. If the creature was undead, it is restored to its non-undead form.\n\nThe spell can even provide a new body if the original no longer exists, in which case you must speak the creature's name. The creature then appears in an unoccupied space you choose within 10 feet of you.",
+      "atHigherLevels": "",
+      "tags": ["cleric", "druid", "resurrection", "healing"]
+    },
+    {
+      "id": "wall-of-fire",
+      "name": "Wall of Fire",
+      "level": 4,
+      "school": "evocation",
+      "castingTime": "1 action",
+      "range": "120 feet",
+      "components": {
+        "verbal": true,
+        "somatic": true,
+        "material": true,
+        "materials": "a small piece of phosphorus"
+      },
+      "duration": "Concentration, up to 1 minute",
+      "description": "You create a wall of fire on a solid surface within range. You can make the wall up to 60 feet long, 20 feet high, and 1 foot thick, or a ringed wall up to 20 feet in diameter, 20 feet high, and 1 foot thick. The wall is opaque and lasts for the duration.\n\nWhen the wall appears, each creature within its area must make a Dexterity saving throw. On a failed save, a creature takes 5d8 fire damage, or half as much damage on a successful save.\n\nOne side of the wall, selected by you when you cast this spell, deals 5d8 fire damage to each creature that ends its turn within 10 feet of that side or inside the wall. A creature takes the same damage when it enters the wall for the first time on a turn or ends its turn there. The other side of the wall deals no damage.",
+      "atHigherLevels": "When you cast this spell using a spell slot of 5th level or higher, the damage increases by 1d8 for each slot level above 4th.",
+      "damageType": "fire",
+      "savingThrow": "dexterity",
+      "damage": "5d8",
+      "damageAtHigherLevels": {
+        "4": "5d8",
+        "5": "6d8",
+        "6": "7d8",
+        "7": "8d8",
+        "8": "9d8",
+        "9": "10d8"
+      },
+      "areaOfEffect": {
+        "type": "wall",
+        "length": 60,
+        "height": 20,
+        "thickness": 1
+      },
+      "tags": ["druid", "sorcerer", "wizard", "damage", "area", "barrier"]
+    },
+    {
+      "id": "web",
+      "name": "Web",
+      "level": 2,
+      "school": "conjuration",
+      "castingTime": "1 action",
+      "range": "60 feet",
+      "components": {
+        "verbal": true,
+        "somatic": true,
+        "material": true,
+        "materials": "a bit of spiderweb"
+      },
+      "duration": "Concentration, up to 1 hour",
+      "description": "You conjure a mass of thick, sticky webbing at a point of your choice within range. The webs fill a 20-foot cube from that point for the duration. The webs are difficult terrain and lightly obscure their area.\n\nIf the webs aren't anchored between two solid masses (such as walls or trees) or layered across a floor, wall, or ceiling, the conjured web collapses on itself, and the spell ends at the start of your next turn. Webs layered over a flat surface have a depth of 5 feet.\n\nEach creature that starts its turn in the webs or that enters them during its turn must make a Dexterity saving throw. On a failed save, the creature is restrained as long as it remains in the webs or until it breaks free.\n\nA creature restrained by the webs can use its action to make a Strength check against your spell save DC. If it succeeds, it is no longer restrained.\n\nThe webs are flammable. Any 5-foot cube of webs exposed to fire burns away in 1 round, dealing 2d4 fire damage to any creature that starts its turn in the fire.",
+      "atHigherLevels": "",
+      "savingThrow": "dexterity",
+      "areaOfEffect": {
+        "type": "cube",
+        "size": 20
+      },
+      "tags": ["artificer", "sorcerer", "wizard", "control", "restraint"]
+    },
+    {
+      "id": "wish",
+      "name": "Wish",
+      "level": 9,
+      "school": "conjuration",
+      "castingTime": "1 action",
+      "range": "Self",
+      "components": {
+        "verbal": true,
+        "somatic": false,
+        "material": false,
+        "materials": ""
+      },
+      "duration": "Instantaneous",
+      "description": "Wish is the mightiest spell a mortal creature can cast. By simply speaking aloud, you can alter the very foundations of reality in accord with your desires.\n\nThe basic use of this spell is to duplicate any other spell of 8th level or lower. You don't need to meet any requirements in that spell, including costly components. The spell simply takes effect.\n\nAlternatively, you can create one of the following effects of your choice:\n\n• You create one object of up to 25,000 gp in value that isn't a magic item. The object can be no more than 300 feet in any dimension, and it appears in an unoccupied space you can see on the ground.\n• You allow up to twenty creatures that you can see to regain all hit points, and you end all effects on them described in the greater restoration spell.\n• You grant up to ten creatures that you can see resistance to a damage type you choose.\n• You grant up to ten creatures you can see immunity to a single spell or other magical effect for 8 hours. For instance, you could make yourself and all your companions immune to a lich's life drain attack.\n• You undo a single recent event by forcing a reroll of any roll made within the last round (including your last turn). Reality reshapes itself to accommodate the new result. For example, a wish spell could undo an opponent's successful save, a foe's critical hit, or a friend's failed save. You can force the reroll to be made with advantage or disadvantage, and you can choose whether to use the reroll or the original roll.\n\nYou might be able to achieve something beyond the scope of the above examples. State your wish to the DM as precisely as possible. The DM has great latitude in ruling what occurs in such an instance; the greater the wish, the greater the likelihood that something goes wrong. This spell might simply fail, the effect you desire might only be partly achieved, or you might suffer some unforeseen consequence as a result of how you worded the wish. For example, wishing that a villain were dead might propel you forward in time to a period when that villain is no longer alive, effectively removing you from the game. Similarly, wishing for a legendary magic item or artifact might instantly transport you to the presence of the item's current owner.\n\nThe stress of casting this spell to produce any effect other than duplicating another spell weakens you. After enduring that stress, each time you cast a spell until you finish a long rest, you take 1d10 necrotic damage per level of that spell. This damage can't be reduced or prevented in any way. In addition, your Strength drops to 3, if it isn't 3 or lower already, for 2d4 days. For each of those days that you spend resting and doing nothing more than light activity, your remaining recovery time decreases by 2 days. Finally, there is a 33 percent chance that you are unable to cast wish ever again if you suffer this stress.",
+      "atHigherLevels": "",
+      "tags": ["sorcerer", "wizard", "reality", "ultimate"]
+    }
+  ]
+}
