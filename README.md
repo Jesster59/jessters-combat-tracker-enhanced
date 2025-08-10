@@ -2,14 +2,16 @@ Jesster's Combat Tracker (JCT)
 Version 2.3.1
 A comprehensive combat tracker for tabletop role-playing games, designed to streamline combat management and enhance your gaming experience.
 
+
 Features
-Initiative Tracking: Easily manage turn order with automatic sorting and visual indicators
-Combatant Management: Add, edit, and remove combatants with detailed stat tracking
-Health & Condition Tracking: Monitor HP, apply damage/healing, and track status conditions
-Tactical Map: Visualize combat with an interactive grid-based map
-Combat Statistics: Analyze combat performance with detailed statistics and summaries
-Dice Roller: Built-in dice roller with support for complex expressions and modifiers
-Templates: Save and reuse encounters, monsters, and player characters
+
+- Initiative Tracking: Easily manage turn order with automatic sorting and visual indicators
+- Combatant Management: Add, edit, and remove combatants with detailed stat tracking
+- Health & Condition Tracking: Monitor HP, apply damage/healing, and track status conditions
+- Tactical Map: Visualize combat with an interactive grid-based map
+- Combat Statistics: Analyze combat performance with detailed statistics and summaries
+- Dice Roller: Built-in dice roller with support for complex expressions and modifiers
+- Templates: Save and reuse encounters, monsters, and player characters
 Themes: Customize the appearance with multiple theme options
 Responsive Design: Works on desktop, tablet, and mobile devices
 Offline Support: Full functionality without an internet connection
