@@ -12,28 +12,36 @@ Features
 - Combat Statistics: Analyze combat performance with detailed statistics and summaries
 - Dice Roller: Built-in dice roller with support for complex expressions and modifiers
 - Templates: Save and reuse encounters, monsters, and player characters
-Themes: Customize the appearance with multiple theme options
-Responsive Design: Works on desktop, tablet, and mobile devices
-Offline Support: Full functionality without an internet connection
-Data Import/Export: Share and backup your data easily
+- Themes: Customize the appearance with multiple theme options
+- Responsive Design: Works on desktop, tablet, and mobile devices
+- Offline Support: Full functionality without an internet connection
+- Data Import/Export: Share and backup your data easily
+
 Getting Started
 Quick Start Guide
-Add Combatants: Click the "+" button in the Initiative panel to add players and monsters
-Roll Initiative: Enter initiative values or use the built-in dice roller
-Start Combat: Click the "Start" button to begin tracking turns
-Manage Turns: Use the combat controls to advance turns and rounds
-Track Health: Click on combatants to update their health and conditions
-End Combat: Click "End Combat" when the encounter is finished to see statistics
+
+- Add Combatants: Click the "+" button in the Initiative panel to add players and monsters
+- Roll Initiative: Enter initiative values or use the built-in dice roller
+- Start Combat: Click the "Start" button to begin tracking turns
+- Manage Turns: Use the combat controls to advance turns and rounds
+- Track Health: Click on combatants to update their health and conditions
+- End Combat: Click "End Combat" when the encounter is finished to see statistics
+
 Key Components
-Initiative Panel: Displays combatants in initiative order
-Combat Controls: Buttons to start/pause combat, advance turns/rounds, and end combat
-Tactical Map: Visual representation of the battlefield
-Combat Log: Record of actions and events during combat
-Statistics Panel: Combat performance metrics and analysis
+
+- Initiative Panel: Displays combatants in initiative order
+- Combat Controls: Buttons to start/pause combat, advance turns/rounds, and end combat
+- Tactical Map: Visual representation of the battlefield
+- Combat Log: Record of actions and events during combat
+- Statistics Panel: Combat performance metrics and analysis
+
 System Requirements
-Browser: Chrome 80+, Firefox 72+, Safari 13.1+, Edge 80+
-Storage: 50MB of local storage for app data
-Screen: Minimum resolution of 768x600 pixels
+
+- Browser: Chrome 80+, Firefox 72+, Safari 13.1+, Edge 80+
+- Storage: 50MB of local storage for app data
+- Screen: Minimum resolution of 768x600 pixels
+
+Project Structure
 
 jessters-combat-tracker/
 ├── css/                  # Stylesheets
@@ -49,6 +57,7 @@ jessters-combat-tracker/
 └── README.md             # This file
 
 License
+
 This projectis licensed under the MIT License
 Contact
 For support, feature requests, or bug reports, please create an issue on GitHub.
