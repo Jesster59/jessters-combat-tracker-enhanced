@@ -1,1 +1,786 @@
+{
+  "version": "2.3.1",
+  "themes": [
+    {
+      "id": "default",
+      "name": "Default",
+      "description": "The standard theme with a clean, modern interface",
+      "colors": {
+        "primary": "#4a6fa5",
+        "primaryDark": "#385682",
+        "primaryLight": "#6b8cb9",
+        "secondary": "#6c757d",
+        "success": "#28a745",
+        "danger": "#dc3545",
+        "warning": "#ffc107",
+        "info": "#17a2b8",
+        "light": "#f8f9fa",
+        "dark": "#343a40",
+        "background": "#ffffff",
+        "text": "#212529",
+        "border": "#dee2e6",
+        "input": {
+          "background": "#ffffff",
+          "text": "#212529",
+          "border": "#ced4da",
+          "focus": "#80bdff"
+        },
+        "card": {
+          "background": "#ffffff",
+          "border": "#dee2e6",
+          "shadow": "rgba(0, 0, 0, 0.125)"
+        },
+        "modal": {
+          "background": "#ffffff",
+          "overlay": "rgba(0, 0, 0, 0.5)"
+        },
+        "initiative": {
+          "active": "rgba(74, 111, 165, 0.2)",
+          "hover": "rgba(0, 0, 0, 0.03)",
+          "player": "rgba(23, 162, 184, 0.1)",
+          "monster": "rgba(220, 53, 69, 0.1)",
+          "npc": "rgba(255, 193, 7, 0.1)"
+        },
+        "health": {
+          "full": "#28a745",
+          "threeFourths": "#8bc34a",
+          "half": "#ffc107",
+          "quarter": "#ff9800",
+          "critical": "#dc3545"
+        },
+        "conditions": {
+          "blinded": "#6c757d",
+          "charmed": "#e83e8c",
+          "deafened": "#6c757d",
+          "frightened": "#fd7e14",
+          "grappled": "#6c757d",
+          "incapacitated": "#dc3545",
+          "invisible": "#17a2b8",
+          "paralyzed": "#dc3545",
+          "petrified": "#6c757d",
+          "poisoned": "#28a745",
+          "prone": "#fd7e14",
+          "restrained": "#6c757d",
+          "stunned": "#dc3545",
+          "unconscious": "#343a40"
+        }
+      },
+      "fonts": {
+        "main": "'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif",
+        "headings": "'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif",
+        "monospace": "'Roboto Mono', Consolas, Monaco, 'Andale Mono', monospace",
+        "sizes": {
+          "base": "16px",
+          "small": "0.875rem",
+          "large": "1.25rem",
+          "h1": "2.5rem",
+          "h2": "2rem",
+          "h3": "1.75rem",
+          "h4": "1.5rem",
+          "h5": "1.25rem",
+          "h6": "1rem"
+        },
+        "weights": {
+          "light": 300,
+          "normal": 400,
+          "medium": 500,
+          "bold": 700
+        }
+      },
+      "spacing": {
+        "base": "1rem",
+        "xs": "0.25rem",
+        "sm": "0.5rem",
+        "md": "1rem",
+        "lg": "1.5rem",
+        "xl": "3rem"
+      },
+      "borders": {
+        "radius": {
+          "sm": "0.2rem",
+          "md": "0.25rem",
+          "lg": "0.5rem",
+          "pill": "50rem"
+        },
+        "width": {
+          "default": "1px",
+          "thick": "2px"
+        }
+      },
+      "shadows": {
+        "sm": "0 .125rem .25rem rgba(0, 0, 0, .075)",
+        "md": "0 .5rem 1rem rgba(0, 0, 0, .15)",
+        "lg": "0 1rem 3rem rgba(0, 0, 0, .175)"
+      },
+      "animations": {
+        "duration": {
+          "fast": "0.15s",
+          "normal": "0.3s",
+          "slow": "0.5s"
+        },
+        "timing": "ease-in-out"
+      },
+      "zIndex": {
+        "dropdown": 1000,
+        "sticky": 1020,
+        "fixed": 1030,
+        "modal": 1050,
+        "popover": 1060,
+        "tooltip": 1070
+      }
+    },
+    {
+      "id": "dark",
+      "name": "Dark Mode",
+      "description": "A dark theme that's easier on the eyes in low-light environments",
+      "colors": {
+        "primary": "#6b8cb9",
+        "primaryDark": "#4a6fa5",
+        "primaryLight": "#8ca9d6",
+        "secondary": "#6c757d",
+        "success": "#28a745",
+        "danger": "#dc3545",
+        "warning": "#ffc107",
+        "info": "#17a2b8",
+        "light": "#343a40",
+        "dark": "#f8f9fa",
+        "background": "#121212",
+        "text": "#e0e0e0",
+        "border": "#343a40",
+        "input": {
+          "background": "#2d2d2d",
+          "text": "#e0e0e0",
+          "border": "#495057",
+          "focus": "#6b8cb9"
+        },
+        "card": {
+          "background": "#1e1e1e",
+          "border": "#343a40",
+          "shadow": "rgba(0, 0, 0, 0.5)"
+        },
+        "modal": {
+          "background": "#1e1e1e",
+          "overlay": "rgba(0, 0, 0, 0.7)"
+        },
+        "initiative": {
+          "active": "rgba(107, 140, 185, 0.3)",
+          "hover": "rgba(255, 255, 255, 0.05)",
+          "player": "rgba(23, 162, 184, 0.2)",
+          "monster": "rgba(220, 53, 69, 0.2)",
+          "npc": "rgba(255, 193, 7, 0.2)"
+        },
+        "health": {
+          "full": "#28a745",
+          "threeFourths": "#8bc34a",
+          "half": "#ffc107",
+          "quarter": "#ff9800",
+          "critical": "#dc3545"
+        },
+        "conditions": {
+          "blinded": "#adb5bd",
+          "charmed": "#e83e8c",
+          "deafened": "#adb5bd",
+          "frightened": "#fd7e14",
+          "grappled": "#adb5bd",
+          "incapacitated": "#dc3545",
+          "invisible": "#17a2b8",
+          "paralyzed": "#dc3545",
+          "petrified": "#adb5bd",
+          "poisoned": "#28a745",
+          "prone": "#fd7e14",
+          "restrained": "#adb5bd",
+          "stunned": "#dc3545",
+          "unconscious": "#6c757d"
+        }
+      },
+      "fonts": {
+        "main": "'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif",
+        "headings": "'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif",
+        "monospace": "'Roboto Mono', Consolas, Monaco, 'Andale Mono', monospace",
+        "sizes": {
+          "base": "16px",
+          "small": "0.875rem",
+          "large": "1.25rem",
+          "h1": "2.5rem",
+          "h2": "2rem",
+          "h3": "1.75rem",
+          "h4": "1.5rem",
+          "h5": "1.25rem",
+          "h6": "1rem"
+        },
+        "weights": {
+          "light": 300,
+          "normal": 400,
+          "medium": 500,
+          "bold": 700
+        }
+      },
+      "spacing": {
+        "base": "1rem",
+        "xs": "0.25rem",
+        "sm": "0.5rem",
+        "md": "1rem",
+        "lg": "1.5rem",
+        "xl": "3rem"
+      },
+      "borders": {
+        "radius": {
+          "sm": "0.2rem",
+          "md": "0.25rem",
+          "lg": "0.5rem",
+          "pill": "50rem"
+        },
+        "width": {
+          "default": "1px",
+          "thick": "2px"
+        }
+      },
+      "shadows": {
+        "sm": "0 .125rem .25rem rgba(0, 0, 0, .3)",
+        "md": "0 .5rem 1rem rgba(0, 0, 0, .4)",
+        "lg": "0 1rem 3rem rgba(0, 0, 0, .5)"
+      },
+      "animations": {
+        "duration": {
+          "fast": "0.15s",
+          "normal": "0.3s",
+          "slow": "0.5s"
+        },
+        "timing": "ease-in-out"
+      },
+      "zIndex": {
+        "dropdown": 1000,
+        "sticky": 1020,
+        "fixed": 1030,
+        "modal": 1050,
+        "popover": 1060,
+        "tooltip": 1070
+      }
+    },
+    {
+      "id": "fantasy",
+      "name": "Fantasy",
+      "description": "A theme inspired by classic fantasy with parchment textures and medieval styling",
+      "colors": {
+        "primary": "#7b4f2d",
+        "primaryDark": "#5c3a21",
+        "primaryLight": "#9a6339",
+        "secondary": "#4b5320",
+        "success": "#2e5824",
+        "danger": "#8b0000",
+        "warning": "#b8860b",
+        "info": "#1e3a5f",
+        "light": "#f5f5dc",
+        "dark": "#2f2f2f",
+        "background": "#f5f5dc",
+        "text": "#2f2f2f",
+        "border": "#7b4f2d",
+        "input": {
+          "background": "#f8f8f0",
+          "text": "#2f2f2f",
+          "border": "#7b4f2d",
+          "focus": "#9a6339"
+        },
+        "card": {
+          "background": "#f8f8f0",
+          "border": "#7b4f2d",
+          "shadow": "rgba(0, 0, 0, 0.3)"
+        },
+        "modal": {
+          "background": "#f8f8f0",
+          "overlay": "rgba(0, 0, 0, 0.6)"
+        },
+        "initiative": {
+          "active": "rgba(123, 79, 45, 0.2)",
+          "hover": "rgba(123, 79, 45, 0.1)",
+          "player": "rgba(30, 58, 95, 0.1)",
+          "monster": "rgba(139, 0, 0, 0.1)",
+          "npc": "rgba(184, 134, 11, 0.1)"
+        },
+        "health": {
+          "full": "#2e5824",
+          "threeFourths": "#4b5320",
+          "half": "#b8860b",
+          "quarter": "#b8660b",
+          "critical": "#8b0000"
+        },
+        "conditions": {
+          "blinded": "#6c6c6c",
+          "charmed": "#cc6699",
+          "deafened": "#6c6c6c",
+          "frightened": "#cc6600",
+          "grappled": "#6c6c6c",
+          "incapacitated": "#8b0000",
+          "invisible": "#1e3a5f",
+          "paralyzed": "#8b0000",
+          "petrified": "#6c6c6c",
+          "poisoned": "#2e5824",
+          "prone": "#cc6600",
+          "restrained": "#6c6c6c",
+          "stunned": "#8b0000",
+          "unconscious": "#2f2f2f"
+        }
+      },
+      "fonts": {
+        "main": "'Bookman Old Style', 'Palatino Linotype', Palatino, 'Times New Roman', serif",
+        "headings": "'Cinzel', 'Palatino Linotype', Palatino, 'Times New Roman', serif",
+        "monospace": "'Courier New', Courier, monospace",
+        "sizes": {
+          "base": "16px",
+          "small": "0.875rem",
+          "large": "1.25rem",
+          "h1": "2.5rem",
+          "h2": "2rem",
+          "h3": "1.75rem",
+          "h4": "1.5rem",
+          "h5": "1.25rem",
+          "h6": "1rem"
+        },
+        "weights": {
+          "light": 300,
+          "normal": 400,
+          "medium": 500,
+          "bold": 700
+        }
+      },
+      "spacing": {
+        "base": "1rem",
+        "xs": "0.25rem",
+        "sm": "0.5rem",
+        "md": "1rem",
+        "lg": "1.5rem",
+        "xl": "3rem"
+      },
+      "borders": {
+        "radius": {
+          "sm": "0.2rem",
+          "md": "0.25rem",
+          "lg": "0.5rem",
+          "pill": "50rem"
+        },
+        "width": {
+          "default": "1px",
+          "thick": "2px"
+        }
+      },
+      "shadows": {
+        "sm": "0 .125rem .25rem rgba(0, 0, 0, .2)",
+        "md": "0 .5rem 1rem rgba(0, 0, 0, .3)",
+        "lg": "0 1rem 3rem rgba(0, 0, 0, .4)"
+      },
+      "animations": {
+        "duration": {
+          "fast": "0.15s",
+          "normal": "0.3s",
+          "slow": "0.5s"
+        },
+        "timing": "ease-in-out"
+      },
+      "zIndex": {
+        "dropdown": 1000,
+        "sticky": 1020,
+        "fixed": 1030,
+        "modal": 1050,
+        "popover": 1060,
+        "tooltip": 1070
+      },
+      "backgroundImage": "parchment.jpg",
+      "cardBackgroundImage": "parchment-light.jpg",
+      "headerBackgroundImage": "wood-texture.jpg",
+      "buttonBackgroundImage": "leather.jpg"
+    },
+    {
+      "id": "sci-fi",
+      "name": "Sci-Fi",
+      "description": "A futuristic theme with sleek lines and a high-tech feel",
+      "colors": {
+        "primary": "#00b8d4",
+        "primaryDark": "#0088a3",
+        "primaryLight": "#62ebff",
+        "secondary": "#37474f",
+        "success": "#00c853",
+        "danger": "#ff1744",
+        "warning": "#ffab00",
+        "info": "#2979ff",
+        "light": "#eceff1",
+        "dark": "#263238",
+        "background": "#263238",
+        "text": "#eceff1",
+        "border": "#455a64",
+        "input": {
+          "background": "#37474f",
+          "text": "#eceff1",
+          "border": "#455a64",
+          "focus": "#00b8d4"
+        },
+        "card": {
+          "background": "#37474f",
+          "border": "#00b8d4",
+          "shadow": "rgba(0, 184, 212, 0.3)"
+        },
+        "modal": {
+          "background": "#37474f",
+          "overlay": "rgba(0, 0, 0, 0.7)"
+        },
+        "initiative": {
+          "active": "rgba(0, 184, 212, 0.3)",
+          "hover": "rgba(255, 255, 255, 0.05)",
+          "player": "rgba(41, 121, 255, 0.2)",
+          "monster": "rgba(255, 23, 68, 0.2)",
+          "npc": "rgba(255, 171, 0, 0.2)"
+        },
+        "health": {
+          "full": "#00c853",
+          "threeFourths": "#64dd17",
+          "half": "#ffab00",
+          "quarter": "#ff6d00",
+          "critical": "#ff1744"
+        },
+        "conditions": {
+          "blinded": "#78909c",
+          "charmed": "#ec407a",
+          "deafened": "#78909c",
+          "frightened": "#ff6d00",
+          "grappled": "#78909c",
+          "incapacitated": "#ff1744",
+          "invisible": "#2979ff",
+          "paralyzed": "#ff1744",
+          "petrified": "#78909c",
+          "poisoned": "#00c853",
+          "prone": "#ff6d00",
+          "restrained": "#78909c",
+          "stunned": "#ff1744",
+          "unconscious": "#37474f"
+        }
+      },
+      "fonts": {
+        "main": "'Titillium Web', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
+        "headings": "'Orbitron', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
+        "monospace": "'Share Tech Mono', Consolas, Monaco, 'Andale Mono', monospace",
+        "sizes": {
+          "base": "16px",
+          "small": "0.875rem",
+          "large": "1.25rem",
+          "h1": "2.5rem",
+          "h2": "2rem",
+          "h3": "1.75rem",
+          "h4": "1.5rem",
+          "h5": "1.25rem",
+          "h6": "1rem"
+        },
+        "weights": {
+          "light": 300,
+          "normal": 400,
+          "medium": 500,
+          "bold": 700
+        }
+      },
+      "spacing": {
+        "base": "1rem",
+        "xs": "0.25rem",
+        "sm": "0.5rem",
+        "md": "1rem",
+        "lg": "1.5rem",
+        "xl": "3rem"
+      },
+      "borders": {
+        "radius": {
+          "sm": "0.125rem",
+          "md": "0.25rem",
+          "lg": "0.375rem",
+          "pill": "50rem"
+        },
+        "width": {
+          "default": "1px",
+          "thick": "2px"
+        }
+      },
+      "shadows": {
+        "sm": "0 .125rem .25rem rgba(0, 184, 212, .2)",
+        "md": "0 .5rem 1rem rgba(0, 184, 212, .3)",
+        "lg": "0 1rem 3rem rgba(0, 184, 212, .4)"
+      },
+      "animations": {
+        "duration": {
+          "fast": "0.15s",
+          "normal": "0.3s",
+          "slow": "0.5s"
+        },
+        "timing": "cubic-bezier(0.4, 0, 0.2, 1)"
+      },
+      "zIndex": {
+        "dropdown": 1000,
+        "sticky": 1020,
+        "fixed": 1030,
+        "modal": 1050,
+        "popover": 1060,
+        "tooltip": 1070
+      },
+      "backgroundImage": "grid-overlay.png",
+      "cardBackgroundImage": "tech-pattern.png"
+    },
+    {
+      "id": "high-contrast",
+      "name": "High Contrast",
+      "description": "An accessibility-focused theme with strong contrast for better readability",
+      "colors": {
+        "primary": "#0066cc",
+        "primaryDark": "#004c99",
+        "primaryLight": "#3399ff",
+        "secondary": "#333333",
+        "success": "#008000",
+        "danger": "#cc0000",
+        "warning": "#cc6600",
+        "info": "#006699",
+        "light": "#ffffff",
+        "dark": "#000000",
+        "background": "#ffffff",
+        "text": "#000000",
+        "border": "#000000",
+        "input": {
+          "background": "#ffffff",
+          "text": "#000000",
+          "border": "#000000",
+          "focus": "#0066cc"
+        },
+        "card": {
+          "background": "#ffffff",
+          "border": "#000000",
+          "shadow": "rgba(0, 0, 0, 0.5)"
+        },
+        "modal": {
+          "background": "#ffffff",
+          "overlay": "rgba(0, 0, 0, 0.8)"
+        },
+        "initiative": {
+          "active": "rgba(0, 102, 204, 0.3)",
+          "hover": "rgba(0, 0, 0, 0.1)",
+          "player": "rgba(0, 102, 153, 0.2)",
+          "monster": "rgba(204, 0, 0, 0.2)",
+          "npc": "rgba(204, 102, 0, 0.2)"
+        },
+        "health": {
+          "full": "#008000",
+          "threeFourths": "#006600",
+          "half": "#cc6600",
+          "quarter": "#cc3300",
+          "critical": "#cc0000"
+        },
+        "conditions": {
+          "blinded": "#333333",
+          "charmed": "#cc0099",
+          "deafened": "#333333",
+          "frightened": "#cc6600",
+          "grappled": "#333333",
+          "incapacitated": "#cc0000",
+          "invisible": "#006699",
+          "paralyzed": "#cc0000",
+          "petrified": "#333333",
+          "poisoned": "#008000",
+          "prone": "#cc6600",
+          "restrained": "#333333",
+          "stunned": "#cc0000",
+          "unconscious": "#000000"
+        }
+      },
+      "fonts": {
+        "main": "Arial, 'Helvetica Neue', Helvetica, sans-serif",
+        "headings": "Arial, 'Helvetica Neue', Helvetica, sans-serif",
+        "monospace": "'Courier New', Courier, monospace",
+        "sizes": {
+          "base": "18px",
+          "small": "1rem",
+          "large": "1.5rem",
+          "h1": "2.75rem",
+          "h2": "2.25rem",
+          "h3": "2rem",
+          "h4": "1.75rem",
+          "h5": "1.5rem",
+          "h6": "1.25rem"
+        },
+        "weights": {
+          "light": 400,
+          "normal": 500,
+          "medium": 600,
+          "bold": 700
+        }
+      },
+      "spacing": {
+        "base": "1.25rem",
+        "xs": "0.375rem",
+        "sm": "0.75rem",
+        "md": "1.25rem",
+        "lg": "2rem",
+        "xl": "3.5rem"
+      },
+      "borders": {
+        "radius": {
+          "sm": "0.125rem",
+          "md": "0.25rem",
+          "lg": "0.375rem",
+          "pill": "50rem"
+        },
+        "width": {
+          "default": "2px",
+          "thick": "3px"
+        }
+      },
+      "shadows": {
+        "sm": "0 .125rem .25rem rgba(0, 0, 0, .5)",
+        "md": "0 .5rem 1rem rgba(0, 0, 0, .6)",
+        "lg": "0 1rem 3rem rgba(0, 0, 0, .7)"
+      },
+      "animations": {
+        "duration": {
+          "fast": "0.1s",
+          "normal": "0.2s",
+          "slow": "0.3s"
+        },
+        "timing": "ease-in-out"
+      },
+      "zIndex": {
+        "dropdown": 1000,
+        "sticky": 1020,
+        "fixed": 1030,
+        "modal": 1050,
+        "popover": 1060,
+        "tooltip": 1070
+      },
+      "accessibility": {
+        "focusOutlineWidth": "3px",
+        "focusOutlineColor": "#0066cc",
+        "focusOutlineStyle": "solid",
+        "reducedMotion": true
+      }
+    },
+    {
+      "id": "sepia",
+      "name": "Sepia",
+      "description": "A warm, sepia-toned theme that's easy on the eyes",
+      "colors": {
+        "primary": "#8b4513",
+        "primaryDark": "#6b3000",
+        "primaryLight": "#a05a2c",
+        "secondary": "#6c5133",
+        "success": "#2e7d32",
+        "danger": "#c62828",
+        "warning": "#ef6c00",
+        "info": "#0277bd",
+        "light": "#f5f5dc",
+        "dark": "#3e2723",
+        "background": "#f8f0dd",
+        "text": "#3e2723",
+        "border": "#d3c6a6",
+        "input": {
+          "background": "#fff8e1",
+          "text": "#3e2723",
+          "border": "#d3c6a6",
+          "focus": "#8b4513"
+        },
+        "card": {
+          "background": "#fff8e1",
+          "border": "#d3c6a6",
+          "shadow": "rgba(62, 39, 35, 0.2)"
+        },
+        "modal": {
+          "background": "#fff8e1",
+          "overlay": "rgba(62, 39, 35, 0.5)"
+        },
+        "initiative": {
+          "active": "rgba(139, 69, 19, 0.2)",
+          "hover": "rgba(62, 39, 35, 0.05)",
+          "player": "rgba(2, 119, 189, 0.1)",
+          "monster": "rgba(198, 40, 40, 0.1)",
+          "npc": "rgba(239, 108, 0, 0.1)"
+        },
+        "health": {
+          "full": "#2e7d32",
+          "threeFourths": "#558b2f",
+          "half": "#ef6c00",
+          "quarter": "#d84315",
+          "critical": "#c62828"
+        },
+        "conditions": {
+          "blinded": "#6c5133",
+          "charmed": "#ad1457",
+          "deafened": "#6c5133",
+          "frightened": "#ef6c00",
+          "grappled": "#6c5133",
+          "incapacitated": "#c62828",
+          "invisible": "#0277bd",
+          "paralyzed": "#c62828",
+          "petrified": "#6c5133",
+          "poisoned": "#2e7d32",
+          "prone": "#ef6c00",
+          "restrained": "#6c5133",
+          "stunned": "#c62828",
+          "unconscious": "#3e2723"
+        }
+      },
+      "fonts": {
+        "main": "'Crimson Text', Georgia, 'Times New Roman', Times, serif",
+        "headings": "'Crimson Text', Georgia, 'Times New Roman', Times, serif",
+        "monospace": "'Courier Prime', 'Courier New', Courier, monospace",
+        "sizes": {
+          "base": "18px",
+          "small": "0.9rem",
+          "large": "1.25rem",
+          "h1": "2.5rem",
+          "h2": "2rem",
+          "h3": "1.75rem",
+          "h4": "1.5rem",
+          "h5": "1.25rem",
+          "h6": "1rem"
+        },
+        "weights": {
+          "light": 300,
+          "normal": 400,
+          "medium": 600,
+          "bold": 700
+        }
+      },
+      "spacing": {
+        "base": "1rem",
+        "xs": "0.25rem",
+        "sm": "0.5rem",
+        "md": "1rem",
+        "lg": "1.5rem",
+        "xl": "3rem"
+      },
+      "borders": {
+        "radius": {
+          "sm": "0.2rem",
+          "md": "0.25rem",
+          "lg": "0.5rem",
+          "pill": "50rem"
+        },
+        "width": {
+          "default": "1px",
+          "thick": "2px"
+        }
+      },
+      "shadows": {
+        "sm": "0 .125rem .25rem rgba(62, 39, 35, .1)",
+        "md": "0 .5rem 1rem rgba(62, 39, 35, .15)",
+        "lg": "0 1rem 3rem rgba(62, 39, 35, .2)"
+      },
+      "animations": {
+        "duration": {
+          "fast": "0.15s",
+          "normal": "0.3s",
+          "slow": "0.5s"
+        },
+        "timing": "ease-in-out"
+      },
+      "zIndex": {
+        "dropdown": 1000,
+        "sticky": 1020,
+        "fixed": 1030,
+        "modal": 1050,
+        "popover": 1060,
+        "tooltip": 1070
+      }
+    }
+  ]
+}
 
