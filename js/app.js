@@ -1,3 +1,8 @@
+// Import dependencies
+import { TemplateManager } from './templates.js';
+import { ThemeManager } from './theme.js';
+import { createTacticalCombatManager } from './tactical.js';
+
 // Define application states
 const AppState = {
   INITIALIZING: 'initializing',
@@ -739,8 +744,6 @@ class CombatTrackerApp {
     this.container.dispatchEvent(event);
   }
 }
-
-// Add this at the end of your existing app.js file
 
 /**
  * Factory function to create a new CombatTrackerApp instance
