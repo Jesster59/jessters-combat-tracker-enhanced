@@ -43,12 +43,7 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       // Create an array of promises for each resource
-      const resourcePromises = [
-        './',
-        './index.html',
-        './css/styles.css',
-        // Keep only essential files that you're sure exist
-      ].map(url => {
+      const resourcePromises = PRECACHE_RESOURCES.map(url => {
         // Try to cache each resource, but don't fail if one fails
         return cache.add(url).catch(error => {
           console.log(`Failed to cache: ${url}`, error);
@@ -259,4 +254,3 @@ self.addEventListener('message', event => {
 });
 
 console.log('Service worker loaded - version 2.3.1');
-
