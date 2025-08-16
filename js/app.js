@@ -740,5 +740,15 @@ class CombatTrackerApp {
   }
 }
 
-// Export the class
-window.CombatTrackerApp = CombatTrackerApp;
+/**
+ * Factory function to create a new CombatTrackerApp instance
+ * @param {Object} options - Configuration options
+ * @returns {CombatTrackerApp} New CombatTrackerApp instance
+ */
+function createCombatTrackerApp(options = {}) {
+  console.log('Creating new CombatTrackerApp instance with options:', options);
+  return new CombatTrackerApp(options);
+}
+
+// Export both the class and the factory function
+export { CombatTrackerApp, createCombatTrackerApp };
