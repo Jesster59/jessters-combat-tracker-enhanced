@@ -1,21 +1,4 @@
-/**
- * Jesster's Combat Tracker
- * Main Application Module
- * Version 2.3.1
- * 
- * This module serves as the main entry point for the application,
- * tying together all the other modules.
- */
-
-import { createDiceRoller, createStatTracker, createCombatAnalyzer } from './stats.js';
-import { createTacticalCombatManager } from './tactical.js';
-import { createTemplateManager, createTemplateCollection } from './templates.js';
-import { createThemeManager, ThemeMode } from './theme.js';
-import { createComponent, ComponentType, Container, Panel, Button, Modal, Dialog, Input, Select, Toggle, RadioGroup, Table, ComponentVariant } from './ui.js';
-
-/**
- * Application state
- */
+// Define application states
 const AppState = {
   INITIALIZING: 'initializing',
   READY: 'ready',
@@ -25,558 +8,737 @@ const AppState = {
 };
 
 /**
- * Combat state
+ * Main application class for the Combat Tracker
  */
-const CombatState = {
-  INACTIVE: 'inactive',
-  ACTIVE: 'active',
-  PAUSED: 'paused',
-  FINISHED: 'finished'
-};
-
-/**
- * Main application class
- */
-export class CombatTrackerApp {
+class CombatTrackerApp {
   /**
-   * Create a combat tracker application
+   * Create a new Combat Tracker application
    * @param {Object} options - Configuration options
    */
   constructor(options = {}) {
+    console.log('App constructor started');
+    
+    // Default options
     this.options = {
       containerId: 'jct-app',
       storageKey: 'jct-data',
       autoSave: true,
       autoSaveInterval: 60000, // 1 minute
-      defaultTheme: 'system',
       ...options
     };
     
-    // Application state
-    this.state = AppState.INITIALIZING;
-    this.combatState = CombatState.INACTIVE;
-    this.initialized = false;
+    // Initialize properties
     this.container = null;
-    this.autoSaveTimer = null;
-    
-    // Core modules
-    this.diceRoller = createDiceRoller();
-    this.statTracker = createStatTracker();
-    this.combatAnalyzer = createCombatAnalyzer();
-    this.tacticalManager = createTacticalCombatManager();
-    this.templateManager = createTemplateManager();
-    this.themeManager = createThemeManager({
-      defaultTheme: this.options.defaultTheme,
-      autoApply: true
-    });
-    
-    // UI components
-    this.ui = {
-      mainContainer: null,
-      sidebar: null,
-      content: null,
-      header: null,
-      footer: null,
-      combatControls: null,
-      initiativeList: null,
-      tacticalView: null,
-      statPanel: null,
-      loadingModal: null,
-      errorModal: null,
-      canvasContainer: null 
-    };
-    
-    // Combat data
-    this.combat = {
-      id: null,
-      name: 'New Combat',
-      round: 0,
-      turn: 0,
-      initiative: [],
-      combatants: [],
-      active: null,
-      log: [],
-      startTime: null,
-      endTime: null
-    };
-    
-    // Event listeners
-    this.eventListeners = new Map();
+    this.ui = {};
+    this.combat = null;
+    this.initialized = false;
+    this.state = AppState.INITIALIZING;
+    this.templateManager = new TemplateManager();
+    this.themeManager = new ThemeManager();
     
     // Initialize the application
     this._initialize();
+    
+    console.log('App constructor completed');
   }
-
+  
   /**
    * Initialize the application
    * @private
    */
   _initialize() {
-    // Find container element
-    this.container = document.getElementById(this.options.containerId);
+    console.log('Initialization started');
     
-    if (!this.container) {
-      console.error(`Container element with ID "${this.options.containerId}" not found`);
+    // Set a timeout to detect if initialization hangs
+    const initTimeout = setTimeout(() => {
+      console.error('Initialization timeout after 15 seconds. Current state:', this.state);
+      console.trace('Initialization stack trace');
+      alert('The application is taking longer than expected to load. Check the console for details or try refreshing the page.');
+    }, 15000); // 15 seconds
+    
+    try {
+      // Step 1: Find container element
+      console.time('Find container');
+      this.container = document.getElementById(this.options.containerId);
+      console.timeEnd('Find container');
+      console.log('Container found:', !!this.container);
+      
+      if (!this.container) {
+        console.error(`Container element with ID "${this.options.containerId}" not found`);
+        this.state = AppState.ERROR;
+        clearTimeout(initTimeout);
+        return;
+      }
+      
+      // Step 2: Load saved data
+      console.time('Load saved data');
+      console.log('Loading saved data...');
+      this._loadData();
+      console.log('Saved data loaded');
+      console.timeEnd('Load saved data');
+      
+      // Step 3: Create UI
+      console.time('Create UI');
+      console.log('Creating UI...');
+      this._createUI();
+      console.log('UI created');
+      console.timeEnd('Create UI');
+      
+      // Step 4: Set up event listeners
+      console.time('Setup event listeners');
+      console.log('Setting up event listeners...');
+      this._setupEventListeners();
+      console.log('Event listeners set up');
+      console.timeEnd('Setup event listeners');
+      
+      // Step 5: Set up auto-save
+      if (this.options.autoSave) {
+        console.time('Setup auto-save');
+        console.log('Setting up auto-save...');
+        this._setupAutoSave();
+        console.log('Auto-save set up');
+        console.timeEnd('Setup auto-save');
+      }
+      
+      // Step 6: Initialize the tactical map
+      console.time('Initialize tactical map');
+      console.log('Initializing tactical map...');
+      this._initializeTacticalMap();
+      console.log('Tactical map initialized');
+      console.timeEnd('Initialize tactical map');
+      
+      // Mark as initialized
+      this.initialized = true;
+      this.state = AppState.READY;
+      console.log('App marked as initialized');
+      
+      // Dispatch initialized event
+      this._dispatchEvent('initialized', { app: this });
+      console.log('Initialization completed');
+      
+      // Clear the timeout since initialization completed successfully
+      clearTimeout(initTimeout);
+      
+    } catch (error) {
+      console.error('Initialization failed:', error);
       this.state = AppState.ERROR;
-      return;
+      alert('Failed to initialize application: ' + error.message);
+      clearTimeout(initTimeout);
     }
-    
-    // Load saved data
-    this._loadData();
-    
-    // Create UI
-    this._createUI();
-    
-    // Set up event listeners
-    this._setupEventListeners();
-    
-    // Set up auto-save
-    if (this.options.autoSave) {
-      this._setupAutoSave();
-    }
-    
-    // Mark as initialized
-    this.initialized = true;
-    this.state = AppState.READY;
-    
-    // Initialize the tactical map *after* the main UI has been rendered
-    this._initializeTacticalMap();
-    
-    // Dispatch initialized event
-    this._dispatchEvent('initialized', { app: this });
   }
-
+  
+  /**
+   * Load saved data from localStorage
+   * @private
+   */
+  _loadData() {
+    try {
+      console.log('Starting to load data from localStorage');
+      const savedData = localStorage.getItem(this.options.storageKey);
+      
+      if (savedData) {
+        console.log('Found saved data in localStorage');
+        const parsedData = JSON.parse(savedData);
+        
+        console.log('Parsing combat data');
+        if (parsedData.combat) {
+          this.combat = parsedData.combat;
+          console.log('Combat data loaded successfully');
+        } else {
+          console.log('No combat data found, creating new combat');
+          this.combat = this._createNewCombat();
+        }
+        
+        console.log('Parsing template data');
+        if (parsedData.templates) {
+          this.templateManager.importAllFromJson(JSON.stringify(parsedData.templates));
+          console.log('Template data loaded successfully');
+        }
+      } else {
+        console.log('No saved data found, creating new combat');
+        this.combat = this._createNewCombat();
+      }
+    } catch (error) {
+      console.error('Error loading data:', error);
+      this.combat = this._createNewCombat();
+    }
+  }
+  
   /**
    * Create the user interface
    * @private
    */
   _createUI() {
-    // Create main container
-    this.ui.mainContainer = new Container({
-      className: 'jct-main-container',
-      layout: 'vertical',
-      gap: 0,
-      padding: 0
-    });
+    console.log('Creating main UI components');
     
-    // Create header
-    this._createHeader();
+    // Create loading modal
+    console.log('Creating loading modal');
+    this.ui.loadingModal = document.createElement('div');
+    this.ui.loadingModal.className = 'jct-loading-modal';
+    this.ui.loadingModal.innerHTML = `
+      <div class="jct-loading-content">
+        <div class="jct-spinner"></div>
+        <div class="jct-loading-text">Loading...</div>
+      </div>
+    `;
+    this.container.appendChild(this.ui.loadingModal);
     
-    // Create content area
-    this._createContent();
+    // Create main UI containers
+    console.log('Creating main UI containers');
+    this.ui.header = document.createElement('header');
+    this.ui.header.className = 'jct-header';
     
-    // Create footer
-    this._createFooter();
+    this.ui.main = document.createElement('main');
+    this.ui.main.className = 'jct-main';
     
-    // Create modals
-    this._createModals();
+    this.ui.sidebar = document.createElement('aside');
+    this.ui.sidebar.className = 'jct-sidebar';
     
-    // Render main container
-    this.ui.mainContainer.render(this.container);
-  }
-
-  /**
-   * Create the header
-   * @private
-   */
-  _createHeader() {
-    this.ui.header = new Container({
-      className: 'jct-header',
-      layout: 'horizontal',
-      gap: 16,
-      padding: 16,
-      justify: 'between',
-      align: 'center'
-    });
+    this.ui.footer = document.createElement('footer');
+    this.ui.footer.className = 'jct-footer';
     
-    // Create logo/title
-    const logoContainer = new Container({
-      className: 'jct-logo-container',
-      layout: 'horizontal',
-      gap: 8,
-      align: 'center'
-    });
+    // Add containers to the DOM
+    this.container.appendChild(this.ui.header);
+    this.container.appendChild(this.ui.main);
+    this.container.appendChild(this.ui.sidebar);
+    this.container.appendChild(this.ui.footer);
     
-    const logo = createComponent(ComponentType.ICON, {
-      className: 'jct-logo',
-      icon: '<svg viewBox="0 0 24 24" width="24" height="24"><path fill="currentColor" d="M12 2L4 5v6.09c0 5.05 3.41 9.76 8 10.91 4.59-1.15 8-5.86 8-10.91V5l-8-3zm0 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/></svg>'
-    });
-    
-    const title = createComponent(ComponentType.HEADING, {
-      className: 'jct-title',
-      level: 1,
-      text: "Jesster's Combat Tracker"
-    });
-    
-    logoContainer.addChild(logo);
-    logoContainer.addChild(title);
-    this.ui.header.addChild(logoContainer);
-    
-    // Create header actions
-    const actionsContainer = new Container({
-      className: 'jct-header-actions',
-      layout: 'horizontal',
-      gap: 8
-    });
-    
-    // Create new combat button
-    const newCombatButton = new Button({
-      label: 'New Combat',
-      icon: '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>',
-      onClick: () => this.newCombat()
-    });
-    
-    // Create save button
-    const saveButton = new Button({
-      label: 'Save',
-      icon: '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg>',
-      onClick: () => this.saveData()
-    });
-    
-    // Create load button
-    const loadButton = new Button({
-      label: 'Load',
-      icon: '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm-2 16c-2.05 0-3.81-1.24-4.58-3h1.71c.63.9 1.68 1.5 2.87 1.5 1.93 0 3.5-1.57 3.5-3.5S13.93 9.5 12 9.5c-1.35 0-2.52.78-3.1 1.9l1.6 1.6h-4V9l1.3 1.3C8.69 8.92 10.23 8 12 8c2.76 0 5 2.24 5 5s-2.24 5-5 5z"/></svg>',
-      onClick: () => this.loadData()
-    });
-    
-    // Create settings button
-    const settingsButton = new Button({
-      label: 'Settings',
-      icon: '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12-.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>',
-      onClick: () => this.openSettings()
-    });
-    
-    // Create help button
-    const helpButton = new Button({
-      label: 'Help',
-      icon: '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/></svg>',
-      onClick: () => this.openHelp()
-    });
-    
-    actionsContainer.addChild(newCombatButton);
-    actionsContainer.addChild(saveButton);
-    actionsContainer.addChild(loadButton);
-    actionsContainer.addChild(settingsButton);
-    actionsContainer.addChild(helpButton);
-    
-    this.ui.header.addChild(actionsContainer);
-    
-    // Add header to main container
-    this.ui.mainContainer.addChild(this.ui.header);
-  }
-
-  /**
-   * Create the content area
-   * @private
-   */
-  _createContent() {
-    this.ui.content = new Container({
-      className: 'jct-content',
-      layout: 'horizontal',
-      gap: 0,
-      padding: 0
-    });
-    
-    // Create sidebar
-    this._createSidebar();
+    // Create header content
+    console.log('Creating header content');
+    this.ui.header.innerHTML = `
+      <h1>Combat Tracker</h1>
+      <div class="jct-controls">
+        <button id="jct-new-combat" class="jct-button">New Combat</button>
+        <button id="jct-save" class="jct-button">Save</button>
+        <button id="jct-load" class="jct-button">Load</button>
+        <button id="jct-settings" class="jct-button">Settings</button>
+      </div>
+    `;
     
     // Create main content
-    this._createMainContent();
+    console.log('Creating main content');
+    this.ui.combatantList = document.createElement('div');
+    this.ui.combatantList.className = 'jct-combatant-list';
+    this.ui.main.appendChild(this.ui.combatantList);
     
-    // Add content to main container
-    this.ui.mainContainer.addChild(this.ui.content);
+    // Create sidebar content
+    console.log('Creating sidebar content');
+    this.ui.sidebar.innerHTML = `
+      <div class="jct-sidebar-section">
+        <h2>Add Combatant</h2>
+        <form id="jct-add-combatant-form">
+          <div class="jct-form-group">
+            <label for="jct-combatant-name">Name</label>
+            <input type="text" id="jct-combatant-name" required>
+          </div>
+          <div class="jct-form-group">
+            <label for="jct-combatant-initiative">Initiative</label>
+            <input type="number" id="jct-combatant-initiative" required>
+          </div>
+          <div class="jct-form-group">
+            <label for="jct-combatant-hp">HP</label>
+            <input type="number" id="jct-combatant-hp" required>
+          </div>
+          <div class="jct-form-group">
+            <label for="jct-combatant-ac">AC</label>
+            <input type="number" id="jct-combatant-ac" required>
+          </div>
+          <button type="submit" class="jct-button">Add</button>
+        </form>
+      </div>
+      <div class="jct-sidebar-section">
+        <h2>Templates</h2>
+        <div id="jct-template-list"></div>
+        <button id="jct-add-template" class="jct-button">Add Template</button>
+      </div>
+    `;
+    
+    // Create footer content
+    console.log('Creating footer content');
+    this.ui.footer.innerHTML = `
+      <div class="jct-round-tracker">Round: <span id="jct-round">1</span></div>
+      <div class="jct-controls">
+        <button id="jct-next" class="jct-button">Next Turn</button>
+        <button id="jct-prev" class="jct-button">Previous Turn</button>
+      </div>
+      <div class="jct-credits">Combat Tracker v2.3.1</div>
+    `;
+    
+    // Create tactical map container
+    console.log('Creating tactical map container');
+    this.ui.tacticalMapContainer = document.createElement('div');
+    this.ui.tacticalMapContainer.className = 'jct-tactical-map-container';
+    this.ui.tacticalMapContainer.style.display = 'none';
+    this.container.appendChild(this.ui.tacticalMapContainer);
+    
+    // Create tactical map toggle button
+    console.log('Creating tactical map toggle button');
+    this.ui.tacticalMapToggle = document.createElement('button');
+    this.ui.tacticalMapToggle.id = 'jct-tactical-map-toggle';
+    this.ui.tacticalMapToggle.className = 'jct-button jct-floating-button';
+    this.ui.tacticalMapToggle.textContent = 'Tactical Map';
+    this.container.appendChild(this.ui.tacticalMapToggle);
+    
+    // Update the UI with current combat data
+    console.log('Updating UI with combat data');
+    this._updateUI();
+    
+    // Hide loading modal
+    console.log('Hiding loading modal');
+    this.ui.loadingModal.style.display = 'none';
   }
-
-  /**
-   * Create the sidebar
-   * @private
-   */
-  _createSidebar() {
-    this.ui.sidebar = new Panel({
-      className: 'jct-sidebar',
-      title: 'Initiative',
-      collapsible: true
-    });
-    
-    // Create combat controls
-    this.ui.combatControls = new Container({
-      className: 'jct-combat-controls',
-      layout: 'horizontal',
-      gap: 8,
-      padding: 8
-    });
-    
-    // Create initiative list
-    this.ui.initiativeList = new Container({
-      className: 'jct-initiative-list',
-      layout: 'vertical',
-      gap: 8,
-      padding: 8
-    });
-    
-    this.ui.sidebar.addChild(this.ui.combatControls);
-    this.ui.sidebar.addChild(this.ui.initiativeList);
-    
-    // Add sidebar to content
-    this.ui.content.addChild(this.ui.sidebar);
-  }
-
-  /**
-   * Create the main content area
-   * @private
-   */
-  _createMainContent() {
-    const mainContent = new Container({
-      className: 'jct-main-content',
-      layout: 'vertical',
-      gap: 0,
-      padding: 0
-    });
-    
-    // Create tactical view
-    this.ui.tacticalView = new Panel({
-      className: 'jct-tactical-view',
-      title: 'Tactical Map'
-    });
-    
-    // FIX: Create a container for the canvas, but don't create the canvas itself yet.
-    // The canvas will be created and appended in _initializeTacticalMap after the UI is rendered.
-    this.ui.canvasContainer = new Container({
-      className: 'jct-canvas-container'
-    });
-    this.ui.tacticalView.addChild(this.ui.canvasContainer);
-    
-    // Create stat panel
-    this.ui.statPanel = new Panel({
-      className: 'jct-stat-panel',
-      title: 'Statistics'
-    });
-    
-    mainContent.addChild(this.ui.tacticalView);
-    mainContent.addChild(this.ui.statPanel);
-    
-    // Add main content to content area
-    this.ui.content.addChild(mainContent);
-  }
-
-  /**
-   * Create the footer
-   * @private
-   */
-  _createFooter() {
-    this.ui.footer = new Container({
-      className: 'jct-footer',
-      layout: 'horizontal',
-      gap: 16,
-      padding: 8,
-      justify: 'between',
-      align: 'center'
-    });
-    
-    const statusText = createComponent(ComponentType.TEXT, {
-      className: 'jct-status-text',
-      text: 'Ready'
-    });
-    
-    const versionText = createComponent(ComponentType.TEXT, {
-      className: 'jct-version-text',
-      text: `v${this.options.version || '2.3.1'}`
-    });
-    
-    this.ui.footer.addChild(statusText);
-    this.ui.footer.addChild(versionText);
-    
-    // Add footer to main container
-    this.ui.mainContainer.addChild(this.ui.footer);
-  }
-
-  /**
-   * Create modals
-   * @private
-   */
-  _createModals() {
-    // Create loading modal
-    this.ui.loadingModal = new Modal({
-      id: 'jct-loading-modal',
-      title: 'Loading...',
-      content: '<div class="jct-spinner"></div>',
-      closable: false
-    });
-    
-    // Create error modal
-    this.ui.errorModal = new Dialog({
-      id: 'jct-error-modal',
-      title: 'Error',
-      content: '',
-      footer: [
-        {
-          label: 'Close',
-          variant: ComponentVariant.PRIMARY,
-          onClick: () => this.ui.errorModal.close()
-        }
-      ]
-    });
-    
-    // Render modals (they will be hidden by default)
-    this.ui.loadingModal.render(this.container);
-    this.ui.errorModal.render(this.container);
-  }
-
-  /**
-   * Initialize the tactical map
-   * @private
-   */
-  _initializeTacticalMap() {
-    // FIX: This function is now called *after* _createUI has rendered the elements.
-    // The canvas container element should now exist in the DOM.
-    if (this.ui.canvasContainer && this.ui.canvasContainer.element) {
-      const canvas = document.createElement('canvas');
-      canvas.id = 'jct-tactical-canvas';
-      this.ui.canvasContainer.element.appendChild(canvas);
-      this.tacticalManager.initialize(canvas);
-      this.tacticalManager.drawMap();
-    } else {
-      console.error('Canvas container not found for tactical map initialization.');
-    }
-  }
-
+  
   /**
    * Set up event listeners
    * @private
    */
   _setupEventListeners() {
-    // Add listeners for module events here
+    console.log('Setting up button event listeners');
+    
+    // New combat button
+    document.getElementById('jct-new-combat').addEventListener('click', () => {
+      console.log('New combat button clicked');
+      if (confirm('Start a new combat? This will clear the current combat.')) {
+        this.combat = this._createNewCombat();
+        this._updateUI();
+        this.saveData();
+      }
+    });
+    
+    // Save button
+    document.getElementById('jct-save').addEventListener('click', () => {
+      console.log('Save button clicked');
+      this.saveData();
+    });
+    
+    // Load button
+    document.getElementById('jct-load').addEventListener('click', () => {
+      console.log('Load button clicked');
+      this._loadData();
+      this._updateUI();
+    });
+    
+    // Settings button
+    document.getElementById('jct-settings').addEventListener('click', () => {
+      console.log('Settings button clicked');
+      // TODO: Implement settings modal
+      alert('Settings not yet implemented');
+    });
+    
+    // Add combatant form
+    console.log('Setting up add combatant form listener');
+    document.getElementById('jct-add-combatant-form').addEventListener('submit', (event) => {
+      event.preventDefault();
+      console.log('Add combatant form submitted');
+      
+      const name = document.getElementById('jct-combatant-name').value;
+      const initiative = parseInt(document.getElementById('jct-combatant-initiative').value);
+      const hp = parseInt(document.getElementById('jct-combatant-hp').value);
+      const ac = parseInt(document.getElementById('jct-combatant-ac').value);
+      
+      this._addCombatant({
+        name,
+        initiative,
+        hp,
+        maxHp: hp,
+        ac
+      });
+      
+      // Reset form
+      document.getElementById('jct-add-combatant-form').reset();
+    });
+    
+    // Next turn button
+    console.log('Setting up next turn button listener');
+    document.getElementById('jct-next').addEventListener('click', () => {
+      console.log('Next turn button clicked');
+      this._nextTurn();
+    });
+    
+    // Previous turn button
+    console.log('Setting up previous turn button listener');
+    document.getElementById('jct-prev').addEventListener('click', () => {
+      console.log('Previous turn button clicked');
+      this._previousTurn();
+    });
+    
+    // Add template button
+    console.log('Setting up add template button listener');
+    document.getElementById('jct-add-template').addEventListener('click', () => {
+      console.log('Add template button clicked');
+      // TODO: Implement template creation
+      alert('Template creation not yet implemented');
+    });
+    
+    // Tactical map toggle button
+    console.log('Setting up tactical map toggle button listener');
+    this.ui.tacticalMapToggle.addEventListener('click', () => {
+      console.log('Tactical map toggle button clicked');
+      this._toggleTacticalMap();
+    });
+    
+    console.log('All event listeners set up successfully');
   }
-
+  
   /**
-   * Set up auto-save
+   * Set up auto-save functionality
    * @private
    */
   _setupAutoSave() {
-    this.autoSaveTimer = setInterval(() => {
+    console.log(`Setting up auto-save with interval: ${this.options.autoSaveInterval}ms`);
+    this.autoSaveInterval = setInterval(() => {
+      console.log('Auto-save triggered');
       this.saveData();
     }, this.options.autoSaveInterval);
   }
-
+  
   /**
-   * Load saved data
+   * Initialize the tactical map
    * @private
    */
-  _loadData() {
-    // Load data from storage
-    const savedData = localStorage.getItem(this.options.storageKey);
+  _initializeTacticalMap() {
+    console.log('Starting tactical map initialization');
+    try {
+      console.log('Creating tactical combat manager');
+      this.tacticalCombatManager = createTacticalCombatManager({
+        container: this.ui.tacticalMapContainer,
+        combat: this.combat
+      });
+      console.log('Tactical combat manager created successfully');
+    } catch (error) {
+      console.error('Failed to initialize tactical map:', error);
+    }
+  }
+  
+  /**
+   * Create a new combat
+   * @returns {Object} New combat object
+   * @private
+   */
+  _createNewCombat() {
+    console.log('Creating new combat object');
+    return {
+      round: 1,
+      turn: 0,
+      combatants: [],
+      active: false
+    };
+  }
+  
+  /**
+   * Add a combatant to the combat
+   * @param {Object} combatant - Combatant data
+   * @private
+   */
+  _addCombatant(combatant) {
+    console.log(`Adding combatant: ${combatant.name}`);
     
-    if (savedData) {
-      try {
-        const data = JSON.parse(savedData);
-        this.combat = data.combat || this.combat;
-        this.templateManager.importFromJson(JSON.stringify(data.templates || {}));
-      } catch (error) {
-        console.error('Error loading saved data:', error);
+    // Add default properties if not provided
+    const newCombatant = {
+      id: Date.now().toString(),
+      conditions: [],
+      notes: '',
+      ...combatant
+    };
+    
+    // Add to combatants array
+    this.combat.combatants.push(newCombatant);
+    
+    // Sort by initiative
+    this.combat.combatants.sort((a, b) => b.initiative - a.initiative);
+    
+    // Update UI
+    this._updateUI();
+    
+    // Save data
+    this.saveData();
+    
+    console.log(`Combatant added successfully: ${newCombatant.name} (ID: ${newCombatant.id})`);
+  }
+  
+  /**
+   * Move to the next turn
+   * @private
+   */
+  _nextTurn() {
+    console.log('Moving to next turn');
+    
+    if (this.combat.combatants.length === 0) {
+      console.log('No combatants, cannot advance turn');
+      return;
+    }
+    
+    this.combat.turn++;
+    
+    // If we've gone through all combatants, advance to the next round
+    if (this.combat.turn >= this.combat.combatants.length) {
+      this.combat.turn = 0;
+      this.combat.round++;
+      console.log(`Advanced to round ${this.combat.round}`);
+    }
+    
+    // Update UI
+    this._updateUI();
+    
+    // Save data
+    this.saveData();
+    
+    console.log(`Now on turn: ${this.combat.turn} (${this.combat.combatants[this.combat.turn]?.name})`);
+  }
+  
+  /**
+   * Move to the previous turn
+   * @private
+   */
+  _previousTurn() {
+    console.log('Moving to previous turn');
+    
+    if (this.combat.combatants.length === 0) {
+      console.log('No combatants, cannot go back a turn');
+      return;
+    }
+    
+    this.combat.turn--;
+    
+    // If we've gone before the first combatant, go to the previous round
+    if (this.combat.turn < 0) {
+      if (this.combat.round > 1) {
+        this.combat.round--;
+        this.combat.turn = this.combat.combatants.length - 1;
+        console.log(`Went back to round ${this.combat.round}`);
+      } else {
+        this.combat.turn = 0;
+        console.log('Already at the first turn of the first round');
+      }
+    }
+    
+    // Update UI
+    this._updateUI();
+    
+    // Save data
+    this.saveData();
+    
+    console.log(`Now on turn: ${this.combat.turn} (${this.combat.combatants[this.combat.turn]?.name})`);
+  }
+  
+  /**
+   * Toggle the tactical map display
+   * @private
+   */
+  _toggleTacticalMap() {
+    console.log('Toggling tactical map');
+    
+    const isVisible = this.ui.tacticalMapContainer.style.display !== 'none';
+    
+    if (isVisible) {
+      console.log('Hiding tactical map');
+      this.ui.tacticalMapContainer.style.display = 'none';
+    } else {
+      console.log('Showing tactical map');
+      this.ui.tacticalMapContainer.style.display = 'block';
+      
+      // Refresh the map if needed
+      if (this.tacticalCombatManager) {
+        console.log('Refreshing tactical map');
+        this.tacticalCombatManager.refresh();
       }
     }
   }
-
+  
   /**
-   * Save data
-   */
-  saveData() {
-    this.state = AppState.SAVING;
-    
-    const dataToSave = {
-      combat: this.combat,
-      templates: JSON.parse(this.templateManager.exportAllToJson())
-    };
-    
-    localStorage.setItem(this.options.storageKey, JSON.stringify(dataToSave));
-    
-    this.state = AppState.READY;
-    console.log('Data saved.');
-  }
-
-  /**
-   * Start a new combat
-   */
-  newCombat() {
-    this.combat = {
-      id: `combat_${Date.now()}`,
-      name: 'New Combat',
-      round: 0,
-      turn: 0,
-      initiative: [],
-      combatants: [],
-      active: null,
-      log: [],
-      startTime: null,
-      endTime: null
-    };
-    
-    this.combatState = CombatState.INACTIVE;
-    this._updateUI();
-    console.log('New combat started.');
-  }
-
-  /**
-   * Open settings
-   */
-  openSettings() {
-    console.log('Opening settings...');
-    // Implementation for opening settings modal/view
-  }
-
-  /**
-   * Open help
-   */
-  openHelp() {
-    console.log('Opening help...');
-    // Implementation for opening help modal/view
-  }
-
-  /**
-   * Update the UI based on the current state
+   * Update the UI with current combat data
    * @private
    */
   _updateUI() {
-    // Update UI elements based on application and combat state
-  }
-
-  /**
-   * Add an event listener
-   * @param {string} eventName - The name of the event
-   * @param {Function} callback - The callback function
-   */
-  addEventListener(eventName, callback) {
-    if (!this.eventListeners.has(eventName)) {
-      this.eventListeners.set(eventName, []);
+    console.log('Updating UI with current combat data');
+    
+    // Update round counter
+    document.getElementById('jct-round').textContent = this.combat.round;
+    
+    // Update combatant list
+    this.ui.combatantList.innerHTML = '';
+    
+    if (this.combat.combatants.length === 0) {
+      console.log('No combatants to display');
+      this.ui.combatantList.innerHTML = '<div class="jct-empty-state">No combatants added yet.</div>';
+      return;
     }
-    this.eventListeners.get(eventName).push(callback);
-  }
-
-  /**
-   * Dispatch an event
-   * @param {string} eventName - The name of the event
-   * @param {Object} data - The event data
-   * @private
-   */
-  _dispatchEvent(eventName, data) {
-    if (this.eventListeners.has(eventName)) {
-      this.eventListeners.get(eventName).forEach(callback => {
-        try {
-          callback(data);
-        } catch (error) {
-          console.error(`Error in event listener for ${eventName}:`, error);
+    
+    console.log(`Rendering ${this.combat.combatants.length} combatants`);
+    
+    this.combat.combatants.forEach((combatant, index) => {
+      const isActive = index === this.combat.turn;
+      
+      const combatantEl = document.createElement('div');
+      combatantEl.className = `jct-combatant ${isActive ? 'jct-active' : ''}`;
+      combatantEl.dataset.id = combatant.id;
+      
+      combatantEl.innerHTML = `
+        <div class="jct-combatant-initiative">${combatant.initiative}</div>
+        <div class="jct-combatant-name">${combatant.name}</div>
+        <div class="jct-combatant-hp">
+          <span class="jct-hp-current">${combatant.hp}</span>/<span class="jct-hp-max">${combatant.maxHp}</span>
+        </div>
+        <div class="jct-combatant-ac">AC: ${combatant.ac}</div>
+        <div class="jct-combatant-controls">
+          <button class="jct-button jct-damage-button" data-id="${combatant.id}">Damage</button>
+          <button class="jct-button jct-heal-button" data-id="${combatant.id}">Heal</button>
+          <button class="jct-button jct-remove-button" data-id="${combatant.id}">Remove</button>
+        </div>
+      `;
+      
+      this.ui.combatantList.appendChild(combatantEl);
+      
+      // Add event listeners for the combatant buttons
+      combatantEl.querySelector('.jct-damage-button').addEventListener('click', () => {
+        const amount = parseInt(prompt(`Damage amount for ${combatant.name}:`, '0'));
+        if (!isNaN(amount) && amount > 0) {
+          this._damageCombatant(combatant.id, amount);
         }
       });
+      
+      combatantEl.querySelector('.jct-heal-button').addEventListener('click', () => {
+        const amount = parseInt(prompt(`Healing amount for ${combatant.name}:`, '0'));
+        if (!isNaN(amount) && amount > 0) {
+          this._healCombatant(combatant.id, amount);
+        }
+      });
+      
+      combatantEl.querySelector('.jct-remove-button').addEventListener('click', () => {
+        if (confirm(`Remove ${combatant.name} from combat?`)) {
+          this._removeCombatant(combatant.id);
+        }
+      });
+    });
+    
+    console.log('UI updated successfully');
+  }
+  
+  /**
+   * Apply damage to a combatant
+   * @param {string} id - Combatant ID
+   * @param {number} amount - Damage amount
+   * @private
+   */
+  _damageCombatant(id, amount) {
+    console.log(`Applying ${amount} damage to combatant ${id}`);
+    
+    const combatant = this.combat.combatants.find(c => c.id === id);
+    if (!combatant) {
+      console.error(`Combatant with ID ${id} not found`);
+      return;
     }
+    
+    combatant.hp = Math.max(0, combatant.hp - amount);
+    
+    // Update UI
+    this._updateUI();
+    
+    // Save data
+    this.saveData();
+    
+    console.log(`Combatant ${combatant.name} now has ${combatant.hp}/${combatant.maxHp} HP`);
+  }
+  
+  /**
+   * Heal a combatant
+   * @param {string} id - Combatant ID
+   * @param {number} amount - Healing amount
+   * @private
+   */
+  _healCombatant(id, amount) {
+    console.log(`Applying ${amount} healing to combatant ${id}`);
+    
+    const combatant = this.combat.combatants.find(c => c.id === id);
+    if (!combatant) {
+      console.error(`Combatant with ID ${id} not found`);
+      return;
+    }
+    
+    combatant.hp = Math.min(combatant.maxHp, combatant.hp + amount);
+    
+    // Update UI
+    this._updateUI();
+    
+    // Save data
+    this.saveData();
+    
+    console.log(`Combatant ${combatant.name} now has ${combatant.hp}/${combatant.maxHp} HP`);
+  }
+  
+  /**
+   * Remove a combatant from combat
+   * @param {string} id - Combatant ID
+   * @private
+   */
+  _removeCombatant(id) {
+    console.log(`Removing combatant ${id}`);
+    
+    const index = this.combat.combatants.findIndex(c => c.id === id);
+    if (index === -1) {
+      console.error(`Combatant with ID ${id} not found`);
+      return;
+    }
+    
+    // Remove the combatant
+    const removed = this.combat.combatants.splice(index, 1)[0];
+    console.log(`Removed combatant: ${removed.name}`);
+    
+    // Adjust the current turn if needed
+    if (index <= this.combat.turn && this.combat.turn > 0) {
+      this.combat.turn--;
+    }
+    
+    // Update UI
+    this._updateUI();
+    
+    // Save data
+    this.saveData();
+    
+    console.log(`Combat now has ${this.combat.combatants.length} combatants`);
+  }
+  
+  /**
+   * Save data to localStorage
+   */
+  saveData() {
+    console.log('Saving data to localStorage');
+    this.state = AppState.SAVING;
+    
+    try {
+      const dataToSave = {
+        combat: this.combat,
+        templates: JSON.parse(this.templateManager.exportAllToJson())
+      };
+      
+      localStorage.setItem(this.options.storageKey, JSON.stringify(dataToSave));
+      
+      this.state = AppState.READY;
+      console.log('Data saved successfully');
+    } catch (error) {
+      console.error('Error saving data:', error);
+      this.state = AppState.ERROR;
+      alert('Failed to save data: ' + error.message);
+    }
+  }
+  
+  /**
+   * Dispatch a custom event
+   * @param {string} name - Event name
+   * @param {Object} detail - Event details
+   * @private
+   */
+  _dispatchEvent(name, detail = {}) {
+    console.log(`Dispatching event: ${name}`, detail);
+    
+    const event = new CustomEvent(`jct:${name}`, {
+      bubbles: true,
+      detail
+    });
+    
+    this.container.dispatchEvent(event);
   }
 }
 
-/**
- * Create a new combat tracker application instance
- * @param {Object} options - Configuration options
- * @returns {CombatTrackerApp} A new application instance
- */
-export function createCombatTrackerApp(options = {}) {
-  return new CombatTrackerApp(options);
-}
+// Export the class
+window.CombatTrackerApp = CombatTrackerApp;
