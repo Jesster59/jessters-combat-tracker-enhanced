@@ -740,6 +740,8 @@ class CombatTrackerApp {
   }
 }
 
+// Add this at the end of your existing app.js file
+
 /**
  * Factory function to create a new CombatTrackerApp instance
  * @param {Object} options - Configuration options
