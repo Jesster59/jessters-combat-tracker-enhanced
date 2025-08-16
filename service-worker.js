@@ -38,20 +38,28 @@ const RUNTIME_CACHE_PATTERNS = [
 ];
 
 // Install event - precache critical resources
-self.addEventListener('install', event => {
+self.addEventListener('install', (event) => {
+  console.log('Pre-caching resources');
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => {
-        console.log('Pre-caching resources');
-        return cache.addAll(PRECACHE_RESOURCES);
-      })
-      .then(() => {
-        // Activate immediately without waiting for tabs to close
-        return self.skipWaiting();
-      })
-      .catch(error => {
-        console.error('Pre-caching failed:', error);
-      })
+    caches.open(CACHE_NAME).then((cache) => {
+      // Create an array of promises for each resource
+      const resourcePromises = [
+        './',
+        './index.html',
+        './css/styles.css',
+        // Keep only essential files that you're sure exist
+      ].map(url => {
+        // Try to cache each resource, but don't fail if one fails
+        return cache.add(url).catch(error => {
+          console.log(`Failed to cache: ${url}`, error);
+          // Continue despite the error
+          return Promise.resolve();
+        });
+      });
+      
+      // Wait for all promises to resolve
+      return Promise.all(resourcePromises);
+    })
   );
 });
 
